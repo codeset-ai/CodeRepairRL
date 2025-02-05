@@ -1,10 +1,13 @@
 import json
 import random
-import torch
+import contextlib
 from typing import Literal
+from functools import wraps
+
 
 from pydantic import BaseModel
 
+import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from lmformatenforcer import JsonSchemaParser
@@ -29,6 +32,15 @@ def extract_schema(response:str, schema:BaseModel)->BaseModel:
             return BooleanSchema(answer=random.choice(["True", "False"]))
         else:
             raise ValueError(f"Unknown schema type: {schema}")
+
+def inference_mode_decorator(func):
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        # Use inference_mode if enabled, otherwise a no-op context.
+        context = torch.inference_mode() if self.inference_only else contextlib.nullcontext()
+        with context:
+            return func(self, *args, **kwargs)
+    return wrapper
         
 
 class StructuredModelEvaluator:
@@ -46,33 +58,43 @@ class StructuredModelEvaluator:
     The final response is validated against the provided schema (e.g. MultipleChoice, Boolean)
     with fallback options for when the model fails to follow the format.
     """
-    def __init__(self, model:AutoModelForCausalLM, tokenizer:AutoTokenizer, name:str, device:str="cuda", system_prompt:str="You are a helpful assistant."):
-        self.model, self.tokenizer = model, tokenizer
-        self.name, self.device = name, device
+    def __init__(self, model, tokenizer, name, device="cuda", system_prompt="You are a helpful assistant.", inference_only=True, use_cache=True):
+        self.model = model
+        self.tokenizer = tokenizer
+        self.name = name
+        self.device = device
         self.system_prompt = system_prompt
+        self.inference_only = inference_only
+        self.use_cache = use_cache
 
-        self.model.to(self.device)  # ensure it is on the correct device
+        self.model.to(self.device)
+        self.model.eval()  # ensure dropout, etc. are disabled
+        # Ensure the generation config is updated accordingly if necessary:
+        self.model.generation_config.use_cache = use_cache
 
-    def generate_with_schema(self, model_input, schema:BaseModel, max_new_tokens:int=20)->str:
+    @inference_mode_decorator
+    def generate_with_schema(self, model_input, schema, max_new_tokens=20) -> str:
         parser = JsonSchemaParser(schema.model_json_schema())
         prefix_function = build_transformers_prefix_allowed_tokens_fn(self.tokenizer, parser)
-
         return self.model.generate(
             **model_input,
             max_new_tokens=max_new_tokens,
-            do_sample=False, temperature=None, top_p=None, top_k=None,  # Use greedy decoding for benchmarking
+            use_cache=self.use_cache,
+            do_sample=False, temperature=None, top_p=None, top_k=None,  # greedy decoding
             eos_token_id=self.tokenizer.eos_token_id,
-            pad_token_id=self.tokenizer.pad_token_id if self.tokenizer.pad_token_id is not None else self.tokenizer.eos_token_id,  # some models have no pad token
+            pad_token_id=self.tokenizer.pad_token_id if self.tokenizer.pad_token_id is not None else self.tokenizer.eos_token_id,
             prefix_allowed_tokens_fn=prefix_function,
         )
-    
-    def generate_without_schema(self, model_input, max_new_tokens:int=20)->str:
+
+    @inference_mode_decorator
+    def generate_without_schema(self, model_input, max_new_tokens=20) -> str:
         return self.model.generate(
             **model_input,
             max_new_tokens=max_new_tokens,
-            do_sample=False, temperature=None, top_p=None, top_k=None,  # Use greedy decoding for benchmarking
+            use_cache=self.use_cache,
+            do_sample=False, temperature=None, top_p=None, top_k=None,  # greedy decoding
             eos_token_id=self.tokenizer.eos_token_id,
-            pad_token_id=self.tokenizer.pad_token_id if self.tokenizer.pad_token_id is not None else self.tokenizer.eos_token_id,  # some models have no pad token
+            pad_token_id=self.tokenizer.pad_token_id if self.tokenizer.pad_token_id is not None else self.tokenizer.eos_token_id,
         )
     
     def process_messages(self, messages:list[dict]|list[list[dict]])->dict:
