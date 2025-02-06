@@ -17,6 +17,7 @@ from lmformatenforcer.integrations.transformers import build_transformers_prefix
 class MultipleChoiceSchema(BaseModel):
     answer: Literal["A", "B", "C", "D"]
 
+
 class BooleanSchema(BaseModel):
     answer: Literal["True", "False"]
 
@@ -33,12 +34,11 @@ def extract_schema(response:str, schema:BaseModel)->BaseModel:
         else:
             raise ValueError(f"Unknown schema type: {schema}")
 
+
 def inference_mode_decorator(func):
     @wraps(func)
     def wrapper(self, *args, **kwargs):
-        # Use inference_mode if enabled, otherwise a no-op context.
-        context = torch.inference_mode() if self.inference_only else contextlib.nullcontext()
-        with context:
+        with torch.inference_mode() if self.inference else contextlib.nullcontext():
             return func(self, *args, **kwargs)
     return wrapper
         
@@ -58,19 +58,16 @@ class StructuredModelEvaluator:
     The final response is validated against the provided schema (e.g. MultipleChoice, Boolean)
     with fallback options for when the model fails to follow the format.
     """
-    def __init__(self, model, tokenizer, name, device="cuda", system_prompt="You are a helpful assistant.", inference_only=True, use_cache=True):
-        self.model = model
-        self.tokenizer = tokenizer
-        self.name = name
-        self.device = device
+    def __init__(self, model, tokenizer, name, device="cuda", system_prompt="You are a helpful assistant.", inference=True, do_sample=False):
+        self.model, self.tokenizer, self.device = model, tokenizer, device
         self.system_prompt = system_prompt
-        self.inference_only = inference_only
-        self.use_cache = use_cache
+        self.inference, self.do_sample = inference, do_sample
 
         self.model.to(self.device)
-        self.model.eval()  # ensure dropout, etc. are disabled
-        # Ensure the generation config is updated accordingly if necessary:
-        self.model.generation_config.use_cache = use_cache
+
+        if self.inference:
+            self.model.eval()  # ensure dropout, etc. are disabled
+            self.model.generation_config.use_cache = True
 
     @inference_mode_decorator
     def generate_with_schema(self, model_input, schema, max_new_tokens=20) -> str:
@@ -80,7 +77,12 @@ class StructuredModelEvaluator:
             **model_input,
             max_new_tokens=max_new_tokens,
             use_cache=self.use_cache,
-            do_sample=False, temperature=None, top_p=None, top_k=None,  # greedy decoding
+            **(
+                {"do_sample":True, "temperature":0.7, "top_p":0.95, "top_k":60}  # sampling
+                if self.do_sample
+                else
+                {"do_sample":False, "temperature":None, "top_p":None, "top_k":None}  # greedy decoding
+            ),
             eos_token_id=self.tokenizer.eos_token_id,
             pad_token_id=self.tokenizer.pad_token_id if self.tokenizer.pad_token_id is not None else self.tokenizer.eos_token_id,
             prefix_allowed_tokens_fn=prefix_function,
@@ -92,38 +94,23 @@ class StructuredModelEvaluator:
             **model_input,
             max_new_tokens=max_new_tokens,
             use_cache=self.use_cache,
-            do_sample=False, temperature=None, top_p=None, top_k=None,  # greedy decoding
+            **(
+                {"do_sample":True, "temperature":0.7, "top_p":0.95, "top_k":60}  # sampling
+                if self.do_sample
+                else
+                {"do_sample":False, "temperature":None, "top_p":None, "top_k":None}  # greedy decoding
+            ),
             eos_token_id=self.tokenizer.eos_token_id,
             pad_token_id=self.tokenizer.pad_token_id if self.tokenizer.pad_token_id is not None else self.tokenizer.eos_token_id,
         )
     
-    def process_messages(self, messages:list[dict]|list[list[dict]])->dict:
-        """Convert message histories to model inputs. Handles both single and batch inputs."""
-        if not isinstance(messages[0], list):
-            messages = [messages]  # make it batch
-        
+    def process_messages(self, messages:list[list[dict]])->dict:
         formatted = [self.tokenizer.apply_chat_template(m, tokenize=False, add_generation_prompt=True) for m in messages]
         return self.tokenizer(formatted, return_tensors="pt", padding=True, add_special_tokens=True, padding_side="left").to(self.device)
 
-    def generate(self, prompt:str, schema:BaseModel, max_first_turn_tokens:int=200, max_second_turn_tokens:int=10)->str:
-        # First turn - let model think freely
-        messages = [{"role": "system", "content": self.system_prompt}]
-        messages.append({"role": "user", "content": prompt})
-        model_input = self.process_messages(messages)
-        thought_ids = self.generate_without_schema(model_input, max_new_tokens=max_first_turn_tokens)
-        thoughts = self.tokenizer.decode(thought_ids[0, len(model_input.input_ids[0]):], skip_special_tokens=True)
-
-        # Second turn - enforce schema with context
-        messages.append({"role": "assistant", "content": thoughts})
-        messages.append({"role": "user", "content": "Now answer the question in the required json format."})
-        model_input = self.process_messages(messages)
-
-        generated_ids = self.generate_with_schema(model_input, schema, max_new_tokens=max_second_turn_tokens)
-        answer = self.tokenizer.decode(generated_ids[0, len(model_input.input_ids[0]):], skip_special_tokens=True)
-        return extract_schema(answer.strip(), schema)
-
-
-    def batch_generate(self, prompts:list[str], schema:BaseModel, max_first_turn_tokens:int=200, max_second_turn_tokens:int=10)->list[str|BaseModel]:
+    def generate(self, prompts:str|list[str], schema:BaseModel, max_first_turn_tokens:int=200, max_second_turn_tokens:int=20)->list[str|BaseModel]:
+        prompts = [prompts] if isinstance(prompts, str) else prompts
+    
         # First turn - let model think freely
         messages = [[
             {"role": "system", "content": self.system_prompt},
@@ -153,7 +140,7 @@ if __name__ == "__main__":
     model = AutoModelForCausalLM.from_pretrained(model_name).to(DEVICE)
     model.generation_config.pad_token_id = tokenizer.pad_token_id  # suppress warnings
 
-    evaluator = StructuredModelEvaluator(model, tokenizer, model_name)
+    evaluator = StructuredModelEvaluator(model, tokenizer, inference=True, do_sample=True)
 
     print(f"\n{'='*20} Not batched {'='*20}\n")
 
@@ -185,8 +172,7 @@ if __name__ == "__main__":
         max_second_turn_tokens=10,
     )    
     for q, a in zip(questions, answers):
-        print(q)
-        print(a, "\n")
+        print(q, "\n", a, "\n")
 
     questions = ["Is Paris the capital of France? True or False", "Is Reykjavik the capital of Iceland? True or False"]
     answers = evaluator.batch_generate(
@@ -196,5 +182,4 @@ if __name__ == "__main__":
         max_second_turn_tokens=10,
     )
     for q, a in zip(questions, answers):
-        print(q)
-        print(a, "\n")
+        print(q, "\n", a, "\n")

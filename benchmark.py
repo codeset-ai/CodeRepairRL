@@ -30,7 +30,7 @@ if __name__ == "__main__":
 
     evaluator = StructuredModelEvaluator(model, tokenizer, model_name, system_prompt=SYSTEM_PROMPT)
 
-    dataset = PrimeVul(split="valid")
+    dataset = PrimeVul(split="test")
 
     results = []
     num_correct = 0
