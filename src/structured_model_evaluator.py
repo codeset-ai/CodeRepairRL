@@ -1,9 +1,11 @@
 import json
+import os
 import random
+import logging
 import contextlib
 from typing import Literal
 from functools import wraps
-
+from datetime import datetime
 
 from pydantic import BaseModel
 
@@ -12,6 +14,15 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from lmformatenforcer import JsonSchemaParser
 from lmformatenforcer.integrations.transformers import build_transformers_prefix_allowed_tokens_fn
+
+
+LOG_DIR = "logs"
+os.makedirs(LOG_DIR, exist_ok=True)
+logger = logging.getLogger("generation_logger")
+logger.setLevel(logging.INFO)
+handler = logging.FileHandler(os.path.join(LOG_DIR, f"generations-{datetime.now().strftime('%Y%m%d-%H%M%S')}.log"))
+handler.setFormatter(logging.Formatter('%(message)s'))
+logger.addHandler(handler)
 
 
 class MultipleChoiceSchema(BaseModel):
@@ -58,10 +69,10 @@ class StructuredModelEvaluator:
     The final response is validated against the provided schema (e.g. MultipleChoice, Boolean)
     with fallback options for when the model fails to follow the format.
     """
-    def __init__(self, model, tokenizer, name, device="cuda", system_prompt="You are a helpful assistant.", inference=True, do_sample=False):
+    def __init__(self, model, tokenizer, device="cuda", inference=True, do_sample=False, system_prompt="You are a helpful assistant.", adherence_prompt="Now answer the question in the required format."):
         self.model, self.tokenizer, self.device = model, tokenizer, device
-        self.system_prompt = system_prompt
         self.inference, self.do_sample = inference, do_sample
+        self.system_prompt, self.adherence_prompt = system_prompt, adherence_prompt
 
         self.model.to(self.device)
 
@@ -76,7 +87,7 @@ class StructuredModelEvaluator:
         return self.model.generate(
             **model_input,
             max_new_tokens=max_new_tokens,
-            use_cache=self.use_cache,
+            use_cache=True,
             **(
                 {"do_sample":True, "temperature":0.7, "top_p":0.95, "top_k":60}  # sampling
                 if self.do_sample
@@ -93,7 +104,7 @@ class StructuredModelEvaluator:
         return self.model.generate(
             **model_input,
             max_new_tokens=max_new_tokens,
-            use_cache=self.use_cache,
+            use_cache=True,
             **(
                 {"do_sample":True, "temperature":0.7, "top_p":0.95, "top_k":60}  # sampling
                 if self.do_sample
@@ -123,12 +134,25 @@ class StructuredModelEvaluator:
         # Second turn - enforce schema with context
         for m, t in zip(messages, thoughts):
             m.append({"role": "assistant", "content": t})
-            m.append({"role": "user", "content": "Now answer the question in the required format."})
+            m.append({"role": "user", "content": self.adherence_prompt})
         
         model_input = self.process_messages(messages)
         generated_ids = self.generate_with_schema(model_input, schema, max_new_tokens=max_second_turn_tokens)
         outputs = self.tokenizer.batch_decode(generated_ids[:, len(model_input.input_ids[0]):], skip_special_tokens=True)
-        return [extract_schema(output.strip(), schema) for output in outputs]
+        final_outputs = [extract_schema(output.strip(), schema) for output in outputs]
+
+        for p, t, o in zip(prompts, thoughts, outputs):
+            logger.info(json.dumps({
+                "prompt": p,
+                "thought": t,
+                "output": o,
+                "model": self.model.name_or_path,
+                "system_prompt": self.system_prompt,
+                "adherence_prompt": self.adherence_prompt,
+            }))
+
+        return final_outputs
+
 
 if __name__ == "__main__":
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
