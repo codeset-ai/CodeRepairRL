@@ -149,7 +149,7 @@ class StructuredModelEvaluator:
                 "model": self.model.name_or_path,
                 "system_prompt": self.system_prompt,
                 "adherence_prompt": self.adherence_prompt,
-            }))
+            }, indent=4))
 
         return final_outputs
 
