@@ -10,7 +10,6 @@ from src.structured_model_evaluator import StructuredModelEvaluator, BooleanSche
 SYSTEM_PROMPT = (
     "You are a neutral code auditor. For each code snippet provided, objectively assess if it contains vulnerabilities. "
     "If there is any reasonable doubt, weigh both sides before choosing."
-    "Note: many code snippets are safe, so avoid overestimating vulnerabilities."
 )
 
 ADHERENCE_PROMPT = (
@@ -29,7 +28,7 @@ def process_batch(items:list[dict])->tuple[list[str], list[bool]]:
 if __name__ == "__main__":
     DEVICE = "cuda"
     DTYPE = torch.bfloat16
-    BATCH_SIZE = 16
+    BATCH_SIZE = 4
 
     # model_name = "Qwen/Qwen2.5-Coder-1.5B-Instruct"
     model_name = "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
@@ -38,7 +37,13 @@ if __name__ == "__main__":
     model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=DTYPE).to(DEVICE).eval()
     torch.compile(model, mode="max-autotune")
 
-    evaluator = StructuredModelEvaluator(model, tokenizer, system_prompt=SYSTEM_PROMPT, adherence_prompt=ADHERENCE_PROMPT)
+    evaluator = StructuredModelEvaluator(
+        model,
+        tokenizer,
+        system_prompt=SYSTEM_PROMPT,
+        adherence_prompt=ADHERENCE_PROMPT,
+        do_sample=True
+    )
 
     dataset = PrimeVul(split="test")
 
@@ -53,8 +58,10 @@ if __name__ == "__main__":
             answers = evaluator.generate(funcs, BooleanSchema, max_first_turn_tokens=1024)
 
             results.extend(list(zip(funcs, is_vulnerable, [x.answer for x in answers])))
-            num_correct += sum(a == bool(b.answer) for a, b in zip(is_vulnerable, answers))
+            num_correct += sum(str(a) == b.answer for a, b in zip(is_vulnerable, answers))
             prime_tqdm.set_postfix(accuracy=num_correct / (i+len(batch)))
+
+            torch.cuda.empty_cache()  # paranoia
 
 
     json.dump(results, open("results.json", "w"), indent=4)
