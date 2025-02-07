@@ -27,14 +27,16 @@ def process_batch(items:list[dict])->tuple[list[str], list[bool]]:
 
 
 if __name__ == "__main__":
-    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+    DEVICE = "cuda"
+    DTYPE = torch.bfloat16
     BATCH_SIZE = 16
 
     # model_name = "Qwen/Qwen2.5-Coder-1.5B-Instruct"
     model_name = "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
 
     tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForCausalLM.from_pretrained(model_name).to(DEVICE).eval()
+    model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=DTYPE).to(DEVICE).eval()
+    torch.compile(model, mode="max-autotune")
 
     evaluator = StructuredModelEvaluator(model, tokenizer, system_prompt=SYSTEM_PROMPT, adherence_prompt=ADHERENCE_PROMPT)
 
@@ -43,12 +45,12 @@ if __name__ == "__main__":
     results = []
     num_correct = 0
 
-    with torch.inference_mode() and torch.autocast(device_type=DEVICE):
+    with torch.inference_mode(), torch.autocast(device_type=DEVICE, dtype=DTYPE):
         prime_tqdm = tqdm(range(0, len(dataset), BATCH_SIZE), desc="PrimeVul")
         for i in prime_tqdm:
             batch = dataset[i:i+BATCH_SIZE]
             funcs, is_vulnerable = process_batch(batch)
-            answers = evaluator.generate(funcs, BooleanSchema, max_first_turn_tokens=16)
+            answers = evaluator.generate(funcs, BooleanSchema, max_first_turn_tokens=1024)
 
             results.extend(list(zip(funcs, is_vulnerable, [x.answer for x in answers])))
             num_correct += sum(a == bool(b.answer) for a, b in zip(is_vulnerable, answers))
