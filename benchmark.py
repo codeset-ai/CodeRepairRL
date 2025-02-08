@@ -1,4 +1,6 @@
 import torch
+from torch.utils.data import DataLoader
+from accelerate import Accelerator
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 import wandb
@@ -12,8 +14,12 @@ from src.structured_model_evaluator import StructuredModelEvaluator, BooleanSche
 
 
 SYSTEM_PROMPT = (
-    "You are a neutral code auditor. For each code snippet provided, objectively assess if it contains vulnerabilities. "
-    "If there is any reasonable doubt, weigh both sides before choosing."
+    "You are a neutral code auditor. For each code snippet provided, follow these steps:\n"
+    "1. Carefully analyze the code for potential security vulnerabilities\n"
+    "2. Consider both evidence for and against each potential vulnerability\n"
+    "3. Evaluate the severity and exploitability of any findings\n"
+    "4. Conclude with a clear statement, yes or no, whether there is a significant software vulnerability present\n",
+    "Do not provide fixes or code solutions - focus only on vulnerability detection."
 )
 
 TASK_PROMPT = (
@@ -114,6 +120,7 @@ if __name__ == "__main__":
     MAX_THINKING_TOKENS = 2048
     DO_SAMPLE = True
 
+    accelerator = Accelerator(mixed_precision="bf16")
 
     config = {
         "model": MODEL_NAME,
@@ -140,7 +147,7 @@ if __name__ == "__main__":
         torch_dtype=DTYPE,
         cache_dir="models"
     ).to(DEVICE).eval()
-    torch.compile(model, mode="max-autotune")
+    accelerator.prepare(model)
 
     evaluator = StructuredModelEvaluator(
         model,
@@ -151,8 +158,10 @@ if __name__ == "__main__":
     )
 
     dataset = PrimeVul(split="valid")
+    dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=False, drop_last=False, collate_fn=lambda b: process_batch(b))
+    accelerator.prepare(dataloader)
 
-    N_BATCHES = len(dataset) // BATCH_SIZE
+    N_BATCHES = len(dataloader)
     LOG_EVERY_N_BATCHES = 10
 
     num_correct = 0
@@ -164,11 +173,9 @@ if __name__ == "__main__":
         columns=["code", "thought", "prediction", "target"]
     )
 
-    with torch.inference_mode(), torch.autocast(device_type=DEVICE, dtype=DTYPE):
-        prime_tqdm = tqdm(range(0, N_BATCHES), desc="PrimeVul")
-        for i in prime_tqdm:
-            batch = dataset[i*BATCH_SIZE:(i+1)*BATCH_SIZE]
-            prompts, targets = process_batch(batch)
+    with torch.inference_mode(), accelerator.autocast():
+        prime_tqdm = tqdm(dataloader, desc="PrimeVul")
+        for i, (prompts, targets) in enumerate(prime_tqdm):
             thoughts, answers = evaluator.generate(prompts, BooleanSchema, max_first_turn_tokens=MAX_THINKING_TOKENS)
             
             batch_predictions = [b.answer for b in answers]
@@ -176,7 +183,7 @@ if __name__ == "__main__":
             all_predictions.extend(str(p) for p in batch_predictions)
             
             num_correct += sum(str(a) == b.answer for a, b in zip(targets, answers))
-            current_accuracy = num_correct / (i*BATCH_SIZE + len(batch))
+            current_accuracy = num_correct / (i*BATCH_SIZE + len(prompts))
             prime_tqdm.set_postfix(accuracy=current_accuracy)
 
             torch.cuda.empty_cache()
@@ -194,7 +201,7 @@ if __name__ == "__main__":
                     str(target)
                 )
 
-            if i % LOG_EVERY_N_BATCHES == 0:  # wandb doesnt support incremental logging so we log everything every so often
+            if i % LOG_EVERY_N_BATCHES == 0 and i > 0:  # wandb doesnt support incremental logging so we log everything every so often
                 wandb.log({"predictions": predictions_table})
                 log_metrics(all_targets, all_predictions)
     
