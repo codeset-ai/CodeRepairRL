@@ -12,5 +12,6 @@ wheels/
 logs/
 
 data/
+models/
 results.json
 repomix-output.txt

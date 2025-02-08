@@ -65,7 +65,11 @@ if __name__ == "__main__":
     }, indent=4))
 
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    model = AutoModelForCausalLM.from_pretrained(MODEL_NAME, torch_dtype=DTYPE).to(DEVICE).eval()
+    model = AutoModelForCausalLM.from_pretrained(
+        MODEL_NAME,
+        torch_dtype=DTYPE,
+        cache_dir="models"
+    ).to(DEVICE).eval()
     torch.compile(model, mode="max-autotune")
 
     evaluator = StructuredModelEvaluator(
