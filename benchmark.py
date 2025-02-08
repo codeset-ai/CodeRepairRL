@@ -1,5 +1,5 @@
 import torch
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader
 from accelerate import Accelerator
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
@@ -154,7 +154,7 @@ def plot_confusion_matrix(targets, predictions):
 if __name__ == "__main__":
     DEVICE = "cuda"
     DTYPE = torch.bfloat16
-    BATCH_SIZE = 8
+    BATCH_SIZE = 2
     MODEL_NAME = "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B"
     MAX_THINKING_TOKENS = 2048
     DO_SAMPLE = True
@@ -197,7 +197,7 @@ if __name__ == "__main__":
     )
 
     dataset = PrimeVul(split="valid")
-    dataset, _ = random_split(dataset, [0.25, 0.75])  # a statistically significant sample
+    dataset = dataset[:int(len(dataset)*0.25)]  # a statistically significant sample
     dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=False, drop_last=False, collate_fn=lambda b: process_batch(b))
     accelerator.prepare(dataloader)
 
