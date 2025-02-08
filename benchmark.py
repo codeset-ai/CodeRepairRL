@@ -47,9 +47,10 @@ def process_batch(items:list[dict])->tuple[list[str], list[bool]]:
 if __name__ == "__main__":
     DEVICE = "cuda"
     DTYPE = torch.bfloat16
-    BATCH_SIZE = 2
-    MODEL_NAME = "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
-    MAX_THINKING_TOKENS = 128
+    BATCH_SIZE = 8
+    MODEL_NAME = "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
+    MAX_THINKING_TOKENS = 2048
+    DO_SAMPLE = True
 
     logger.info(json.dumps({
         "model": MODEL_NAME,
@@ -59,6 +60,7 @@ if __name__ == "__main__":
         "batch_size": BATCH_SIZE,
         "dtype": str(DTYPE),
         "device": DEVICE,
+        "do_sample": DO_SAMPLE
     }, indent=4))
 
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
@@ -70,10 +72,10 @@ if __name__ == "__main__":
         tokenizer,
         system_prompt=SYSTEM_PROMPT,
         adherence_prompt=ADHERENCE_PROMPT,
-        do_sample=True
+        do_sample=DO_SAMPLE
     )
 
-    dataset = PrimeVul(split="test")
+    dataset = PrimeVul(split="valid")
 
     num_correct = 0
 
@@ -87,7 +89,7 @@ if __name__ == "__main__":
             num_correct += sum(str(a) == b.answer for a, b in zip(targets, answers))
             prime_tqdm.set_postfix(accuracy=num_correct / (i+len(batch)))
 
-            torch.cuda.empty_cache()  # paranoia
+            torch.cuda.empty_cache()  # paranoia, seems to help
             
             for prompt, thought, model_answer, target in zip(prompts, thoughts, answers, targets):
                 logger.info(json.dumps({
