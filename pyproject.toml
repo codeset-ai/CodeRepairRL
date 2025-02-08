@@ -10,6 +10,8 @@ dependencies = [
     "lm-format-enforcer>=0.10.9",
     "matplotlib>=3.10.0",
     "pydantic>=2.10.6",
+    "scikit-learn>=1.6.1",
     "torch>=2.6.0",
     "transformers>=4.48.2",
+    "wandb>=0.19.6",
 ]

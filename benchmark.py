@@ -114,6 +114,7 @@ if __name__ == "__main__":
     MAX_THINKING_TOKENS = 2048
     DO_SAMPLE = True
 
+
     config = {
         "model": MODEL_NAME,
         "max_thinking_tokens": MAX_THINKING_TOKENS,
@@ -150,6 +151,10 @@ if __name__ == "__main__":
     )
 
     dataset = PrimeVul(split="valid")
+
+    N_BATCHES = len(dataset) // BATCH_SIZE
+    LOG_EVERY_N_BATCHES = 10
+
     num_correct = 0
     all_targets = []
     all_predictions = []
@@ -158,11 +163,11 @@ if __name__ == "__main__":
     predictions_table = wandb.Table(
         columns=["code", "thought", "prediction", "target"]
     )
-    
+
     with torch.inference_mode(), torch.autocast(device_type=DEVICE, dtype=DTYPE):
-        prime_tqdm = tqdm(range(0, len(dataset), BATCH_SIZE), desc="PrimeVul")
+        prime_tqdm = tqdm(range(0, N_BATCHES), desc="PrimeVul")
         for i in prime_tqdm:
-            batch = dataset[i:i+BATCH_SIZE]
+            batch = dataset[i*BATCH_SIZE:(i+1)*BATCH_SIZE]
             prompts, targets = process_batch(batch)
             thoughts, answers = evaluator.generate(prompts, BooleanSchema, max_first_turn_tokens=MAX_THINKING_TOKENS)
             
@@ -171,7 +176,7 @@ if __name__ == "__main__":
             all_predictions.extend(str(p) for p in batch_predictions)
             
             num_correct += sum(str(a) == b.answer for a, b in zip(targets, answers))
-            current_accuracy = num_correct / (i+len(batch))
+            current_accuracy = num_correct / (i*BATCH_SIZE + len(batch))
             prime_tqdm.set_postfix(accuracy=current_accuracy)
 
             torch.cuda.empty_cache()
@@ -189,8 +194,8 @@ if __name__ == "__main__":
                     str(target)
                 )
 
-
-        wandb.log({"predictions": predictions_table})
-        log_metrics(all_targets, all_predictions)
+            if i % LOG_EVERY_N_BATCHES == 0:  # wandb doesnt support incremental logging so we log everything every so often
+                wandb.log({"predictions": predictions_table})
+                log_metrics(all_targets, all_predictions)
     
     wandb.finish()
