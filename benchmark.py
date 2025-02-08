@@ -7,7 +7,7 @@ import wandb
 import numpy as np
 from tqdm import tqdm
 from matplotlib import pyplot as plt
-from sklearn.metrics import precision_score, recall_score, f1_score
+from sklearn.metrics import precision_score, recall_score, f1_score, confusion_matrix
 
 from src.primevul import PrimeVul
 from src.structured_model_evaluator import StructuredModelEvaluator, BooleanSchema
@@ -60,6 +60,7 @@ def log_metrics(all_targets, all_predictions):
 
     # Log the distribution plot to wandb.
     plot_distribution(all_targets, all_predictions)
+    plot_confusion_matrix(all_targets, all_predictions)
 
 
 def plot_distribution(targets, predictions):
@@ -110,12 +111,50 @@ def plot_distribution(targets, predictions):
     wandb.log({"distribution_plot": wandb.Image(fig)})
     plt.close(fig)
 
+def plot_confusion_matrix(targets, predictions):
+    """
+    Create and log a confusion matrix plot using the true labels and predictions.
+    """
+    # Convert "True"/"False" to integers.
+    targets_int = [1 if t == "True" else 0 for t in targets]
+    preds_int = [1 if p == "True" else 0 for p in predictions]
+
+    cm = confusion_matrix(targets_int, preds_int)
+    classes = ['False', 'True']  # since 0 represents False and 1 represents True
+
+    fig, ax = plt.subplots(figsize=(4, 4))
+    im = ax.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
+    ax.figure.colorbar(im, ax=ax)
+
+    # Set labels and title.
+    ax.set(
+        xticks=np.arange(len(classes)),
+        yticks=np.arange(len(classes)),
+        xticklabels=classes,
+        yticklabels=classes,
+        ylabel='True Label',
+        xlabel='Predicted Label',
+        title='Confusion Matrix'
+    )
+
+    # Annotate cells with counts.
+    fmt = 'd'
+    thresh = cm.max() / 2.
+    for i in range(cm.shape[0]):
+        for j in range(cm.shape[1]):
+            ax.text(j, i, format(cm[i, j], fmt),
+                    ha="center", va="center",
+                    color="white" if cm[i, j] > thresh else "black")
+
+    plt.tight_layout()
+    wandb.log({"confusion_matrix": wandb.Image(fig)})
+    plt.close(fig)
 
 
 if __name__ == "__main__":
     DEVICE = "cuda"
     DTYPE = torch.bfloat16
-    BATCH_SIZE = 4
+    BATCH_SIZE = 8
     MODEL_NAME = "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
     MAX_THINKING_TOKENS = 2048
     DO_SAMPLE = True
