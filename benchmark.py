@@ -47,7 +47,7 @@ def process_batch(items:list[dict])->tuple[list[str], list[bool]]:
 if __name__ == "__main__":
     DEVICE = "cuda"
     DTYPE = torch.bfloat16
-    BATCH_SIZE = 8
+    BATCH_SIZE = 4
     MODEL_NAME = "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
     MAX_THINKING_TOKENS = 2048
     DO_SAMPLE = True
@@ -60,7 +60,8 @@ if __name__ == "__main__":
         "batch_size": BATCH_SIZE,
         "dtype": str(DTYPE),
         "device": DEVICE,
-        "do_sample": DO_SAMPLE
+        "do_sample": DO_SAMPLE,
+        "gpu_name": torch.cuda.get_device_name(DEVICE)
     }, indent=4))
 
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
