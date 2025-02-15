@@ -1,0 +1,44 @@
+run:
+  dataset_name: "Bobbi/Primevul"
+  wandb_project: "TTC"
+  torch_dtype: "bfloat16"
+
+model:
+  model_name: "Qwen/Qwen2.5-Coder-1.5B-Instruct"
+  load_in_4bit: true
+  gpu_memory_utilization: 0.6
+  fast_inference: true
+  max_seq_length: 2048
+  max_lora_rank: 32
+
+grpo:
+  # Optimizer settings
+  learning_rate: 5e-6
+  adam_beta1: 0.9
+  adam_beta2: 0.99
+  weight_decay: 0.1
+  warmup_ratio: 0.1
+  lr_scheduler_type: "cosine"
+  optim: "paged_adamw_8bit"
+  
+  # Training loop settings
+  max_steps: 250
+  save_steps: 250
+  logging_steps: 1
+  max_grad_norm: 0.1
+  
+  # Model settings
+  use_vllm: true
+  bf16: true
+  per_device_train_batch_size: 1
+  gradient_accumulation_steps: 1
+  
+  # Generation settings
+  num_generations: 6
+  max_prompt_length: 256
+  max_completion_length: 200
+  
+  # Logging settings
+  report_to: "wandb"
+  run_name: "${model.model_name}-GRPO-${run.dataset_name}"
+  output_dir: "outputs" 
