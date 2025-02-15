@@ -1,6 +1,6 @@
 import os
 import re
-from dataclasses import dataclass, field, MISSING
+from dataclasses import dataclass, field
 from typing import Optional
 
 import hydra
@@ -184,7 +184,12 @@ def main(cfg: Config) -> None:
 
     os.environ["WANDB_PROJECT"] = cfg.run.wandb_project
 
-    model, tokenizer = FastLanguageModel.from_pretrained(**cfg.model)
+    model, tokenizer = FastLanguageModel.from_pretrained(
+        **cfg.model,
+        dtype=torch.bfloat16,
+        load_format="bitsandbytes",
+        quantization="bitsandbytes"
+    )
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "left"
 

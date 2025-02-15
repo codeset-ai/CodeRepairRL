@@ -1,3 +1,6 @@
+defaults:
+  - _self_
+
 run:
   dataset_name: "Bobbi/Primevul"
   wandb_project: "TTC"
@@ -5,10 +8,10 @@ run:
 
 model:
   model_name: "Qwen/Qwen2.5-Coder-1.5B-Instruct"
-  load_in_4bit: true
+  load_in_4bit: false
   gpu_memory_utilization: 0.6
   fast_inference: true
-  max_seq_length: 2048
+  max_seq_length: 512
   max_lora_rank: 32
 
 grpo:
@@ -30,11 +33,11 @@ grpo:
   # Model settings
   use_vllm: true
   bf16: true
-  per_device_train_batch_size: 1
-  gradient_accumulation_steps: 1
+  per_device_train_batch_size: 8
+  gradient_accumulation_steps: 4
   
   # Generation settings
-  num_generations: 6
+  num_generations: 8
   max_prompt_length: 256
   max_completion_length: 200
   
