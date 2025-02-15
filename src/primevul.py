@@ -99,3 +99,22 @@ if __name__ == "__main__":
     dataset = PrimeVul("train")
     print(dataset.num_classes)
     print(dataset.classes)
+
+    if input("Convert to HF dataset? (y/n)") == "n": exit()
+
+    from datasets import Dataset as HFDataset, DatasetDict
+
+    def convert(data):
+        return [{
+            "func": item["func"],
+            "is_vulnerable": item["target"]==0,
+            "cwe": item["cwe"]
+        } for item in data]
+
+    hfds = DatasetDict({
+        "train": HFDataset.from_list(convert(PrimeVul("train").data)),
+        "valid": HFDataset.from_list(convert(PrimeVul("valid").data)),
+        "test": HFDataset.from_list(convert(PrimeVul("test").data))
+    })
+
+    hfds.push_to_hub("Bobbi/Primevul")

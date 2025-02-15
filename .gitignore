@@ -6,13 +6,17 @@ dist/
 wheels/
 *.egg-info
 
+# Environment variables
+.env
+
 # Virtual environments
 .venv
 
 logs/
 wandb/
-
 data/
 models/
+outputs/
+
 results.json
 repomix-output.txt

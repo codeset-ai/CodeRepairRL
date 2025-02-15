@@ -73,7 +73,7 @@ class StructuredModelEvaluator:
             use_cache=True,
             max_new_tokens=max_new_tokens,
             **(
-                {"do_sample":True, "temperature":0.7, "top_p":0.95, "top_k":60}  # sampling
+                {"do_sample":True, "temperature":0.7, "top_p":0.80, "top_k":20}  # sampling
                 if self.do_sample
                 else
                 {"do_sample":False, "temperature":None, "top_p":None, "top_k":None}  # greedy decoding
