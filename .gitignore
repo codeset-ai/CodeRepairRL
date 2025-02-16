@@ -17,6 +17,7 @@ wandb/
 data/
 models/
 outputs/
+unsloth_compiled_cache/
 
 results.json
 repomix-output.txt

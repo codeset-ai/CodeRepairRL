@@ -1,15 +1,19 @@
+from utils.logging import build_html_table
+
+from unsloth import FastLanguageModel, PatchFastRL
+PatchFastRL("GRPO", FastLanguageModel)  # important to call this first
+
 import os
 import re
-from dataclasses import dataclass, field
 from typing import Optional
+from dataclasses import dataclass, field
 
+import wandb
 import hydra
 from hydra.core.config_store import ConfigStore
 
-import torch
-from trl import GRPOConfig as HFGRPOConfig, GRPOTrainer
 from datasets import load_dataset, Dataset
-from unsloth import FastLanguageModel, PatchFastRL
+from trl import GRPOConfig as HFGRPOConfig, GRPOTrainer
 
 
 @dataclass
@@ -23,12 +27,14 @@ class ModelConfig:
     model_name: str = "Qwen/Qwen2.5-Coder-1.5B-Instruct"
     load_in_4bit: bool = True
     fast_inference: bool = True # Enable vLLM fast inference
+    max_seq_length: Optional[int] = 512
+    max_lora_rank: Optional[int] = 32
     gpu_memory_utilization: float = 0.6 # Reduce if out of memory
-    max_seq_length: Optional[int] = None
-    max_lora_rank: Optional[int] = None
 
 @dataclass
 class GRPOConfig:
+    use_vllm: bool = True
+
     # Optimizer settings
     learning_rate: float = 5e-6
     adam_beta1: float = 0.9
@@ -38,15 +44,9 @@ class GRPOConfig:
     lr_scheduler_type: str = "cosine"
     optim: str = "paged_adamw_8bit"
     
-    # Training loop settings
-    max_steps: int = 250
-    save_steps: int = 250
-    logging_steps: int = 1
-    max_grad_norm: float = 0.1
-    
     # Model settings
-    use_vllm: bool = True
     bf16: bool = True
+    fp16: bool = False
     per_device_train_batch_size: int = 1
     gradient_accumulation_steps: int = 1
     
@@ -54,6 +54,12 @@ class GRPOConfig:
     num_generations: int = 6
     max_prompt_length: int = 256
     max_completion_length: int = 200
+
+    # Training loop settings
+    logging_steps: int = 1
+    max_steps: int = 250
+    save_steps: int = 250
+    max_grad_norm: float = 0.1
     
     # Logging settings
     report_to: str = "wandb"
@@ -68,7 +74,8 @@ class Config:
 
 # Register the config schema
 cs = ConfigStore.instance()
-cs.store(name="grpo_config", node=Config)
+cs.store(name="grpo_config", node=Config, group="")
+
 
 SYSTEM_PROMPT = """
 Your are a neutral code auditor detecting software vulnerabilities. Do not provide fixes or code solutions - focus only on vulnerability detection.
@@ -82,28 +89,36 @@ True or False
 """
 
 def extract_xml_answer(text: str) -> str:
-    answer = text.split("<answer>")[-1]
-    answer = answer.split("</answer>")[0]
-    return answer.strip()
+    if "<answer>" in text and "</answer>" in text:
+        return text.split("<answer>", 1)[1].split("</answer>", 1)[0].strip()
+
+    return "N/A"
 
 def get_primevul(cfg: RunConfig, split="train") -> Dataset:
     data = load_dataset(cfg.dataset_name, split=split)
+    data = data.filter(lambda x: len(x['func']) < 9200 / 10)  # slightly less than 2048 tokens to accomodate the system prompt
     data = data.map(lambda x: {
         'prompt': [
             {'role': 'system', 'content': SYSTEM_PROMPT},
             {'role': 'user', 'content': x['func']}
         ],
-        'answer': x['is_vulnerable']
+        'answer': str(x['is_vulnerable'])
     })
     return data
 
 # Reward functions
 def correctness_reward_func(prompts, completions, answer, **kwargs) -> list[float]:
     responses = [completion[0]['content'] for completion in completions]
-    q = prompts[0][-1]['content']
     extracted_responses = [extract_xml_answer(r) for r in responses]
-    print('-'*20, f"Question:\n{q}", f"\nAnswer:\n{answer[0]}", f"\nResponse:\n{responses[0]}", f"\nExtracted:\n{extracted_responses[0]}")
-    return [2.0 if r == a else 0.0 for r, a in zip(extracted_responses, answer)]
+    # For each sample, add a row to our HTML table.
+    html_rows = []
+    for prompt_item, response, ext, ans in zip(prompts, responses, extracted_responses, answer):
+         prompt_text = prompt_item[-1]['content'] if prompt_item else ""
+         html_rows.append((prompt_text, response, ext, ans))
+    # Rebuild and log the HTML table.
+    html_table = build_html_table(html_rows)
+    wandb.log({"eval_table": wandb.Html(html_table)})
+    return [2.0 if ext == a else 0.0 for ext, a in zip(extracted_responses, answer)]
 
 def strict_format_reward_func(completions, **kwargs) -> list[float]:
     """Reward function that checks if the completion has a specific format."""
@@ -131,7 +146,7 @@ def count_xml(text) -> float:
     if text.count("\n</answer>") == 1:
         count += 0.125
         count -= (len(text.split("\n</answer>")[-1]) - 1)*0.001
-    return count
+    return max(count, 0.0)
 
 def xmlcount_reward_func(completions, **kwargs) -> list[float]:
     contents = [completion[0]["content"] for completion in completions]
@@ -178,18 +193,13 @@ def test_inference(model, tokenizer):
     print("\nOutput with fine-tuning:")
     print(tokenizer.decode(outputs[0], skip_special_tokens=True))
 
-@hydra.main(version_base=None, config_path="conf", config_name="grpo_config")
+@hydra.main(version_base="1.1", config_path="conf", config_name="grpo_config")
 def main(cfg: Config) -> None:
     PatchFastRL("GRPO", FastLanguageModel)
 
     os.environ["WANDB_PROJECT"] = cfg.run.wandb_project
 
-    model, tokenizer = FastLanguageModel.from_pretrained(
-        **cfg.model,
-        dtype=torch.bfloat16,
-        load_format="bitsandbytes",
-        quantization="bitsandbytes"
-    )
+    model, tokenizer = FastLanguageModel.from_pretrained(**cfg.model)
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "left"
 
@@ -212,6 +222,7 @@ def main(cfg: Config) -> None:
     # Initialize trainer
     trainer = GRPOTrainer(
         model=model,
+        processing_class=tokenizer,
         reward_funcs=[
             xmlcount_reward_func,
             soft_format_reward_func,
