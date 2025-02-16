@@ -118,8 +118,6 @@ def correctness_reward_func(prompts, completions, answer, **kwargs) -> list[floa
     # Rebuild and log the HTML table.
     html_table = build_html_table(html_rows)
     wandb.log({"eval_table": wandb.Html(html_table)})
-    print(extracted_responses)
-    print(answer)
     return [2.0 if ext == a else 0.0 for ext, a in zip(extracted_responses, answer)]
 
 def strict_format_reward_func(completions, **kwargs) -> list[float]:
