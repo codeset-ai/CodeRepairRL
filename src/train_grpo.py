@@ -96,7 +96,7 @@ def extract_xml_answer(text: str) -> str:
 
 def get_primevul(cfg: RunConfig, split="train") -> Dataset:
     data = load_dataset(cfg.dataset_name, split=split)
-    data = data.filter(lambda x: len(x['func']) < 9200 / 10)  # slightly less than 2048 tokens to accomodate the system prompt
+    data = data.filter(lambda x: len(x['func']) < 9200)  # slightly less than 2048 tokens to accomodate the system prompt
     data = data.map(lambda x: {
         'prompt': [
             {'role': 'system', 'content': SYSTEM_PROMPT},
