@@ -7,12 +7,12 @@ run:
   torch_dtype: "bfloat16"
 
 model:
-  model_name: "Qwen/Qwen2.5-Coder-32B-Instruct"  # Upgraded to 7B model
+  model_name: "Qwen/Qwen2.5-Coder-7B-Instruct"  # Upgraded to 7B model
   load_in_4bit: true
   fast_inference: true
-  max_seq_length: 2560  # Increased context length
-  max_lora_rank: 64    # Increased LoRA rank for larger model
-  gpu_memory_utilization: 0.8  # Increased memory utilization
+  max_seq_length: 2048  # Increased context length
+  max_lora_rank: 32    # Increased LoRA rank for larger model
+  gpu_memory_utilization: 0.7  # Increased memory utilization
 
 grpo:
   use_vllm: true
@@ -33,12 +33,12 @@ grpo:
   
   # Generation settings
   num_generations: 6
-  max_prompt_length: 2048    # Increased prompt length
-  max_completion_length: 512  # Increased completion length
+  max_prompt_length: 1024    # Increased prompt length
+  max_completion_length: 1024  # Increased completion length
   
   # Training loop settings
   logging_steps: 1
-  max_steps: 250
+  max_steps: -1
   save_steps: 250
   max_grad_norm: 0.1
   

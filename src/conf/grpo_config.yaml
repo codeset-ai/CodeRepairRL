@@ -38,7 +38,7 @@ grpo:
   
   # Training loop settings
   logging_steps: 1
-  max_steps: 250
+  max_steps: -1
   save_steps: 250
   max_grad_norm: 0.1
   

@@ -96,7 +96,7 @@ def extract_xml_answer(text: str) -> str:
 
 def get_primevul(cfg: RunConfig, split="train") -> Dataset:
     data = load_dataset(cfg.dataset_name, split=split)
-    data = data.filter(lambda x: len(x['func']) < 9200)  # slightly less than 2048 tokens to accomodate the system prompt
+    data = data.filter(lambda x: len(x['func']) < 2200)  # slightly less than 1024, guestimated that max_prompt+system_prompt ~= 1024
     data = data.map(lambda x: {
         'prompt': [
             {'role': 'system', 'content': SYSTEM_PROMPT},
@@ -118,18 +118,13 @@ def correctness_reward_func(prompts, completions, answer, **kwargs) -> list[floa
     # Rebuild and log the HTML table.
     html_table = build_html_table(html_rows)
     wandb.log({"eval_table": wandb.Html(html_table)})
+    print(extracted_responses)
+    print(answer)
     return [2.0 if ext == a else 0.0 for ext, a in zip(extracted_responses, answer)]
 
 def strict_format_reward_func(completions, **kwargs) -> list[float]:
     """Reward function that checks if the completion has a specific format."""
-    pattern = r"^<think>\n.*?\n</think>\n<answer>\n.*?\n</answer>\n$"
-    responses = [completion[0]["content"] for completion in completions]
-    matches = [re.match(pattern, r) for r in responses]
-    return [0.5 if match else 0.0 for match in matches]
-
-def soft_format_reward_func(completions, **kwargs) -> list[float]:
-    """Reward function that checks if the completion has a specific format."""
-    pattern = r"<think>.*?</think>\s*<answer>.*?</answer>"
+    pattern = r"^<think>\n([\s\S]+?)\n</think>\n<answer>\n([^\n]+)\n</answer>\s*$"
     responses = [completion[0]["content"] for completion in completions]
     matches = [re.match(pattern, r) for r in responses]
     return [0.5 if match else 0.0 for match in matches]
@@ -153,6 +148,12 @@ def xmlcount_reward_func(completions, **kwargs) -> list[float]:
     return [count_xml(c) for c in contents]
 
 def test_inference(model, tokenizer):
+    from vllm import SamplingParams
+    sampling_params = SamplingParams(
+        temperature = 0.8,
+        top_p = 0.95,
+        max_tokens = 1024,
+    )
     # Test prompt
     prompt = """
     int main() {
@@ -161,37 +162,30 @@ def test_inference(model, tokenizer):
         return 0;
     }
     """
-    
+    text = tokenizer.apply_chat_template([
+        {"role" : "user", "content" : prompt},
+    ], tokenize = False, add_generation_prompt = True)
+        
     # Format input
     inputs = tokenizer(prompt, return_tensors="pt", padding=True).to(model.device)
     
     # Generate without fine-tuning
-    outputs = model.generate(
-        **inputs,
-        max_new_tokens=1024,
-        temperature=0.8,
-        top_p=0.95,
-        pad_token_id=tokenizer.eos_token_id
-    )
+    output = model.fast_generate(
+        [text],
+        sampling_params = sampling_params,
+        lora_request = None,
+    )[0].outputs[0].text
     print("\nOutput without fine-tuning:")
-    print(tokenizer.decode(outputs[0], skip_special_tokens=True))
+    print(output)
 
     # Generate with fine-tuning
-    inputs = tokenizer(
-        f"{SYSTEM_PROMPT}\nUser: {prompt}",
-        return_tensors="pt",
-        padding=True
-    ).to(model.device)
-    
-    outputs = model.generate(
-        **inputs,
-        max_new_tokens=1024,
-        temperature=0.8,
-        top_p=0.95,
-        pad_token_id=tokenizer.eos_token_id
-    )
+    output = model.fast_generate(
+        text,
+        sampling_params = sampling_params,
+        lora_request = model.load_lora("grpo_saved_lora"),
+    )[0].outputs[0].text
     print("\nOutput with fine-tuning:")
-    print(tokenizer.decode(outputs[0], skip_special_tokens=True))
+    print(output)
 
 @hydra.main(version_base="1.1", config_path="conf", config_name="grpo_config")
 def main(cfg: Config) -> None:
@@ -225,7 +219,6 @@ def main(cfg: Config) -> None:
         processing_class=tokenizer,
         reward_funcs=[
             xmlcount_reward_func,
-            soft_format_reward_func,
             strict_format_reward_func,
             correctness_reward_func,
         ],
