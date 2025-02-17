@@ -63,7 +63,7 @@ class GRPOConfig:
     
     # Logging settings
     report_to: str = "wandb"
-    run_name: str = "Qwen2.5-Coder-1.5B-Instruct-GRPO-Primevul"
+    run_name: Optional[str] = None
     output_dir: str = "outputs"
 
 @dataclass
@@ -79,7 +79,7 @@ cs.store(name="grpo_config", node=Config, group="")
 
 SYSTEM_PROMPT = """
 Your are a neutral code auditor detecting software vulnerabilities. Do not provide fixes or code solutions - focus only on vulnerability detection.
-Respond in the following format:
+Use markdown and respond in the following format:
 <think>
 ...
 </think>
@@ -130,15 +130,15 @@ def strict_format_reward_func(completions, **kwargs) -> list[float]:
 def count_xml(text) -> float:
     count = 0.0
     if text.count("<think>\n") == 1:
+        count -= len(text.split("<think>\n")[0])*0.001  # penalize for thinking before "think"
         count += 0.125
     if text.count("\n</think>\n") == 1:
         count += 0.125
     if text.count("\n<answer>\n") == 1:
         count += 0.125
-        count -= len(text.split("\n</answer>\n")[-1])*0.001
     if text.count("\n</answer>") == 1:
         count += 0.125
-        count -= (len(text.split("\n</answer>")[-1]) - 1)*0.001
+        count -= (len(text.split("\n</answer>")[-1]))*0.001  # penalize for answering after "answer"
     return max(count, 0.0)
 
 def xmlcount_reward_func(completions, **kwargs) -> list[float]:
@@ -164,9 +164,6 @@ def test_inference(model, tokenizer):
         {"role" : "user", "content" : prompt},
     ], tokenize = False, add_generation_prompt = True)
         
-    # Format input
-    inputs = tokenizer(prompt, return_tensors="pt", padding=True).to(model.device)
-    
     # Generate without fine-tuning
     output = model.fast_generate(
         [text],

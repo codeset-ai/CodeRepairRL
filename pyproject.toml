@@ -18,4 +18,5 @@ dependencies = [
     "setuptools>=75.8.0",
     "datasets>=3.3.0",
     "pygments>=2.19.1",
+    "markdown2>=2.5.3",
 ]
