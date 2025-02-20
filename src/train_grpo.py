@@ -1,10 +1,11 @@
+from utils.git import get_commit_hash
 from utils.logging import build_html_table
+from utils.rewards import xmlcount_reward_func, strict_format_reward_func, correctness_reward_func as correctness_reward_func_original, extract_xml_answer
 
 from unsloth import FastLanguageModel, PatchFastRL
 PatchFastRL("GRPO", FastLanguageModel)  # important to call this first
 
 import os
-import re
 from typing import Optional
 from dataclasses import dataclass, field
 
@@ -21,6 +22,12 @@ class RunConfig:
     dataset_name: str = "Bobbi/Primevul"
     wandb_project: str = "TTC"
     torch_dtype: str = "bfloat16"
+    commit_hash: str = field(default_factory=get_commit_hash)
+    train_mode: str = "lora"
+
+    def __post_init__(self):
+        if self.train_mode not in ["full", "lora"]:
+            raise ValueError("train_mode must be either 'full' or 'lora'") 
 
 @dataclass
 class ModelConfig:
@@ -74,40 +81,71 @@ class Config:
 
 # Register the config schema
 cs = ConfigStore.instance()
-cs.store(name="grpo_config", node=Config, group="")
+cs.store(name="base_grpo_config", node=Config, group="")
 
+TOP_10_CWES = ["CWE-119", "CWE-20", "CWE-264"]  #, "CWE-200", "CWE-125", "CWE-189", "CWE-416", "CWE-399", "CWE-476", "CWE-362"]
 
 SYSTEM_PROMPT = """
 Your are a neutral code auditor detecting software vulnerabilities. Do not provide fixes or code solutions - focus only on vulnerability detection.
-Use markdown and respond in the following format:
+Use the following labels:
+    - CWE-119: Buffer overflow—writing outside allocated memory.
+    - CWE-20: Poor input validation allows malicious data.
+    - CWE-264: Weak access controls enable unauthorized actions.
+    - None: No vulnerability detected.
+Respond in the following format:
 <think>
 ...
 </think>
 <answer>
-True or False
+One of the labels above
 </answer>
 """
 
-def extract_xml_answer(text: str) -> str:
-    if "<answer>" in text and "</answer>" in text:
-        return text.split("<answer>", 1)[1].split("</answer>", 1)[0].strip()
+# the rest of top10
+# - CWE-200: Unintended sensitive data exposure.
+# - CWE-125: Out-of-bounds read leaks data.
+# - CWE-189: Numeric errors cause calculation and logic faults.
+# - CWE-416: Use-after-free—accessing deallocated memory.
+# - CWE-399: Mismanaged resources leading to leaks/exhaustion.
+# - CWE-476: Null pointer dereference results in crashes.
+# - CWE-362: Race conditions from unsynchronized concurrent operations.
 
-    return "N/A"
+def get_primevul(cfg: Config, tokenizer, split: str = "train_paired") -> Dataset:
+    data = load_dataset(cfg.run.dataset_name, split=split)
+    data = data.filter(lambda x: x["cwe"][0] in TOP_10_CWES)  # for simplicity, we only consider the first CWE
 
-def get_primevul(cfg: RunConfig, split="train") -> Dataset:
-    data = load_dataset(cfg.dataset_name, split=split)
-    data = data.filter(lambda x: len(x['func']) < 2200)  # slightly less than 1024, guestimated that max_prompt+system_prompt ~= 1024
+    def tokenize_prompt(batch):
+        messages = [
+            [
+                {'role': 'system', 'content': SYSTEM_PROMPT},
+                {'role': 'user', 'content': func}
+            ] for func in batch['func']
+        ]
+        tokenized = tokenizer.apply_chat_template(messages, add_generation_prompt=True)
+        batch['tokenized_length'] = [len(ids) for ids in tokenized]
+        return batch
+
+    # get the tokenized length of the prompt to filter out too long prompts
+    data = data.map(tokenize_prompt, batched=True, batch_size=1000)
+
+    print(f"Filtering out prompts longer than {cfg.grpo.max_prompt_length} tokens")
+    print(f"Number of prompts before filtering: {len(data)}")
+    data = data.filter(lambda x: x['tokenized_length'] <= cfg.grpo.max_prompt_length)
+    print(f"Number of prompts after filtering: {len(data)}")
+
+    # now we have guaranteed that SYSTEM_PROMPT + "func" <= max_prompt_length for all examples
     data = data.map(lambda x: {
         'prompt': [
             {'role': 'system', 'content': SYSTEM_PROMPT},
             {'role': 'user', 'content': x['func']}
         ],
-        'answer': str(x['is_vulnerable'])
+        'answer': x['cwe'][0] if x["is_vulnerable"] else "None"
     })
     return data
 
-# Reward functions
-def correctness_reward_func(prompts, completions, answer, **kwargs) -> list[float]:
+# GRPOTrainer offers no other way to create callbacks with the completions
+# quick and dirty solution
+def correctness_reward_func(prompts, completions, answer, **kwargs):
     responses = [completion[0]['content'] for completion in completions]
     extracted_responses = [extract_xml_answer(r) for r in responses]
     # For each sample, add a row to our HTML table.
@@ -118,95 +156,33 @@ def correctness_reward_func(prompts, completions, answer, **kwargs) -> list[floa
     # Rebuild and log the HTML table.
     html_table = build_html_table(html_rows)
     wandb.log({"eval_table": wandb.Html(html_table)})
-    return [2.0 if ext == a else 0.0 for ext, a in zip(extracted_responses, answer)]
 
-def strict_format_reward_func(completions, **kwargs) -> list[float]:
-    """Reward function that checks if the completion has a specific format."""
-    pattern = r"^<think>\n([\s\S]+?)\n</think>\n<answer>\n([^\n]+)\n</answer>\s*$"
-    responses = [completion[0]["content"] for completion in completions]
-    matches = [re.match(pattern, r) for r in responses]
-    return [0.5 if match else 0.0 for match in matches]
+    return correctness_reward_func_original(prompts, completions, answer, **kwargs)
 
-def count_xml(text) -> float:
-    count = 0.0
-    if text.count("<think>\n") == 1:
-        count -= len(text.split("<think>\n")[0])*0.001  # penalize for thinking before "think"
-        count += 0.125
-    if text.count("\n</think>\n") == 1:
-        count += 0.125
-    if text.count("\n<answer>\n") == 1:
-        count += 0.125
-    if text.count("\n</answer>") == 1:
-        count += 0.125
-        count -= (len(text.split("\n</answer>")[-1]))*0.001  # penalize for answering after "answer"
-    return max(count, 0.0)
-
-def xmlcount_reward_func(completions, **kwargs) -> list[float]:
-    contents = [completion[0]["content"] for completion in completions]
-    return [count_xml(c) for c in contents]
-
-def test_inference(model, tokenizer):
-    from vllm import SamplingParams
-    sampling_params = SamplingParams(
-        temperature = 0.8,
-        top_p = 0.95,
-        max_tokens = 1024,
-    )
-    # Test prompt
-    prompt = """
-    int main() {
-        char buffer[10];
-        gets(buffer);
-        return 0;
-    }
-    """
-    text = tokenizer.apply_chat_template([
-        {"role" : "user", "content" : prompt},
-    ], tokenize = False, add_generation_prompt = True)
-        
-    # Generate without fine-tuning
-    output = model.fast_generate(
-        [text],
-        sampling_params = sampling_params,
-        lora_request = None,
-    )[0].outputs[0].text
-    print("\nOutput without fine-tuning:")
-    print(output)
-
-    # Generate with fine-tuning
-    output = model.fast_generate(
-        text,
-        sampling_params = sampling_params,
-        lora_request = model.load_lora("grpo_saved_lora"),
-    )[0].outputs[0].text
-    print("\nOutput with fine-tuning:")
-    print(output)
-
-@hydra.main(version_base="1.1", config_path="conf", config_name="grpo_config")
+@hydra.main(version_base="1.1", config_path="conf", config_name="base_grpo_config")
 def main(cfg: Config) -> None:
-    PatchFastRL("GRPO", FastLanguageModel)
-
     os.environ["WANDB_PROJECT"] = cfg.run.wandb_project
 
     model, tokenizer = FastLanguageModel.from_pretrained(**cfg.model)
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "left"
 
-    model = FastLanguageModel.get_peft_model(
-        model,
-        r = cfg.model.max_lora_rank, # Choose any number > 0 ! Suggested 8, 16, 32, 64, 128
-        target_modules = [
-            "q_proj", "k_proj", "v_proj", "o_proj",
-            "gate_proj", "up_proj", "down_proj",
-        ], # Remove QKVO if out of memory
-        lora_alpha = cfg.model.max_lora_rank,
-        use_gradient_checkpointing = "unsloth", # Enable long context finetuning
-        random_state = 3407,
-    )
+    if cfg.run.train_mode == "lora":
+        model = FastLanguageModel.get_peft_model(
+            model,
+            r = cfg.model.max_lora_rank, # Choose any number > 0 ! Suggested 8, 16, 32, 64, 128
+            target_modules = [
+                "q_proj", "k_proj", "v_proj", "o_proj",
+                "gate_proj", "up_proj", "down_proj",
+            ], # Remove QKVO if out of memory
+            lora_alpha = cfg.model.max_lora_rank,
+            use_gradient_checkpointing = "unsloth", # Enable long context finetuning
+            random_state = 3407,
+        )
 
     training_args = HFGRPOConfig(**cfg.grpo)
 
-    dataset = get_primevul(cfg.run)
+    dataset = get_primevul(cfg, tokenizer)
 
     # Initialize trainer
     trainer = GRPOTrainer(
@@ -226,9 +202,6 @@ def main(cfg: Config) -> None:
 
     # Save the trained model
     trainer.save_model("grpo_saved_model")
-
-    # Test inference
-    test_inference(model, tokenizer)
 
 if __name__ == "__main__":
     main() 

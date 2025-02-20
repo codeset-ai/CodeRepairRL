@@ -1,33 +1,17 @@
 defaults:
+  - base_grpo_config
   - _self_
-
-run:
-  dataset_name: "Bobbi/Primevul"
-  wandb_project: "TTC"
-  torch_dtype: "bfloat16"
 
 model:
   model_name: "Qwen/Qwen2.5-Coder-7B-Instruct"  # Upgraded to 7B model
-  load_in_4bit: true
-  fast_inference: true
   max_seq_length: 2048  # Increased context length
   max_lora_rank: 32    # Increased LoRA rank for larger model
   gpu_memory_utilization: 0.7  # Increased memory utilization
+  max_lora_rank: 64  # Increased to more capable LoRA for the larger model
 
 grpo:
-  use_vllm: true
-  # Optimizer settings
   learning_rate: 3e-6  # Slightly lower learning rate for stability
-  adam_beta1: 0.9
-  adam_beta2: 0.99
-  weight_decay: 0.1
-  warmup_ratio: 0.1
-  lr_scheduler_type: "cosine"
-  optim: "paged_adamw_8bit"
-  
-  # Model settings
-  bf16: true
-  fp16: false
+ 
   per_device_train_batch_size: 4  # Reduced batch size to accommodate larger model
   gradient_accumulation_steps: 4  # Increased gradient accumulation to compensate
   
@@ -35,14 +19,3 @@ grpo:
   num_generations: 4
   max_prompt_length: 1024    # Increased prompt length
   max_completion_length: 1024  # Increased completion length
-  
-  # Training loop settings
-  logging_steps: 1
-  max_steps: -1
-  save_steps: 250
-  max_grad_norm: 0.1
-  
-  # Logging settings
-  report_to: "wandb"
-  run_name: "${model.model_name}-GRPO-${run.dataset_name}"
-  output_dir: "outputs" 

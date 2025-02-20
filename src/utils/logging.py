@@ -1,11 +1,13 @@
 import html
+import wandb
 import markdown2
 from pygments import highlight
 from pygments.lexers import CLexer
 from pygments.formatters import HtmlFormatter
 
 formatter = HtmlFormatter(nowrap=True, style="monokai")
-markdown = markdown2.Markdown(extras={"breaks": {"on_newline": True}, "cuddled_lists": True})
+markdown = markdown2.Markdown(extras={"breaks": {"on_newline": True}, "cuddled_lists": True, "code_friendly": True})
+
 
 def build_html_table(rows):
     # Modal and overlay styles + JavaScript for fullscreen functionality
@@ -41,6 +43,15 @@ def build_html_table(rows):
             height: 100%;
             box-sizing: border-box;
             display: flex;
+        }
+        /* Override inline constraints when content is shown in modal */
+        .modal-inner .content-wrapper {
+            max-height: none !important;
+            height: auto !important;
+            overflow-y: visible !important;
+        }
+        .modal-inner .content-wrapper pre {
+            height: auto !important;
         }
         .modal-inner > .content-wrapper {
             flex: 1;
@@ -177,8 +188,7 @@ def build_html_table(rows):
     </script>
     """
 
-    # We fix the table layout so the columns stay the same width,
-    # and we allow columns to wrap or scroll if needed.
+    # Build HTML table with fixed layout and pygments styling
     html_str = modal_styles + modal_script + """
     <table style="width:100%; border-collapse: collapse; table-layout: fixed;" class="highlight">
       <thead>
@@ -195,7 +205,6 @@ def build_html_table(rows):
     for prompt, response, extracted, correct in rows:
         # --- Prompt (C code) with syntax highlighting ---
         prompt_html = highlight(prompt, CLexer(), formatter)
-        # Wrap it in <pre> to preserve indentation, and in a <div> for scroll
         prompt_html = (
             "<div class='cell-content' onclick='showModal(this.innerHTML)'>"
             "<div class='content-wrapper' style='height:100%; overflow-y:auto;'>"
@@ -211,8 +220,6 @@ def build_html_table(rows):
                     .replace('<answer>', '&lt;answer&gt;')
                     .replace('</answer>', '&lt;/answer&gt;')
         )
-
-        # Convert markdown to HTML
         response_html = markdown.convert(response_preserved)
         response_html = (
             "<div class='cell-content' onclick='showModal(this.innerHTML)'>"
@@ -242,7 +249,6 @@ def build_html_table(rows):
             "</div>"
         )
 
-        # Build the row
         html_str += f"""
         <tr>
           <td style="border: 1px solid black; padding: 6px; vertical-align: top;">{prompt_html}</td>
@@ -257,7 +263,7 @@ def build_html_table(rows):
     </table>
     """
 
-    # Optionally embed the Pygments CSS for colored syntax:
+    # Embed the Pygments CSS for syntax highlighting
     css = formatter.get_style_defs('.highlight')
     style_block = f"<style>{css}</style>"
 

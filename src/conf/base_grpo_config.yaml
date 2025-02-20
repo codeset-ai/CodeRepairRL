@@ -2,17 +2,18 @@ defaults:
   - _self_
 
 run:
-  dataset_name: "Bobbi/Primevul"
+  dataset_name: "ASSERT-KTH/Primevul"
   wandb_project: "TTC"
   torch_dtype: "bfloat16"
+  train_mode: "lora"
 
 model:
   model_name: "Qwen/Qwen2.5-Coder-1.5B-Instruct"
   load_in_4bit: true
   fast_inference: true
   max_seq_length: 512
-  max_lora_rank: 32
   gpu_memory_utilization: 0.6
+  max_lora_rank: 32  # Only used if train_mode == "lora"
 
 grpo:
   use_vllm: true
@@ -34,7 +35,7 @@ grpo:
   # Generation settings
   num_generations: 4
   max_prompt_length: 256
-  max_completion_length: 200
+  max_completion_length: 256
   
   # Training loop settings
   logging_steps: 1

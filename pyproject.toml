@@ -20,4 +20,5 @@ dependencies = [
     "pygments>=2.19.1",
     "markdown2>=2.5.3",
     "gdown>=5.2.0",
+    "scikit-learn>=1.6.1",
 ]

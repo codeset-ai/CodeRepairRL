@@ -9,7 +9,7 @@ from tqdm import tqdm
 from matplotlib import pyplot as plt
 from sklearn.metrics import precision_score, recall_score, f1_score, confusion_matrix
 
-from primevul import PrimeVul
+from data.primevul import PrimeVul
 from structured_model_evaluator import StructuredModelEvaluator, BooleanSchema
 
 
