@@ -223,7 +223,7 @@ def build_html_table(rows):
         response_html = markdown.convert(response_preserved)
         response_html = (
             "<div class='cell-content' onclick='showModal(this.innerHTML)'>"
-            "<div class='content-wrapper' style='max-height:300px; overflow-y:auto;'>"
+            "<div class='content-wrapper' style='height:100%; overflow-y:auto;'>"
             f"{response_html}"
             "</div>"
             "</div>"
@@ -233,7 +233,7 @@ def build_html_table(rows):
         extracted_escaped = html.escape(str(extracted))
         extracted_html = (
             "<div class='cell-content' onclick='showModal(this.innerHTML)'>"
-            "<div class='content-wrapper' style='max-height:300px; overflow-y:auto;'>"
+            "<div class='content-wrapper' style='height:100%; overflow-y:auto;'>"
             f"<pre style='margin:0; height:100%;'>{extracted_escaped}</pre>"
             "</div>"
             "</div>"
@@ -243,7 +243,7 @@ def build_html_table(rows):
         correct_escaped = html.escape(str(correct))
         correct_html = (
             "<div class='cell-content' onclick='showModal(this.innerHTML)'>"
-            "<div class='content-wrapper' style='max-height:300px; overflow-y:auto;'>"
+            "<div class='content-wrapper' style='height:100%; overflow-y:auto;'>"
             f"<pre style='margin:0; height:100%;'>{correct_escaped}</pre>"
             "</div>"
             "</div>"
