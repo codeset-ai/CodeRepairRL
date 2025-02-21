@@ -94,7 +94,7 @@ TOP_10_CWES = ["CWE-119", "CWE-20", "CWE-264", "CWE-200", "CWE-125", "CWE-189", 
 # around 200 tokens
 SYSTEM_PROMPT = """
 You are a code auditor identifying software vulnerabilities, or lack thereof, without offering fixes.
-Use only these labels:
+Use only these labels (description provided for context):
     - CWE-119: Buffer overflow—writing outside allocated memory.
     - CWE-20: Poor input validation allows malicious data.
     - CWE-264: Weak access controls enable unauthorized actions.
@@ -146,6 +146,7 @@ def get_primevul(cfg: Config, tokenizer, split: str = "train_paired") -> tuple[D
         ],
         'answer': x['cwe'][0] if x["is_vulnerable"] else "None"
     })
+    data = data.shuffle(seed=42)
     return data, max(data['tokenized_length'])
 
 # GRPOTrainer offers no other way to create callbacks with the completions

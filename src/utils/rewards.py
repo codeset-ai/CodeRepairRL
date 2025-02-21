@@ -8,9 +8,16 @@ def extract_xml_answer(text: str) -> str:
 
 # Reward functions
 def correctness_reward_func(prompts, completions, answer, **kwargs) -> list[float]:
+    """
+    Reward function that checks if the completion is correct.
+    Gives half points if it copies the definition(e.g. CWE-119: Buffer overflow—writing outside allocated memory).
+    """
     responses = [completion[0]['content'] for completion in completions]
     extracted_responses = [extract_xml_answer(r) for r in responses]
-    return [2.0 if ext == a else 0.0 for ext, a in zip(extracted_responses, answer)]
+    return [
+        2.0 if ext == a else 1.0 if ext.split(":")[0] == a else 0.0
+        for ext, a in zip(extracted_responses, answer)
+    ]
 
 def strict_format_reward_func(completions, **kwargs) -> list[float]:
     """Reward function that checks if the completion has a specific format."""
