@@ -6,7 +6,7 @@ from pygments.lexers import CLexer
 from pygments.formatters import HtmlFormatter
 
 formatter = HtmlFormatter(nowrap=True, style="monokai")
-markdown = markdown2.Markdown(extras={"breaks": {"on_newline": True}, "cuddled_lists": True, "code_friendly": True})
+markdown = markdown2.Markdown(extras=["cuddled_lists", "code_friendly", "fenced_code_blocks"])
 
 
 def build_html_table(rows):
