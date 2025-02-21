@@ -22,7 +22,7 @@ def strict_format_reward_func(completions, **kwargs) -> list[float]:
 def count_xml(text) -> float:
     count = 0.0
     if text.count("<think>\n") == 1:
-        count -= len(text.split("<think>\n")[0])*0.001  # penalize for thinking before "think"
+        count -= len(text.split("<think>\n")[0])*0.001  # penalize slightly for thinking before "think"
         count += 0.125
     if text.count("\n</think>\n") == 1:
         count += 0.125
@@ -30,7 +30,7 @@ def count_xml(text) -> float:
         count += 0.125
     if text.count("\n</answer>") == 1:
         count += 0.125
-        count -= (len(text.split("\n</answer>")[-1]))*0.001  # penalize for answering after "answer"
+        count -= (len(text.split("\n</answer>")[-1]))*0.001  # penalize slightly for answering after "answer"
     return max(count, 0.0)
 
 def xmlcount_reward_func(completions, **kwargs) -> list[float]:

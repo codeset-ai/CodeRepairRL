@@ -5,9 +5,11 @@ defaults:
 model:
   model_name: "Qwen/Qwen2.5-Coder-7B-Instruct"  # Upgraded to 7B model
   max_seq_length: 2048  # Increased context length
-  max_lora_rank: 32    # Increased LoRA rank for larger model
-  gpu_memory_utilization: 0.7  # Increased memory utilization
-  max_lora_rank: 64  # Increased to more capable LoRA for the larger model
+  gpu_memory_utilization: 0.6  # Decreased memory utilization, more variance with larger sequences and kv caches, TBD
+  
+lora:
+  r: 64
+  lora_alpha: 128
 
 grpo:
   learning_rate: 3e-6  # Slightly lower learning rate for stability

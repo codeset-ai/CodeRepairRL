@@ -2,6 +2,9 @@ from utils.git import get_commit_hash
 from utils.logging import build_html_table
 from utils.rewards import xmlcount_reward_func, strict_format_reward_func, correctness_reward_func as correctness_reward_func_original, extract_xml_answer
 
+from unsloth import FastLanguageModel, PatchFastRL
+PatchFastRL("GRPO", FastLanguageModel)  # important to call this first
+
 import os
 from typing import Optional
 from dataclasses import dataclass, field
@@ -11,10 +14,7 @@ import hydra
 from hydra.core.config_store import ConfigStore
 
 from datasets import load_dataset, Dataset
-from peft import LoraConfig as PEFTLoraConfig, get_peft_model
-from transformers import AutoModelForCausalLM, AutoTokenizer
 from trl import GRPOConfig as HFGRPOConfig, GRPOTrainer
-
 
 
 @dataclass
@@ -83,7 +83,6 @@ class GRPOConfig:
 class Config:
     run: RunConfig = field(default_factory=RunConfig)
     model: ModelConfig = field(default_factory=ModelConfig)
-    lora: LoraConfig = field(default_factory=LoraConfig)
     grpo: GRPOConfig = field(default_factory=GRPOConfig)
 
 # Register the config schema
@@ -92,6 +91,7 @@ cs.store(name="base_grpo_config", node=Config, group="")
 
 TOP_10_CWES = ["CWE-119", "CWE-20", "CWE-264", "CWE-200", "CWE-125", "CWE-189", "CWE-416", "CWE-399", "CWE-476", "CWE-362"]
 
+# around 200 tokens
 SYSTEM_PROMPT = """
 You are a code auditor identifying software vulnerabilities, or lack thereof, without offering fixes.
 Use only these labels:
@@ -168,15 +168,17 @@ def correctness_reward_func(prompts, completions, answer, **kwargs):
 def main(cfg: Config) -> None:
     os.environ["WANDB_PROJECT"] = cfg.run.wandb_project
 
-    model = AutoModelForCausalLM.from_pretrained(cfg.model.model_name)
-    tokenizer = AutoTokenizer.from_pretrained(cfg.model.model_name)
+    model, tokenizer = FastLanguageModel.from_pretrained(**cfg.model)
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "left"
 
     if cfg.run.train_mode == "lora":
-        lora_config = PEFTLoraConfig(**cfg.lora, task_type = "CAUSAL_LM")
-        model = get_peft_model(model, lora_config)
-
+        model = FastLanguageModel.get_peft_model(
+            model,
+            **cfg.lora,
+            use_gradient_checkpointing = "unsloth", # Enable long context finetuning
+            random_state = 3407,
+        )
     model.print_trainable_parameters()
 
     dataset, max_prompt_length = get_primevul(cfg, tokenizer)
@@ -185,7 +187,7 @@ def main(cfg: Config) -> None:
         diff = cfg.grpo.max_prompt_length - max_prompt_length
         cfg.grpo.max_prompt_length = max_prompt_length
         cfg.grpo.max_completion_length = cfg.grpo.max_completion_length + diff
-        assert cfg.grpo.max_completion_length + cfg.grpo.max_prompt_length == tokenizer.model_max_length, "Should fully utilize the model's context window"
+        assert cfg.grpo.max_completion_length + cfg.grpo.max_prompt_length == tokenizer.model_max_length
 
     training_args = HFGRPOConfig(**cfg.grpo)
 

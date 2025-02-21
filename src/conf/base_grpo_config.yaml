@@ -1,6 +1,10 @@
 defaults:
   - _self_
 
+hydra:
+  job:
+    chdir: false  # Prevents Hydra from changing working directory at runtime
+
 run:
   dataset_name: "ASSERT-KTH/Primevul"
   wandb_project: "TTC"
@@ -9,11 +13,22 @@ run:
 
 model:
   model_name: "Qwen/Qwen2.5-Coder-1.5B-Instruct"
-  load_in_4bit: true
-  fast_inference: true
-  max_seq_length: 512
-  gpu_memory_utilization: 0.6
-  max_lora_rank: 32  # Only used if train_mode == "lora"
+  load_in_4bit: true  # unsloth only
+  fast_inference: true  # unsloth only
+  gpu_memory_utilization: 0.8  # unsloth only
+  max_lora_rank: 128  # unsloth only, only used if run.train_mode == "lora"
+
+lora:
+  r: 32
+  lora_alpha: 64  # lora paper describes 2x the r
+  target_modules:
+    - "q_proj"
+    - "k_proj"
+    - "v_proj"
+    - "o_proj"
+    - "gate_proj"
+    - "up_proj"
+    - "down_proj"
 
 grpo:
   use_vllm: true
@@ -29,13 +44,13 @@ grpo:
   # Model settings
   bf16: true
   fp16: false
-  per_device_train_batch_size: 1
+  per_device_train_batch_size: 4
   gradient_accumulation_steps: 2
   
   # Generation settings
   num_generations: 4
-  max_prompt_length: 256
-  max_completion_length: 256
+  max_prompt_length: 512  # will be decreased if the longest sequence in the dataset is shorter
+  max_completion_length: 256  # will be increased by the complement of the above
   
   # Training loop settings
   logging_steps: 1
