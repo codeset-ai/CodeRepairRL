@@ -7,6 +7,7 @@ hydra:
 
 run:
   dataset_name: "ASSERT-KTH/Primevul"
+  split: "train_paired"
   wandb_project: "TTC"
   torch_dtype: "bfloat16"
   train_mode: "lora"
