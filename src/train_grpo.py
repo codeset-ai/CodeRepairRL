@@ -16,14 +16,15 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from trl import GRPOConfig as HFGRPOConfig, GRPOTrainer
 
 
-
 @dataclass
 class RunConfig:
     dataset_name: str = "Bobbi/Primevul"
+    split: str = "train_paired"
     wandb_project: str = "TTC"
     torch_dtype: str = "bfloat16"
     commit_hash: str = field(default_factory=get_commit_hash)
     train_mode: str = "lora"
+    resume_training: bool = False
 
     def __post_init__(self):
         if self.train_mode not in ["full", "lora"]:
@@ -83,20 +84,18 @@ class GRPOConfig:
 class Config:
     run: RunConfig = field(default_factory=RunConfig)
     model: ModelConfig = field(default_factory=ModelConfig)
-    lora: LoraConfig = field(default_factory=LoraConfig)
     grpo: GRPOConfig = field(default_factory=GRPOConfig)
 
 # Register the config schema
 cs = ConfigStore.instance()
 cs.store(name="base_grpo_config", node=Config, group="")
 
-TOP_10_CWES = ["CWE-119", "CWE-20", "CWE-264", "CWE-200", "CWE-125", "CWE-189", "CWE-416", "CWE-399", "CWE-476", "CWE-362"]
+TOP_10_CWES = ["CWE-20", "CWE-264", "CWE-200", "CWE-125", "CWE-189", "CWE-416", "CWE-399", "CWE-476", "CWE-362"]  # rempved 119 for class balance
 
 # around 200 tokens
 SYSTEM_PROMPT = """
 You are a code auditor identifying software vulnerabilities, or lack thereof, without offering fixes.
 Use only these labels (description provided for context):
-    - CWE-119: Buffer overflow—writing outside allocated memory.
     - CWE-20: Poor input validation allows malicious data.
     - CWE-264: Weak access controls enable unauthorized actions.
     - CWE-200: Unintended sensitive data exposure.
@@ -106,19 +105,18 @@ Use only these labels (description provided for context):
     - CWE-399: Mismanaged resources leading to leaks/exhaustion.
     - CWE-476: Null pointer dereference results in crashes.
     - CWE-362: Race conditions from unsynchronized concurrent operations.
-    - None: No vulnerability detected.
 Respond in the following format:
 <think>
 ...
 </think>
 <answer>
-[one label exactly from the list, not the description]
+one label from the list
 </answer>
 """
 
-def get_primevul(cfg: Config, tokenizer, split: str = "train_paired") -> tuple[Dataset, int]:
-    data = load_dataset(cfg.run.dataset_name, split=split)
-    data = data.filter(lambda x: x["cwe"][0] in TOP_10_CWES)  # for simplicity, we only consider the first CWE
+def get_primevul(cfg: Config, tokenizer) -> tuple[Dataset, int]:
+    data = load_dataset(cfg.run.dataset_name, split=cfg.run.split)
+    data = data.filter(lambda x: x["cwe"][0] in TOP_10_CWES and x["is_vulnerable"])  # for simplicity, we only consider the first CWE
 
     def tokenize_prompt(batch):
         messages = [
@@ -145,7 +143,7 @@ def get_primevul(cfg: Config, tokenizer, split: str = "train_paired") -> tuple[D
             {'role': 'system', 'content': SYSTEM_PROMPT},
             {'role': 'user', 'content': x['func']}
         ],
-        'answer': x['cwe'][0] if x["is_vulnerable"] else "None"
+        'answer': x['cwe'][0]
     })
     data = data.shuffle(seed=42)
     return data, max(data['tokenized_length'])
@@ -204,7 +202,7 @@ def main(cfg: Config) -> None:
         train_dataset=dataset,
     )
 
-    trainer.train()
+    trainer.train(resume_from_checkpoint=cfg.run.resume_training)
 
     trainer.save_model("grpo_saved_model")
 

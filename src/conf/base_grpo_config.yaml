@@ -11,6 +11,7 @@ run:
   wandb_project: "TTC"
   torch_dtype: "bfloat16"
   train_mode: "lora"
+  resume_training: false
 
 model:
   model_name: "Qwen/Qwen2.5-Coder-1.5B-Instruct"
@@ -56,7 +57,7 @@ grpo:
   # Training loop settings
   logging_steps: 1
   max_steps: -1
-  save_steps: 250
+  save_steps: 50
   max_grad_norm: 0.1
   
   # Logging settings
