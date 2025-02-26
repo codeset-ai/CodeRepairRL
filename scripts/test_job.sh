@@ -28,7 +28,7 @@ module load apptainer
 # Define container variables
 CONTAINER_IMAGE="ttc.sif"
 PROJECT_DIR="$(pwd)"
-SCRATCH_DIR="/scratch/local/$SLURM_JOB_ID"
+SCRATCH_DIR="/home/x_bjabj/scratch/$SLURM_JOB_ID"
 
 # Create scratch directory
 mkdir -p $SCRATCH_DIR
