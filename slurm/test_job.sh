@@ -5,7 +5,7 @@
 #SBATCH --error=logs/slurm_%j.err
 #SBATCH --gpus 2
 #SBATCH --time=0:10:00
-#SBATCH -C fat
+#SBATCH -C "thin"
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user bhbj@kth.se
 
