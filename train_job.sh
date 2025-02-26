@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=ttc_training
+#SBATCH --job-name=ttc
 #SBATCH --output=logs/slurm_%j.out
 #SBATCH --error=logs/slurm_%j.err
 #SBATCH -A berzelius-2025-72         # Specify your Berzelius project account here
@@ -11,7 +11,7 @@
 #SBATCH --time=0:10:00
 #SBATCH --partition=gpu            # Ensure this is the correct Berzelius GPU partition
 #SBATCH -D /proj/berzelius-2025-72/users/x_bjabj   # Set working directory (optional)
-#SBATCH -C thin                    # Request a thin node (use "-C fat" if extra memory is needed)
+#SBATCH -C fat
 #SBATCH --mail-type=FAIL           # Optional: get notified on failure
 #SBATCH --mail-user bhbj@kth.se
 

@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=ttc_training
+#SBATCH --job-name=ttc
 #SBATCH --output=logs/slurm_%j.out
 #SBATCH --error=logs/slurm_%j.err
 #SBATCH -A berzelius-2025-72         # Specify your Berzelius project account here
