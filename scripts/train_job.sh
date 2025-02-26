@@ -9,6 +9,9 @@
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user bhbj@kth.se
 
+# Navigate to the project root directory
+cd "$(dirname "$0")/.."
+
 # Print job information
 echo "Job ID: $SLURM_JOB_ID"
 echo "Node: $SLURMD_NODENAME"
@@ -20,19 +23,15 @@ mkdir -p logs
 
 # Set up environment
 module load buildenv-gcccuda/12.1.1-gcc12.3.0
-
-# Set up uv for dependency management
-if ! command -v uv &> /dev/null; then
-    echo "Downloading uv..."
-    curl -LsSf https://astral.sh/uv/install.sh | sh
-fi
-export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
-
+module load apptainer
 
 # Default configuration
 SCRIPT="src/train_grpo.py"
 CONFIG="base_grpo_config"
 NUM_GPUS=2
+CONTAINER_IMAGE="ttc.sif"
+PROJECT_DIR="$(pwd)"
+SCRATCH_DIR="/scratch/local/$SLURM_JOB_ID"
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -56,14 +55,26 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Run the training script with torchrun for distributed training
+# Create scratch directory
+mkdir -p $SCRATCH_DIR
+
+# Define bind paths
+BIND_PATHS="$PROJECT_DIR,$SCRATCH_DIR"
+for dir in data models; do
+  if [ -d "$PROJECT_DIR/$dir" ]; then
+    BIND_PATHS="$BIND_PATHS,$PROJECT_DIR/$dir:/opt/ttc/$dir"
+  fi
+done
+
+# Run the training script with Apptainer
 echo "Running: torchrun --nproc-per-node=$NUM_GPUS $SCRIPT +experiment=$CONFIG"
-uv run torchrun --nproc-per-node=$NUM_GPUS $SCRIPT +experiment=$CONFIG
+apptainer run --nv --bind $BIND_PATHS $CONTAINER_IMAGE torchrun --nproc-per-node=$NUM_GPUS $SCRIPT +experiment=$CONFIG
 
-
-# Optional: copy important data from scratch to your project directory
-# For example:
-cp -r /scratch/local/$SLURM_JOB_ID/results /proj/berzelius-2025-72/users/x_bjabj/
+# Copy results from scratch to project directory if needed
+if [ -d "$SCRATCH_DIR/results" ]; then
+  echo "Copying results from scratch directory..."
+  cp -r $SCRATCH_DIR/results /proj/berzelius-2025-72/users/x_bjabj/
+fi
 
 # Print end time
 echo "End time: $(date)" 

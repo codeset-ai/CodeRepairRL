@@ -33,6 +33,7 @@ lora:
 
 grpo:
   use_vllm: true
+  vllm_gpu_memory_utilization: 0.7
   # Optimizer settings
   learning_rate: 5e-6
   adam_beta1: 0.9

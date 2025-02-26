@@ -49,6 +49,7 @@ class ModelConfig:
 @dataclass
 class GRPOConfig:
     use_vllm: bool = True
+    vllm_gpu_memory_utilization: float = 0.7
 
     # Optimizer settings
     learning_rate: float = 5e-6
@@ -91,8 +92,6 @@ class Config:
 # Register the config schema
 cs = ConfigStore.instance()
 cs.store(name="base_grpo_config", node=Config, group="")
-
-# Register custom resolvers for GPU-specific settings
 OmegaConf.register_resolver("resolve_bf16", resolve_bf16)
 OmegaConf.register_resolver("resolve_fp16", resolve_fp16)
 
