@@ -1,8 +1,26 @@
 Bootstrap: docker
-From: python:3.13.1-bullseye
+From: python:3.11-slim
+
 
 %files
-    ./pyproject.toml
+    # Copy project files into the container
+    pyproject.toml
+    uv.lock
 
 %post
-    pip3 install -e .
+    # Install system dependencies
+    apt-get update && apt-get install -y build-essential curl git && rm -rf /var/lib/apt/lists/*
+    
+    # Install uv and add to PATH
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    
+    # Add uv to PATH
+    export PATH="/root/.local/bin:$PATH"
+    echo 'export PATH="/root/.local/bin:$PATH"' >> $APPTAINER_ENVIRONMENT
+    
+    # Verify uv is in PATH
+    which uv || echo "uv not found in PATH"
+    
+    # Install dependencies
+    cd /opt/ttc
+    /root/.local/bin/uv sync
