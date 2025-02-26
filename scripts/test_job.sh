@@ -21,12 +21,10 @@ echo "Directory: $(pwd)"
 # Create logs directory if it doesn't exist
 mkdir -p logs
 
-# Set up environment
-module load buildenv-gcccuda/12.1.1-gcc12.3.0
-module load apptainer
+
 
 # Define container variables
-CONTAINER_IMAGE="ttc.sif"
+CONTAINER_IMAGE="$(pwd)/ttc.sif"
 PROJECT_DIR="$(pwd)"
 SCRATCH_DIR="/home/x_bjabj/scratch/$SLURM_JOB_ID"
 
@@ -40,6 +38,12 @@ for dir in data models; do
     BIND_PATHS="$BIND_PATHS,$PROJECT_DIR/$dir:/opt/ttc/$dir"
   fi
 done
+
+# Check if container exists
+if [ ! -f "$CONTAINER_IMAGE" ]; then
+    echo "Error: Container image not found at $CONTAINER_IMAGE"
+    exit 1
+fi
 
 # Print Python and CUDA information
 echo "Python version:"
