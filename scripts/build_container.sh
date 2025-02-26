@@ -15,9 +15,11 @@ fi
 CONTAINER_DEF="scripts/container.def"
 CONTAINER_IMAGE="ttc.sif"
 
-# Build the container
+# Build the container with verbose output
 echo "Building Apptainer container..."
-apptainer build $CONTAINER_IMAGE $CONTAINER_DEF
+echo "Using definition file: $CONTAINER_DEF"
+echo "Output image: $CONTAINER_IMAGE"
+apptainer build --verbose $CONTAINER_IMAGE $CONTAINER_DEF
 
 # Check if build was successful
 if [ $? -eq 0 ]; then
