@@ -1,18 +1,17 @@
 #!/bin/bash
+#SBATCH -A berzelius-2025-72
 #SBATCH --job-name=ttc
 #SBATCH --output=logs/slurm_%j.out
 #SBATCH --error=logs/slurm_%j.err
-#SBATCH -A berzelius-2025-72         # Specify your Berzelius project account here
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
-#SBATCH --gres=gpu:a100:1            # Request 1 A100 GPU. (Update manually if using >1 GPU.)
-#SBATCH --mem=128G                 # Adjust memory to match the default for a 1-GPU job
+#SBATCH --gres=gpu:a100:2            
+#SBATCH --mem=256G
 #SBATCH --time=0:10:00
-#SBATCH --partition=gpu            # Ensure this is the correct Berzelius GPU partition
-#SBATCH -D /proj/berzelius-2025-72/users/x_bjabj   # Set working directory (optional)
-#SBATCH -C thin                    # Request a thin node (use "-C fat" if extra memory is needed)
-#SBATCH --mail-type=FAIL           # Optional: get notified on failure
+#SBATCH --partition=hopper-prod            # is this correct?
+#SBATCH -C fat
+#SBATCH --mail-type=FAIL
 #SBATCH --mail-user bhbj@kth.se
 
 # Print job information
