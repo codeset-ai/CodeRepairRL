@@ -1,15 +1,10 @@
 #!/bin/bash
-#SBATCH -A berzelius-2025-72
-#SBATCH --job-name=ttc
+#SBATCH -A Berzelius-2024-336
+#SBATCH --job-name=ttc-test
 #SBATCH --output=logs/slurm_%j.out
 #SBATCH --error=logs/slurm_%j.err
-#SBATCH --nodes=1
-#SBATCH --ntasks=1
-#SBATCH --cpus-per-task=8
-#SBATCH --gres=gpu:a100:2            
-#SBATCH --mem=256G
+#SBATCH --gpus 2
 #SBATCH --time=0:10:00
-#SBATCH --partition=hopper-prod            # is this correct?
 #SBATCH -C fat
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user bhbj@kth.se
