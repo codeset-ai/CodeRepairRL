@@ -25,15 +25,14 @@ echo "Directory: $(pwd)"
 mkdir -p logs
 
 # Set up environment
-module load buildenv-gcccuda/11.8.0-gcc11.3.0
-module load Python/3.11.5-GCCcore-12.3.0
+module load buildenv-gcccuda/12.1.1-gcc12.3.0
 
 # Set up uv for dependency management
-if [ ! -f "uv" ]; then
+if ! command -v uv &> /dev/null; then
     echo "Downloading uv..."
     curl -LsSf https://astral.sh/uv/install.sh | sh
 fi
-export PATH="$HOME/.cargo/bin:$PATH"
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
 
 # Print Python and CUDA information
 echo "Python version:"
@@ -58,7 +57,7 @@ print('All imports successful!')
 
 # Test torchrun
 echo "Testing torchrun..."
-uv run torchrun --nproc_per_node=1 -m torch.distributed.run --help
+uv run torchrun --nproc-per-node=1 -m torch.distributed.run --help
 
 # Print end time
 echo "End time: $(date)" 
