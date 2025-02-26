@@ -4,8 +4,8 @@ From: python:3.11-slim
 
 %files
     # Copy project files into the container
-    pyproject.toml
-    uv.lock
+    pyproject.toml /opt/ttc/pyproject.toml
+    uv.lock /opt/ttc/uv.lock
 
 %post
     # Install system dependencies
