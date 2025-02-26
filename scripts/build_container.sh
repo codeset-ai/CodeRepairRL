@@ -19,7 +19,7 @@ CONTAINER_IMAGE="ttc.sif"
 echo "Building Apptainer container..."
 echo "Using definition file: $CONTAINER_DEF"
 echo "Output image: $CONTAINER_IMAGE"
-apptainer build --verbose $CONTAINER_IMAGE $CONTAINER_DEF
+apptainer build $CONTAINER_IMAGE $CONTAINER_DEF
 
 # Check if build was successful
 if [ $? -eq 0 ]; then
