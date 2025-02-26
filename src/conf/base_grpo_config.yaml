@@ -9,7 +9,6 @@ run:
   dataset_name: "ASSERT-KTH/Primevul"
   split: "train_paired"
   wandb_project: "TTC"
-  torch_dtype: "bfloat16"
   train_mode: "lora"
   resume_training: false
 
@@ -44,8 +43,9 @@ grpo:
   optim: "paged_adamw_8bit"
   
   # Model settings
-  bf16: true
-  fp16: false
+  # Automatically set based on GPU architecture
+  bf16: ${resolve_bf16:}
+  fp16: ${resolve_fp16:}
   per_device_train_batch_size: 4
   gradient_accumulation_steps: 2
   

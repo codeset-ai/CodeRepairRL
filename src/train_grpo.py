@@ -1,14 +1,16 @@
 from utils.git import get_commit_hash
 from utils.logging import build_html_table
 from utils.rewards import xmlcount_reward_func, strict_format_reward_func, correctness_reward_func as correctness_reward_func_original, extract_xml_answer
+from utils.gpu_utils import resolve_bf16, resolve_fp16
 
 import os
 from typing import Optional
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, MISSING
 
 import wandb
 import hydra
 from hydra.core.config_store import ConfigStore
+from omegaconf import OmegaConf
 
 from datasets import load_dataset, Dataset
 from peft import LoraConfig as PEFTLoraConfig, get_peft_model
@@ -21,7 +23,6 @@ class RunConfig:
     dataset_name: str = "Bobbi/Primevul"
     split: str = "train_paired"
     wandb_project: str = "TTC"
-    torch_dtype: str = "bfloat16"
     commit_hash: str = field(default_factory=get_commit_hash)
     train_mode: str = "lora"
     resume_training: bool = False
@@ -58,9 +59,10 @@ class GRPOConfig:
     lr_scheduler_type: str = "cosine"
     optim: str = "paged_adamw_8bit"
     
-    # Model settings
-    bf16: bool = True
-    fp16: bool = False
+    # Model settings - these will be automatically determined based on GPU architecture
+    # when using the custom resolvers in the YAML config
+    bf16: bool = MISSING
+    fp16: bool = MISSING
     per_device_train_batch_size: int = 1
     gradient_accumulation_steps: int = 1
     
@@ -89,6 +91,10 @@ class Config:
 # Register the config schema
 cs = ConfigStore.instance()
 cs.store(name="base_grpo_config", node=Config, group="")
+
+# Register custom resolvers for GPU-specific settings
+OmegaConf.register_resolver("resolve_bf16", resolve_bf16)
+OmegaConf.register_resolver("resolve_fp16", resolve_fp16)
 
 TOP_10_CWES = ["CWE-20", "CWE-264", "CWE-200", "CWE-125", "CWE-189", "CWE-416", "CWE-399", "CWE-476", "CWE-362"]  # rempved 119 for class balance
 
@@ -168,6 +174,10 @@ def correctness_reward_func(prompts, completions, answer, **kwargs):
 def main(cfg: Config) -> None:
     os.environ["WANDB_PROJECT"] = cfg.run.wandb_project
 
+    # Log precision settings
+    precision_mode = "BF16" if cfg.grpo.bf16 else "FP16" if cfg.grpo.fp16 else "FP32"
+    print(f"Training with {precision_mode} precision based on GPU architecture")
+    
     model = AutoModelForCausalLM.from_pretrained(cfg.model.model_name)
     tokenizer = AutoTokenizer.from_pretrained(cfg.model.model_name)
     tokenizer.pad_token = tokenizer.eos_token

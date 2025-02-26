@@ -2,12 +2,12 @@
 #SBATCH --job-name=ttc
 #SBATCH --output=logs/slurm_%j.out
 #SBATCH --error=logs/slurm_%j.err
-#SBATCH -A berzelius-2025-72         # Specify your Berzelius project account here
+#SBATCH -A berzelius-2025-72
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
-#SBATCH --gres=gpu:a100:1            # Request 1 A100 GPU. (Update manually if using >1 GPU.)
-#SBATCH --mem=128G                 # Adjust memory to match the default for a 1-GPU job
+#SBATCH --gres=gpu:a100:2            # Request 1 A100 GPU. (Update manually if using >1 GPU.)
+#SBATCH --mem=256G                 # Adjust memory to match the default for a 1-GPU job
 #SBATCH --time=0:10:00
 #SBATCH --partition=gpu            # Ensure this is the correct Berzelius GPU partition
 #SBATCH -D /proj/berzelius-2025-72/users/x_bjabj   # Set working directory (optional)
@@ -38,7 +38,7 @@ export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
 # Default configuration
 SCRIPT="src/train_grpo.py"
 CONFIG="base_grpo_config"
-NUM_GPUS=1
+NUM_GPUS=2
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -63,8 +63,8 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Run the training script with torchrun for distributed training
-echo "Running: torchrun --nproc_per_node=$NUM_GPUS $SCRIPT +experiment=$CONFIG"
-uv run torchrun --nproc_per_node=$NUM_GPUS $SCRIPT +experiment=$CONFIG
+echo "Running: torchrun --nproc-per-node=$NUM_GPUS $SCRIPT +experiment=$CONFIG"
+uv run torchrun --nproc-per-node=$NUM_GPUS $SCRIPT +experiment=$CONFIG
 
 
 # Optional: copy important data from scratch to your project directory
