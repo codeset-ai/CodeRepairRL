@@ -1,57 +1,8 @@
 Bootstrap: docker
-From: python:3.11-slim
-
-%help
-    Container for TTC project with uv for dependency management.
+From: python:3.13.1-bullseye
 
 %files
-    # Copy project files into the container
-    pyproject.toml /opt/ttc/pyproject.toml
-    uv.lock /opt/ttc/uv.lock
-    src/ /opt/ttc/src
+    ./pyproject.toml
 
 %post
-    # Install system dependencies
-    apt-get update && apt-get install -y build-essential curl git && rm -rf /var/lib/apt/lists/*
-    
-    # Install uv and add to PATH
-    curl -LsSf https://astral.sh/uv/install.sh | sh
-    
-    # Add uv to PATH
-    export PATH="/root/.local/bin:$PATH"
-    echo 'export PATH="/root/.local/bin:$PATH"' >> $APPTAINER_ENVIRONMENT
-    
-    # Verify uv is in PATH
-    which uv || echo "uv not found in PATH"
-    
-    # Install dependencies
-    cd /opt/ttc
-    /root/.local/bin/uv sync
-
-%environment
-    export PATH="/root/.local/bin:$PATH"
-    export PYTHONPATH="/opt/ttc:$PYTHONPATH"
-    export PYTHONUNBUFFERED=1
-
-%runscript
-    cd /opt/ttc
-    exec /root/.local/bin/uv run "$@"
-
-%apprun train
-    # Run training script
-    cd /opt/ttc
-    exec uv run torchrun --nproc-per-node=${GPUS:-1} src/train_grpo.py +experiment=${CONFIG:-base_grpo_config}
-
-%apprun train-unsloth
-    # Run unsloth training script
-    cd /opt/ttc
-    exec uv run torchrun --nproc-per-node=${GPUS:-1} src/train_grpo_unsloth.py +experiment=${CONFIG:-base_grpo_config}
-
-%apprun test
-    # Run test script
-    cd /opt/ttc
-    exec uv run python src/test_model.py ${CONFIG:-base_test_config}
-
-%labels
-    Author TTC
-    Version 0.1.0 
+    pip3 install -e .

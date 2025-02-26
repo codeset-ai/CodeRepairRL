@@ -22,7 +22,6 @@ echo "Directory: $(pwd)"
 mkdir -p logs
 
 
-
 # Define container variables
 CONTAINER_IMAGE="$(pwd)/ttc.sif"
 PROJECT_DIR="$(pwd)"
@@ -30,14 +29,6 @@ SCRATCH_DIR="/home/x_bjabj/scratch/$SLURM_JOB_ID"
 
 # Create scratch directory
 mkdir -p $SCRATCH_DIR
-
-# Define bind paths
-BIND_PATHS="$PROJECT_DIR,$SCRATCH_DIR"
-for dir in data models; do
-  if [ -d "$PROJECT_DIR/$dir" ]; then
-    BIND_PATHS="$BIND_PATHS,$PROJECT_DIR/$dir:/opt/ttc/$dir"
-  fi
-done
 
 # Check if container exists
 if [ ! -f "$CONTAINER_IMAGE" ]; then
@@ -47,16 +38,16 @@ fi
 
 # Print Python and CUDA information
 echo "Python version:"
-apptainer run --nv --bind $BIND_PATHS $CONTAINER_IMAGE python --version
+apptainer exec --nv $CONTAINER_IMAGE python --version
 
 echo "CUDA availability:"
-apptainer run --nv --bind $BIND_PATHS $CONTAINER_IMAGE python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
-apptainer run --nv --bind $BIND_PATHS $CONTAINER_IMAGE python -c "import torch; print(f'CUDA device count: {torch.cuda.device_count()}')"
-apptainer run --nv --bind $BIND_PATHS $CONTAINER_IMAGE python -c "import torch; print(f'CUDA device name: {torch.cuda.get_device_name(0)}')"
+apptainer exec --nv $CONTAINER_IMAGE python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
+apptainer exec --nv $CONTAINER_IMAGE python -c "import torch; print(f'CUDA device count: {torch.cuda.device_count()}')"
+apptainer exec --nv $CONTAINER_IMAGE python -c "import torch; print(f'CUDA device name: {torch.cuda.get_device_name(0)}')"
 
 # Test importing key libraries
 echo "Testing imports..."
-apptainer run --nv --bind $BIND_PATHS $CONTAINER_IMAGE python -c "
+apptainer exec --nv $CONTAINER_IMAGE python -c "
 import torch
 import transformers
 import trl
@@ -68,7 +59,7 @@ print('All imports successful!')
 
 # Test torchrun
 echo "Testing torchrun..."
-apptainer run --nv --bind $BIND_PATHS $CONTAINER_IMAGE torchrun --nproc-per-node=1 -m torch.distributed.run --help
+apptainer exec --nv $CONTAINER_IMAGE torchrun --nproc-per-node=1 -m torch.distributed.run --help
 
 # Print end time
 echo "End time: $(date)" 
