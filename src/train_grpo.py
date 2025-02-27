@@ -2,6 +2,7 @@ from utils.git import get_commit_hash
 from utils.logging import build_html_table
 from utils.rewards import xmlcount_reward_func, strict_format_reward_func, correctness_reward_func as correctness_reward_func_original, extract_xml_answer
 from utils.gpu_utils import resolve_bf16, resolve_fp16
+from data.primevul import get_vuln_detection_dataset, get_vuln_repair_dataset
 
 import os
 from typing import Optional
@@ -20,16 +21,19 @@ from trl import GRPOConfig as HFGRPOConfig, GRPOTrainer
 
 @dataclass
 class RunConfig:
-    dataset_name: str = "Bobbi/Primevul"
+    dataset_name: str = "ASSERT-KTH/Primevul"
     split: str = "train_paired"
     wandb_project: str = "TTC"
     commit_hash: str = field(default_factory=get_commit_hash)
     train_mode: str = "lora"
     resume_training: bool = False
+    task: str = "detection"  # "detection" or "repair"
 
     def __post_init__(self):
         if self.train_mode not in ["full", "lora"]:
-            raise ValueError("train_mode must be either 'full' or 'lora'") 
+            raise ValueError("train_mode must be either 'full' or 'lora'")
+        if self.task not in ["detection", "repair"]:
+            raise ValueError("task must be either 'detection' or 'repair'")
         
 @dataclass
 class LoraConfig:  # only used if train_mode == "lora"
@@ -95,64 +99,6 @@ cs.store(name="base_grpo_config", node=Config, group="")
 OmegaConf.register_resolver("resolve_bf16", resolve_bf16)
 OmegaConf.register_resolver("resolve_fp16", resolve_fp16)
 
-TOP_10_CWES = ["CWE-20", "CWE-264", "CWE-200", "CWE-125", "CWE-189", "CWE-416", "CWE-399", "CWE-476", "CWE-362"]  # rempved 119 for class balance
-
-# around 200 tokens
-SYSTEM_PROMPT = """
-You are a code auditor identifying software vulnerabilities, or lack thereof, without offering fixes.
-Use only these labels (description provided for context):
-    - CWE-20: Poor input validation allows malicious data.
-    - CWE-264: Weak access controls enable unauthorized actions.
-    - CWE-200: Unintended sensitive data exposure.
-    - CWE-125: Out-of-bounds read leaks data.
-    - CWE-189: Numeric errors cause calculation and logic faults.
-    - CWE-416: Use-after-free—accessing deallocated memory.
-    - CWE-399: Mismanaged resources leading to leaks/exhaustion.
-    - CWE-476: Null pointer dereference results in crashes.
-    - CWE-362: Race conditions from unsynchronized concurrent operations.
-Respond in the following format:
-<think>
-...
-</think>
-<answer>
-one label from the list
-</answer>
-"""
-
-def get_primevul(cfg: Config, tokenizer) -> tuple[Dataset, int]:
-    data = load_dataset(cfg.run.dataset_name, split=cfg.run.split)
-    data = data.filter(lambda x: x["cwe"][0] in TOP_10_CWES and x["is_vulnerable"])  # for simplicity, we only consider the first CWE
-
-    def tokenize_prompt(batch):
-        messages = [
-            [
-                {'role': 'system', 'content': SYSTEM_PROMPT},
-                {'role': 'user', 'content': func}
-            ] for func in batch['func']
-        ]
-        tokenized = tokenizer.apply_chat_template(messages, add_generation_prompt=True)
-        batch['tokenized_length'] = [len(ids) for ids in tokenized]
-        return batch
-
-    # get the tokenized length of the prompt to filter out too long prompts
-    data = data.map(tokenize_prompt, batched=True, batch_size=1000)
-
-    print(f"Filtering out prompts longer than {cfg.grpo.max_prompt_length} tokens")
-    print(f"Number of prompts before filtering: {len(data)}")
-    data = data.filter(lambda x: x['tokenized_length'] <= cfg.grpo.max_prompt_length)
-    print(f"Number of prompts after filtering: {len(data)}")
-
-    # now we have guaranteed that SYSTEM_PROMPT + "func" <= max_prompt_length for all examples
-    data = data.map(lambda x: {
-        'prompt': [
-            {'role': 'system', 'content': SYSTEM_PROMPT},
-            {'role': 'user', 'content': x['func']}
-        ],
-        'answer': x['cwe'][0]
-    })
-    data = data.shuffle(seed=42)
-    return data, max(data['tokenized_length'])
-
 # GRPOTrainer offers no other way to create callbacks with the completions
 # quick and dirty solution
 def correctness_reward_func(prompts, completions, answer, **kwargs):
@@ -168,6 +114,34 @@ def correctness_reward_func(prompts, completions, answer, **kwargs):
     wandb.log({"eval_table": wandb.Html(html_table)})
 
     return correctness_reward_func_original(prompts, completions, answer, **kwargs)
+
+# Reward function for diff-based tasks (repair)
+def diff_reward_func(prompts, completions, answer, **kwargs):
+    from utils.rewards import diff_similarity_reward_func
+    responses = [completion[0]['content'] for completion in completions]
+    
+    # Extract answers (the diffs) from completions if using XML format
+    extracted_responses = [extract_xml_answer(r) for r in responses]
+    use_extracted = any(r != "N/A" for r in extracted_responses)
+    
+    # Add sample to wandb for visualization
+    html_rows = []
+    for prompt_item, response, ext, ans in zip(prompts, responses, extracted_responses, answer):
+        prompt_text = prompt_item[-1]['content'] if prompt_item else ""
+        html_rows.append((prompt_text, response, ext if use_extracted else response, ans))
+    
+    html_table = build_html_table(html_rows)
+    wandb.log({"repair_samples": wandb.Html(html_table)})
+    
+    # Use extracted responses if they exist, otherwise use full responses
+    final_responses = extracted_responses if use_extracted else responses
+    
+    # Use diff similarity reward function
+    return diff_similarity_reward_func(
+        [{"content": response} for response in final_responses], 
+        answer, 
+        **kwargs
+    )
 
 @hydra.main(version_base="1.1", config_path="conf", config_name="base_grpo_config")
 def main(cfg: Config) -> None:
@@ -188,8 +162,35 @@ def main(cfg: Config) -> None:
 
     model.print_trainable_parameters()
 
-    dataset, max_prompt_length = get_primevul(cfg, tokenizer)
+    # Get dataset based on the task
+    if cfg.run.task == "detection":
+        dataset, max_prompt_length = get_vuln_detection_dataset(
+            cfg.run.dataset_name, 
+            cfg.run.split, 
+            tokenizer, 
+            cfg.grpo.max_prompt_length
+        )
+        reward_functions = [
+            xmlcount_reward_func,
+            strict_format_reward_func,
+            correctness_reward_func,
+        ]
+    elif cfg.run.task == "repair":
+        dataset, max_prompt_length = get_vuln_repair_dataset(
+            cfg.run.dataset_name,
+            cfg.run.split,
+            tokenizer,
+            cfg.grpo.max_prompt_length
+        )
+        reward_functions = [
+            xmlcount_reward_func,
+            strict_format_reward_func,
+            diff_reward_func,
+        ]
+    else:
+        raise ValueError(f"Unknown task: {cfg.run.task}")
 
+    # Adjust sequence lengths if needed
     if max_prompt_length < cfg.grpo.max_prompt_length:
         diff = cfg.grpo.max_prompt_length - max_prompt_length
         cfg.grpo.max_prompt_length = max_prompt_length
@@ -198,22 +199,21 @@ def main(cfg: Config) -> None:
 
     training_args = HFGRPOConfig(**cfg.grpo)
 
-    # Initialize trainer
+    # Initialize trainer with task-specific reward functions
     trainer = GRPOTrainer(
         model=model,
         processing_class=tokenizer,
-        reward_funcs=[
-            xmlcount_reward_func,
-            strict_format_reward_func,
-            correctness_reward_func,
-        ],
+        reward_funcs=reward_functions,
         args=training_args,
         train_dataset=dataset,
     )
 
     trainer.train(resume_from_checkpoint=cfg.run.resume_training)
 
-    trainer.save_model("grpo_saved_model")
+    # Save with task-specific name
+    model_save_path = f"grpo_{cfg.run.task}_model"
+    trainer.save_model(model_save_path)
+    print(f"Model saved to {model_save_path}")
 
 if __name__ == "__main__":
     main() 

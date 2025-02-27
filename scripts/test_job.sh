@@ -18,19 +18,25 @@ echo "Node: $SLURMD_NODENAME"
 echo "Start time: $(date)"
 echo "Directory: $(pwd)"
 
-# Create logs directory if it doesn't exist
-mkdir -p logs
-
-
 # Define container variables
-CONTAINER_IMAGE="$(pwd)/ttc.sif"
 PROJECT_DIR="$(pwd)"
 SCRATCH_DIR="/home/x_bjabj/scratch/$SLURM_JOB_ID"
+# Move container to scratch directory which is likely allowed
+CONTAINER_IMAGE="$SCRATCH_DIR/ttc.sif"
 
 # Create scratch directory
 mkdir -p $SCRATCH_DIR
 
-# Check if container exists
+# Copy the container to the scratch directory if it exists in the project directory
+if [ -f "$PROJECT_DIR/ttc.sif" ]; then
+    echo "Copying container to scratch directory..."
+    cp "$PROJECT_DIR/ttc.sif" "$CONTAINER_IMAGE"
+else
+    echo "Error: Container image not found at $PROJECT_DIR/ttc.sif"
+    exit 1
+fi
+
+# Check if container exists in scratch
 if [ ! -f "$CONTAINER_IMAGE" ]; then
     echo "Error: Container image not found at $CONTAINER_IMAGE"
     exit 1
@@ -60,6 +66,11 @@ print('All imports successful!')
 # Test torchrun
 echo "Testing torchrun..."
 apptainer exec --nv $CONTAINER_IMAGE torchrun --nproc-per-node=1 -m torch.distributed.run --help
+
+# Clean up
+echo "Cleaning up scratch directory..."
+rm -f "$CONTAINER_IMAGE"
+rmdir "$SCRATCH_DIR" 2>/dev/null || echo "Note: Scratch directory not empty, not removed"
 
 # Print end time
 echo "End time: $(date)" 

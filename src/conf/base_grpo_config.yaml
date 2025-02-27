@@ -11,6 +11,7 @@ run:
   wandb_project: "TTC"
   train_mode: "lora"
   resume_training: false
+  task: "detection"  # "detection" or "repair"
 
 model:
   model_name: "Qwen/Qwen2.5-Coder-1.5B-Instruct"

@@ -1,5 +1,6 @@
 from utils.rewards import xmlcount_reward_func, strict_format_reward_func
-from train_grpo import Config, get_primevul, correctness_reward_func
+from train_grpo import Config, correctness_reward_func, diff_reward_func
+from data.primevul import get_vuln_detection_dataset, get_vuln_repair_dataset
 
 from unsloth import FastLanguageModel, PatchFastRL
 PatchFastRL("GRPO", FastLanguageModel)  # important to call this first
@@ -31,8 +32,35 @@ def main(cfg: Config) -> None:
         )
     model.print_trainable_parameters()
 
-    dataset, max_prompt_length = get_primevul(cfg, tokenizer)
+    # Get dataset based on the task
+    if cfg.run.task == "detection":
+        dataset, max_prompt_length = get_vuln_detection_dataset(
+            cfg.run.dataset_name, 
+            cfg.run.split, 
+            tokenizer, 
+            cfg.grpo.max_prompt_length
+        )
+        reward_functions = [
+            xmlcount_reward_func,
+            strict_format_reward_func,
+            correctness_reward_func,
+        ]
+    elif cfg.run.task == "repair":
+        dataset, max_prompt_length = get_vuln_repair_dataset(
+            cfg.run.dataset_name,
+            cfg.run.split,
+            tokenizer,
+            cfg.grpo.max_prompt_length
+        )
+        reward_functions = [
+            xmlcount_reward_func,
+            strict_format_reward_func,
+            diff_reward_func,
+        ]
+    else:
+        raise ValueError(f"Unknown task: {cfg.run.task}")
 
+    # Adjust sequence lengths if needed
     if max_prompt_length < cfg.grpo.max_prompt_length:
         diff = cfg.grpo.max_prompt_length - max_prompt_length
         cfg.grpo.max_prompt_length = max_prompt_length
@@ -41,22 +69,21 @@ def main(cfg: Config) -> None:
 
     training_args = HFGRPOConfig(**cfg.grpo)
 
-    # Initialize trainer
+    # Initialize trainer with task-specific reward functions
     trainer = GRPOTrainer(
         model=model,
         processing_class=tokenizer,
-        reward_funcs=[
-            xmlcount_reward_func,
-            strict_format_reward_func,
-            correctness_reward_func,
-        ],
+        reward_funcs=reward_functions,
         args=training_args,
         train_dataset=dataset,
     )
 
-    trainer.train()
+    trainer.train(resume_from_checkpoint=cfg.run.resume_training)
 
-    trainer.save_model("grpo_saved_model")
+    # Save with task-specific name
+    model_save_path = f"grpo_{cfg.run.task}_unsloth_model"
+    trainer.save_model(model_save_path)
+    print(f"Model saved to {model_save_path}")
 
 if __name__ == "__main__":
     main() 
