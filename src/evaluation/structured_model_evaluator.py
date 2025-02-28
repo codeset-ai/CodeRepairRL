@@ -1,5 +1,6 @@
 import json
 import random
+import logging
 from typing import Literal
 
 from pydantic import BaseModel
@@ -9,6 +10,8 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from lmformatenforcer import JsonSchemaParser
 from lmformatenforcer.integrations.transformers import build_transformers_prefix_allowed_tokens_fn
+
+logger = logging.getLogger(__name__)
 
 
 class MultipleChoiceSchema(BaseModel):
@@ -23,7 +26,7 @@ def extract_schema(response:str, schema:BaseModel)->BaseModel:
     try:
         return schema(**json.loads(response))
     except:
-        print(f"Error extracting schema from response: {response}")
+        logger.error(f"Error extracting schema from response: {response}")
         if schema == MultipleChoiceSchema:
             return MultipleChoiceSchema(answer=random.choice(["A", "B", "C", "D"]))
         elif schema == BooleanSchema:

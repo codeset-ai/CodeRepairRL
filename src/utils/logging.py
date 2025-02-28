@@ -1,5 +1,4 @@
 import html
-import wandb
 import markdown2
 from pygments import highlight
 from pygments.lexers import CLexer

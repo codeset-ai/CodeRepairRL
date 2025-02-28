@@ -1,6 +1,5 @@
 import re
 import difflib
-from typing import List, Tuple, Optional
 
 
 def extract_xml_answer(text: str) -> str:

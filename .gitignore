@@ -20,5 +20,9 @@ outputs/
 unsloth_compiled_cache/
 grpo_trainer_lora_model/
 
+# Cursor
+.cursor/
+
+
 results.json
 repomix-output.txt

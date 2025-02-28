@@ -1,22 +1,22 @@
-from utils.git import get_commit_hash
-from utils.logging import build_html_table
-from utils.rewards import xmlcount_reward_func, strict_format_reward_func, correctness_reward_func as correctness_reward_func_original, extract_xml_answer
-from utils.gpu_utils import resolve_bf16, resolve_fp16
-from data.primevul import get_vuln_detection_dataset, get_vuln_repair_dataset
-
 import os
+import logging
 from typing import Optional
 from dataclasses import dataclass, field, MISSING
 
 import wandb
 import hydra
-from hydra.core.config_store import ConfigStore
 from omegaconf import OmegaConf
-
-from datasets import load_dataset, Dataset
+from hydra.core.config_store import ConfigStore
 from peft import LoraConfig as PEFTLoraConfig, get_peft_model
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from trl import GRPOConfig as HFGRPOConfig, GRPOTrainer
+
+from utils.logging import build_html_table
+from utils.rewards import xmlcount_reward_func, strict_format_reward_func, correctness_reward_func as correctness_reward_func_original, extract_xml_answer
+from utils.resolvers import resolve_bf16, resolve_fp16, resolve_git_commit_hash
+from data.primevul import get_vuln_detection_dataset, get_vuln_repair_dataset
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -24,10 +24,10 @@ class RunConfig:
     dataset_name: str = "ASSERT-KTH/Primevul"
     split: str = "train_paired"
     wandb_project: str = "TTC"
-    commit_hash: str = field(default_factory=get_commit_hash)
-    train_mode: str = "lora"
-    resume_training: bool = False
+    train_mode: str = "lora" # "full" or "lora"
     task: str = "detection"  # "detection" or "repair"
+    commit_hash: str = MISSING
+    resume_training: bool = False
 
     def __post_init__(self):
         if self.train_mode not in ["full", "lora"]:
@@ -98,6 +98,7 @@ cs = ConfigStore.instance()
 cs.store(name="base_grpo_config", node=Config, group="")
 OmegaConf.register_resolver("resolve_bf16", resolve_bf16)
 OmegaConf.register_resolver("resolve_fp16", resolve_fp16)
+OmegaConf.register_resolver("resolve_git_commit_hash", resolve_git_commit_hash)
 
 # GRPOTrainer offers no other way to create callbacks with the completions
 # quick and dirty solution
@@ -149,7 +150,7 @@ def main(cfg: Config) -> None:
 
     # Log precision settings
     precision_mode = "BF16" if cfg.grpo.bf16 else "FP16" if cfg.grpo.fp16 else "FP32"
-    print(f"Training with {precision_mode} precision based on GPU architecture")
+    logger.info(f"Training with {precision_mode} precision based on GPU architecture")
     
     model = AutoModelForCausalLM.from_pretrained(cfg.model.model_name)
     tokenizer = AutoTokenizer.from_pretrained(cfg.model.model_name)
@@ -213,7 +214,7 @@ def main(cfg: Config) -> None:
     # Save with task-specific name
     model_save_path = f"grpo_{cfg.run.task}_model"
     trainer.save_model(model_save_path)
-    print(f"Model saved to {model_save_path}")
+    logger.info(f"Model saved to {model_save_path}")
 
 if __name__ == "__main__":
     main() 

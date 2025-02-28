@@ -10,8 +10,9 @@ run:
   split: "train_paired"
   wandb_project: "TTC"
   train_mode: "lora"
-  resume_training: false
   task: "detection"  # "detection" or "repair"
+  resume_training: false
+  commit_hash: ${MISSING}  # will be set automatically
 
 model:
   model_name: "Qwen/Qwen2.5-Coder-1.5B-Instruct"
@@ -46,8 +47,8 @@ grpo:
   
   # Model settings
   # Automatically set based on GPU architecture
-  bf16: ${resolve_bf16:}
-  fp16: ${resolve_fp16:}
+  bf16: ${MISSING}  # will be set automatically
+  fp16: ${MISSING}  # will be set automatically
   per_device_train_batch_size: 4
   gradient_accumulation_steps: 2
   

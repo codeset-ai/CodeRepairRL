@@ -1,17 +1,17 @@
-from utils.rewards import xmlcount_reward_func, strict_format_reward_func
-from train_grpo import Config, correctness_reward_func, diff_reward_func
-from data.primevul import get_vuln_detection_dataset, get_vuln_repair_dataset
+import os
+import logging
 
 from unsloth import FastLanguageModel, PatchFastRL
 PatchFastRL("GRPO", FastLanguageModel)  # important to call this first
 
-import os
-
 import hydra
-from hydra.core.config_store import ConfigStore
-
-from datasets import load_dataset, Dataset
 from trl import GRPOConfig as HFGRPOConfig, GRPOTrainer
+
+from utils.rewards import xmlcount_reward_func, strict_format_reward_func
+from train_grpo import Config, correctness_reward_func, diff_reward_func
+from data.primevul import get_vuln_detection_dataset, get_vuln_repair_dataset
+
+logger = logging.getLogger(__name__)
 
 
 
@@ -83,7 +83,7 @@ def main(cfg: Config) -> None:
     # Save with task-specific name
     model_save_path = f"grpo_{cfg.run.task}_unsloth_model"
     trainer.save_model(model_save_path)
-    print(f"Model saved to {model_save_path}")
+    logger.info(f"Model saved to {model_save_path}")
 
 if __name__ == "__main__":
     main() 

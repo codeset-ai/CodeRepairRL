@@ -11,12 +11,15 @@
 #  4. Profit???
 
 import re
+import logging
 
 import torch
 from trl import GRPOTrainer
 from transformers import StoppingCriteria, AutoTokenizer
 from typing import Optional
 from duckduckgo_search import DDGS
+
+logger = logging.getLogger(__name__)
 
 
 def search_web(query: str, max_results: Optional[int] = 3) -> list[str]:
@@ -80,9 +83,9 @@ class SearchGRPOTrainer(GRPOTrainer):
         match = pattern.search(text)
         if match:
             query = match.group(1)
-            print(f"Query: {query}")
+            logger.info(f"Query: {query}")
             results = search_web(query)
-            print(f"Results: {results}")
+            logger.info(f"Results: {results}")
 
         text += "\n" + "\n".join(results) + "\n" + "</search>"
 
