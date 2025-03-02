@@ -6,12 +6,10 @@ hydra:
     chdir: false  # Prevents Hydra from changing working directory at runtime
 
 run:
-  dataset_name: "primevul/primevul"
-  split: "train"
   wandb_project: "TTC"
   train_mode: "lora"
   task: "repair"  # "classification" or "repair"
-  dataset_type: "primevul"  # "primevul" or "repairllama" or "custom"
+  dataset_type: "primevul"  # "primevul" or "repairllama"
   resume_training: false
   commit_hash: ${MISSING}  # will be set automatically
 
