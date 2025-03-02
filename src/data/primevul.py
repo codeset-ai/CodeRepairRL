@@ -2,28 +2,30 @@ import logging
 from typing import Tuple, Optional
 
 from datasets import load_dataset, Dataset
+from transformers import PreTrainedTokenizer
 
 from src.data.code_repair import create_repair_dataset
+from src.data.code_classification import create_classification_dataset
 
 
 logger = logging.getLogger(__name__)
 
 
 def get_primevul_repair_dataset(
+    tokenizer: PreTrainedTokenizer,
     dataset_name: str = "ASSERT-KTH/PrimeVul",
     split: str = "train_paired",
-    tokenizer = None,
-    max_prompt_length: Optional[int] = None,
+    max_prompt_length: int = 512,
     system_prompt: Optional[str] = None
 ) -> Tuple[Dataset, int]:
     """
     Create a dataset for code repair tasks from PrimeVul paired data.
     
     Args:
+        tokenizer: Tokenizer for tokenizing prompts
         dataset_name: Name of the dataset on HuggingFace Hub
         split: Dataset split to use (must be paired)
-        tokenizer: Tokenizer for tokenizing prompts
-        max_prompt_length: Maximum allowed token length for prompts
+        max_prompt_length: Maximum prompt length for filtering (default: 512)
         system_prompt: Optional system prompt to use
         
     Returns:
@@ -51,8 +53,7 @@ def get_primevul_repair_dataset(
         vulnerable = all_items[i + 1]
         
         if not fixed["hash"] == vulnerable["hash"] or not fixed["is_vulnerable"] == (not vulnerable["is_vulnerable"]):
-            logger.warning(f"Skipping pair at index {i} due to mismatch in hash or vulnerability status")
-            continue
+            raise ValueError(f"Pair at index {i} has mismatching hash or vulnerability status")
         
         before_codes.append(vulnerable["func"])
         after_codes.append(fixed["func"])
@@ -66,4 +67,64 @@ def get_primevul_repair_dataset(
         tokenizer=tokenizer,
         max_prompt_length=max_prompt_length,
         system_prompt=system_prompt
+    )
+
+
+# List of top CWEs to focus on
+TOP_CWES = ["CWE-20", "CWE-264", "CWE-200", "CWE-125", "CWE-189", "CWE-416", "CWE-399", "CWE-476", "CWE-362"]
+
+# System prompt for vulnerability detection
+VULN_DETECTION_SYSTEM_PROMPT = """
+You are a code auditor identifying software vulnerabilities, or lack thereof, without offering fixes.
+Use only these labels (description provided for context):
+    - CWE-20: Poor input validation allows malicious data.
+    - CWE-264: Weak access controls enable unauthorized actions.
+    - CWE-200: Unintended sensitive data exposure.
+    - CWE-125: Out-of-bounds read leaks data.
+    - CWE-189: Numeric errors cause calculation and logic faults.
+    - CWE-416: Use-after-free—accessing deallocated memory.
+    - CWE-399: Mismanaged resources leading to leaks/exhaustion.
+    - CWE-476: Null pointer dereference results in crashes.
+    - CWE-362: Race conditions from unsynchronized concurrent operations.
+Respond in the following format:
+<think>
+...
+</think>
+<answer>
+one label from the list
+</answer>
+""".strip()
+
+def get_primevul_detection_dataset(
+    tokenizer: PreTrainedTokenizer,
+    split: str = "train_paired",
+    max_prompt_length: int = 512,
+) -> Tuple[Dataset, int]:
+    """
+    Create a dataset for vulnerability detection tasks from PrimeVul data.
+    
+    Args:
+        tokenizer: Tokenizer for tokenizing prompts
+        split: Dataset split to use
+        max_prompt_length: Maximum prompt length for filtering (default: 512)
+        
+    Returns:
+        Tuple of (processed dataset, maximum token length)
+    """
+    # Load the dataset
+    data = load_dataset("ASSERT-KTH/PrimeVul", split=split)
+    # Filter to only include vulnerable samples with CWEs in our target list
+    data = data.filter(lambda x: x["is_vulnerable"] and x["cwe"][0] in TOP_CWES)
+    
+    # Extract the code and labels
+    codes = [item["func"] for item in data]
+    labels = [item["cwe"][0] for item in data]
+
+    # Create the classification dataset
+    return create_classification_dataset(
+        codes=codes,
+        labels=labels,
+        tokenizer=tokenizer,
+        max_prompt_length=max_prompt_length,
+        system_prompt=VULN_DETECTION_SYSTEM_PROMPT
     )

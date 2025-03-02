@@ -1,8 +1,9 @@
 import logging
 import difflib
-from typing import List, Dict, Tuple, Optional, Union
+from typing import List, Tuple, Optional
 
 from datasets import Dataset
+from transformers import PreTrainedTokenizer
 
 
 logger = logging.getLogger(__name__)
@@ -185,27 +186,24 @@ def filter_by_length(data, tokenizer, system_prompt, max_prompt_length: int, use
 def create_repair_dataset(
     before_codes: List[str],
     after_codes: List[str],
+    tokenizer: PreTrainedTokenizer,
     descriptions: Optional[List[str]] = None,
-    tokenizer = None,
-    max_prompt_length: Optional[int] = None,
+    max_prompt_length: int = 512,
     system_prompt: Optional[str] = None
-) -> Union[Dataset, Tuple[Dataset, int]]:
+) -> Tuple[Dataset, int]:
     """
     Create a dataset for code repair tasks from paired before/after code samples.
     
     Args:
         before_codes: List of original code snippets
         after_codes: List of fixed/modified code snippets
+        tokenizer: Tokenizer for tokenizing prompts
         descriptions: Optional list of issue descriptions
-        tokenizer: Optional tokenizer for filtering by length
-        max_prompt_length: Optional maximum prompt length for filtering
+        max_prompt_length: Maximum prompt length for filtering (default: 512)
         system_prompt: Optional system prompt to use (defaults to CODE_REPAIR_SYSTEM_PROMPT)
         
     Returns:
-        If tokenizer and max_prompt_length are provided:
-            Tuple of (processed dataset, maximum token length)
-        Otherwise:
-            Processed dataset
+        Tuple of (processed dataset, maximum token length)
     """
     assert len(before_codes) == len(after_codes), "before_codes and after_codes must have the same length"
     
@@ -240,21 +238,19 @@ def create_repair_dataset(
     # Convert to HF Dataset
     repair_data = Dataset.from_list(data_items)
     
-    # Filter by length if tokenizer and max_prompt_length are provided
-    if tokenizer is not None and max_prompt_length is not None:
-        repair_data = filter_by_length(repair_data, tokenizer, system_prompt, max_prompt_length)
-        
-        # Add prompt field for training
-        repair_data = repair_data.map(lambda x: {
-            "prompt": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": x["user_prompt"]}
-            ],
-            "answer": x["diff"]
-        })
-        
-        return repair_data, max(repair_data["tokenized_length"])
+    # Filter by length
+    repair_data = filter_by_length(repair_data, tokenizer, system_prompt, max_prompt_length)
+    
+    # Add prompt field for training
+    repair_data = repair_data.map(lambda x: {
+        "prompt": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": x["user_prompt"]}
+        ],
+        "answer": x["diff"]
+    })
     
     # Shuffle dataset
     repair_data = repair_data.shuffle(seed=42)
-    return repair_data 
+    
+    return repair_data, max(repair_data["tokenized_length"]) 
