@@ -1,9 +1,10 @@
 import logging
-import difflib
 from typing import List, Tuple, Optional
 
 from datasets import Dataset
 from transformers import PreTrainedTokenizer
+
+from src.utils.diff import generate_search_replace_diff
 
 
 logger = logging.getLogger(__name__)
@@ -50,75 +51,6 @@ Work through the problem here...
 The *SEARCH/REPLACE* edits to fix the code in a code block.
 </answer>
 """.strip()
-
-
-def generate_search_replace_diff(before_code: str, after_code: str) -> str:
-    """
-    Generate a SEARCH/REPLACE diff between before and after code versions.
-    
-    Args:
-        before_code: The original code snippet
-        after_code: The fixed/modified code snippet
-        
-    Returns:
-        A SEARCH/REPLACE diff representing the changes, focusing on changed chunks
-    """
-    # Split code into lines
-    before_lines = before_code.splitlines()
-    after_lines = after_code.splitlines()
-    
-    # Use SequenceMatcher to find differences
-    matcher = difflib.SequenceMatcher(None, before_lines, after_lines)
-    search_replace_blocks = []
-    
-    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
-        # We only care about changes for SEARCH/REPLACE format
-        if tag == 'replace':
-            search_chunk = '\n'.join(before_lines[i1:i2])
-            replace_chunk = '\n'.join(after_lines[j1:j2])
-            
-            # Create a SEARCH/REPLACE block
-            block = "<<<<<<< SEARCH\n"
-            block += f"{search_chunk}\n"
-            block += "=======\n"
-            block += f"{replace_chunk}\n"
-            block += ">>>>>>> REPLACE"
-            
-            search_replace_blocks.append(block)
-        
-        # For deletions, we just need a SEARCH block with empty REPLACE
-        elif tag == 'delete':
-            search_chunk = '\n'.join(before_lines[i1:i2])
-            
-            block = "<<<<<<< SEARCH\n"
-            block += f"{search_chunk}\n"
-            block += "=======\n"
-            block += ">>>>>>> REPLACE"
-            
-            search_replace_blocks.append(block)
-        
-        # For insertions, we need context (the line before insertion)
-        elif tag == 'insert':
-            replace_chunk = '\n'.join(after_lines[j1:j2])
-            
-            # Need to find the context (the line before insertion)
-            context_line = ""
-            if i1 > 0:
-                context_line = before_lines[i1-1]
-            
-            block = "<<<<<<< SEARCH\n"
-            if context_line:
-                block += f"{context_line}\n"
-            block += "=======\n"
-            if context_line:
-                block += f"{context_line}\n"
-            block += f"{replace_chunk}\n"
-            block += ">>>>>>> REPLACE"
-            
-            search_replace_blocks.append(block)
-    
-    # Join all blocks
-    return "\n\n".join(search_replace_blocks)
 
 
 def generate_repair_prompt(code: str, description: Optional[str] = None) -> str:

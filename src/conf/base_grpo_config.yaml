@@ -41,7 +41,7 @@ grpo:
   adam_beta2: 0.99
   weight_decay: 0.1
   warmup_ratio: 0.1
-  lr_scheduler_type: "cosine"
+  lr_scheduler_type: "linear"
   optim: "paged_adamw_8bit"
   
   # Model settings

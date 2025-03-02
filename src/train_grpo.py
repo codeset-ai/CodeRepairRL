@@ -44,7 +44,7 @@ class LoraConfig:  # only used if train_mode == "lora"
     target_modules: tuple[str] = ("q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj")
 
 @dataclass
-class ModelConfig:
+class ModelConfig:  # mostly unsloth-specific settings
     model_name: str = "Qwen/Qwen2.5-Coder-1.5B-Instruct"
     load_in_4bit: bool = True
     fast_inference: bool = True # Enable vLLM fast inference
@@ -63,20 +63,20 @@ class GRPOConfig:
     adam_beta2: float = 0.99
     weight_decay: float = 0.1
     warmup_ratio: float = 0.1
-    lr_scheduler_type: str = "cosine"
+    lr_scheduler_type: str = "linear"  # Cosine learning rates have been shown to be bad for GRPO, see discussion: https://x.com/kalomaze/status/1895549497692090573
     optim: str = "paged_adamw_8bit"
     
     # Model settings - these will be automatically determined based on GPU architecture
     # when using the custom resolvers in the YAML config
     bf16: bool = MISSING
     fp16: bool = MISSING
-    per_device_train_batch_size: int = 1
+    per_device_train_batch_size: int = 4
     gradient_accumulation_steps: int = 1
     
     # Generation settings
-    num_generations: int = 6
+    num_generations: int = 4
     max_prompt_length: int = 256
-    max_completion_length: int = 200
+    max_completion_length: int = 256
 
     # Training loop settings
     logging_steps: int = 1

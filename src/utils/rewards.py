@@ -1,5 +1,6 @@
 import re
 import difflib
+from src.utils.diff import is_valid_diff_format
 
 
 def extract_xml_answer(text: str) -> str:
@@ -45,39 +46,55 @@ def xmlcount_reward_func(completions, **kwargs) -> list[float]:
     contents = [completion[0]["content"] for completion in completions]
     return [count_xml(c) for c in contents]
 
-def is_valid_diff_format(diff_text: str) -> bool:
+
+### Repair specific reward functions
+
+
+def count_diff_format(text) -> float:
     """
-    Check if a string is in valid git diff format.
+    Calculate a partial reward for diff format based on presence of markers.
     
     Args:
-        diff_text: The text to check
+        text: The text to analyze for diff format markers
         
     Returns:
-        True if the text appears to be a valid git diff, False otherwise
+        A score between 0.0 and 0.3 indicating how well the text follows diff format
+    """    
+    score = 0.0
+    
+    if "<<<<<<< SEARCH" in text:
+        score += 0.1
+    
+    # Check for divider
+    if "=======" in text:
+        score += 0.1
+    
+    # Check for replace markers
+    if ">>>>>>> REPLACE" in text:
+        score += 0.1
+    
+    return score
+
+def partial_diff_format_reward_func(completions, **kwargs) -> list[float]:
     """
-    # Basic check for common diff patterns
-    # 1. Check for diff header lines
-    diff_header_pattern = r'diff --git a/.+ b/.+'
-    has_header = bool(re.search(diff_header_pattern, diff_text))
+    Reward function that gives partial credit for diff format.
     
-    # 2. Check for index lines
-    index_pattern = r'index [0-9a-f]+\.\.[0-9a-f]+'
-    has_index = bool(re.search(index_pattern, diff_text))
-    
-    # 3. Check for hunk headers
-    hunk_pattern = r'@@ -\d+,\d+ \+\d+,\d+ @@'
-    has_hunk = bool(re.search(hunk_pattern, diff_text))
-    
-    # 4. Check for addition/deletion lines
-    changes_pattern = r'[+-][^+-]'
-    has_changes = bool(re.search(changes_pattern, diff_text))
-    
-    # Count how many of these patterns we found
-    pattern_count = sum([has_header, has_index, has_hunk, has_changes])
-    
-    # Consider valid if at least 2 of these patterns are found
-    # This is a simple heuristic and can be adjusted
-    return pattern_count >= 2
+    Args:
+        completions: List of model completions
+        
+    Returns:
+        List of scores between 0.0 and 1.0 for each completion
+    """
+    contents = [completion[0]["content"] for completion in completions]
+    return [count_diff_format(c) for c in contents]
+
+def strict_diff_format_reward_func(completions, **kwargs) -> list[float]:
+    """
+    Reward function that gives full credit for diff format.
+    """
+    contents = [completion[0]["content"] for completion in completions]
+    return [1.0 if is_valid_diff_format(c) else 0.0 for c in contents]
+
 
 def diff_similarity_reward(reference_diff: str, generated_diff: str) -> float:
     """
