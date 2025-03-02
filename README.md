@@ -2,7 +2,7 @@
 
 ## Overview
 
-TTC leverages recent advancements in applying Reinforcement Learning (RL) to Large Language Models (LLMs) to train them in domain-specific reasoning. Our ultimate goal is to develop models similar to [RepairLLama](https://arxiv.org/pdf/2312.15698) and [Llama-3-SWE-RL](https://arxiv.org/pdf/2502.18449), which "punch above their weight-class" in terms of parameter count, demonstrating exceptional performance in software engineering benchmarks. This aligns with recent advancements described in the [DeepSeek-R1 paper](https://arxiv.org/pdf/2501.12948).
+TTC leverages recent advancements in applying Reinforcement Learning (RL) to Large Language Models (LLMs) to train them in domain-specific reasoning. Our ultimate goal is to develop models similar to [RepairLLama](https://arxiv.org/pdf/2312.15698) and [Llama-3-SWE-RL](https://arxiv.org/pdf/2502.18449), which "punch above their weight-class" in terms of parameter count, demonstrating exceptional performance in software engineering benchmarks.
 
 ## Objectives
 
@@ -18,18 +18,40 @@ For detailed run results and progress on both objectives, see our [WandB project
 
 ## Key Dataset: PrimeVul
 
-PrimeVul is a very convenient dataset for our project, ideal for testing the [SWE-RL approach](https://arxiv.org/pdf/2502.18449). It includes:
+PrimeVul is a convenient dataset for our project, ideal for testing the [SWE-RL approach](https://arxiv.org/pdf/2502.18449). It includes:
 
 - Paired vulnerable and fixed code snippets.
-- Explicit vulnerability descriptions using CWE identifiers.
-- Minimal semantic differences between vulnerable and fixed code, isolating the vulnerability.
-- Self-contained examples, eliminating the need for external context.
+- Explicit vulnerability descriptions using CWE identifiers, which can be used like the Github issues in SWE-RL
+- Minimal semantic differences between vulnerable and fixed code, clearly isolating the vulnerability.
+
+However, while most examples are self-contained functions that do not require external context, some vulnerable/fixed pairs are not intuitive and require additional external context.
 
 ## Compute Efficiency
 
 Since LLMs are inherently large, training them can be challenging for individual researchers. To address this, we optionally include parameter-efficient LoRA training and device optimizations via Unsloth. These optimizations include training at lower precision and using optimized attention implementations, significantly enhancing compute efficiency.
 
----
+## Definitions and Intuitions
+
+In our project, we use specific terms that are crucial for understanding our approach:
+
+- **KL-divergence (Kullback-Leibler divergence)**: A fundamental metric in information theory that measures how one probability distribution differs from another. In our reinforcement learning setup, we use it to quantify how much our updated policy ($\pi_{t+1}$) diverges from our reference policy ($\pi_t$) as the training progresses. This helps ensure our model learns gradually and stably.
+
+- **Loss**: In the context of our model, 'loss' refers to the discrepancy between the reference policy and the update policy. It is a measure of how much the model's predictions deviate from the expected outcomes based on the evolving reference policy.
+
+For detailed run results and progress on both objectives, see our [WandB project page](https://wandb.ai/assert-kth/TTC).
+
+### Conceptual Insights
+
+Our approach to optimizing models in this project is guided by several foundational ideas:
+
+- In SFT, we optimize the model to output the exact sequence of tokens, whereas in GRPO (even if the text is identical), we optimize the parameters to produce any sequence that maximizes reward.
+
+- This approach effectively bootstraps the model onto itself, as it uses its own policy as a baseline for improvement.
+
+- The more capable the base model, the more significant the returns from our RL training, provided the RL environment is sufficiently challenging.
+
+- It's funny that math is easier than humor, we have 1.5B parameter models that saturate math benchmarks but we need ~20T parameter GPT4.5 to get decent humor
+
 
 ## Implementation Details
 

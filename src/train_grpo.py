@@ -14,26 +14,28 @@ from trl import GRPOConfig as HFGRPOConfig, GRPOTrainer
 from utils.logging import build_html_table
 from utils.rewards import xmlcount_reward_func, strict_format_reward_func, correctness_reward_func as correctness_reward_func_original, extract_xml_answer
 from utils.resolvers import resolve_bf16, resolve_fp16, resolve_git_commit_hash
-from data.primevul import get_vuln_detection_dataset, get_vuln_repair_dataset
+from src.data.repairllama import get_repairllama_dataset
+from src.data.primevul import get_primevul_repair_dataset, get_primevul_detection_dataset
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
 class RunConfig:
-    dataset_name: str = "ASSERT-KTH/Primevul"
-    split: str = "train_paired"
     wandb_project: str = "TTC"
     train_mode: str = "lora" # "full" or "lora"
-    task: str = "detection"  # "detection" or "repair"
+    task: str = "repair"  # "classification" or "repair"
+    dataset_type: str = "primevul"  # "primevul" or "repairllama"
     commit_hash: str = MISSING
     resume_training: bool = False
 
     def __post_init__(self):
         if self.train_mode not in ["full", "lora"]:
             raise ValueError("train_mode must be either 'full' or 'lora'")
-        if self.task not in ["detection", "repair"]:
-            raise ValueError("task must be either 'detection' or 'repair'")
+        if self.task not in ["classification", "repair"]:
+            raise ValueError("task must be either 'classification' or 'repair'")
+        if self.dataset_type not in ["primevul", "repairllama"]:
+            raise ValueError("dataset_type must be either 'repairllama', or 'custom'")
         
 @dataclass
 class LoraConfig:  # only used if train_mode == "lora"
@@ -165,9 +167,8 @@ def main(cfg: Config) -> None:
 
     # Get dataset based on the task
     if cfg.run.task == "detection":
-        dataset, max_prompt_length = get_vuln_detection_dataset(
-            cfg.run.dataset_name, 
-            cfg.run.split, 
+        if cfg.run.dataset_type == "repairllama": raise ValueError("RepairLLAMA does not support detection task")
+        dataset, max_prompt_length = get_primevul_detection_dataset(
             tokenizer, 
             cfg.grpo.max_prompt_length
         )
@@ -177,9 +178,8 @@ def main(cfg: Config) -> None:
             correctness_reward_func,
         ]
     elif cfg.run.task == "repair":
-        dataset, max_prompt_length = get_vuln_repair_dataset(
-            cfg.run.dataset_name,
-            cfg.run.split,
+        repair_dataset = get_primevul_repair_dataset if cfg.run.dataset_type == "primevul" else get_repairllama_dataset
+        dataset, max_prompt_length = repair_dataset(
             tokenizer,
             cfg.grpo.max_prompt_length
         )
@@ -191,7 +191,7 @@ def main(cfg: Config) -> None:
     else:
         raise ValueError(f"Unknown task: {cfg.run.task}")
 
-    # Adjust sequence lengths if needed
+    # Adjust sequence lengths if needed (ensures we are not wasting context window)
     if max_prompt_length < cfg.grpo.max_prompt_length:
         diff = cfg.grpo.max_prompt_length - max_prompt_length
         cfg.grpo.max_prompt_length = max_prompt_length

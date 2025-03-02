@@ -9,7 +9,8 @@ from trl import GRPOConfig as HFGRPOConfig, GRPOTrainer
 
 from utils.rewards import xmlcount_reward_func, strict_format_reward_func
 from train_grpo import Config, correctness_reward_func, diff_reward_func
-from data.primevul import get_vuln_detection_dataset, get_vuln_repair_dataset
+from src.data.repairllama import get_repairllama_dataset
+from src.data.primevul import get_primevul_repair_dataset, get_primevul_detection_dataset
 
 logger = logging.getLogger(__name__)
 
@@ -34,9 +35,8 @@ def main(cfg: Config) -> None:
 
     # Get dataset based on the task
     if cfg.run.task == "detection":
-        dataset, max_prompt_length = get_vuln_detection_dataset(
-            cfg.run.dataset_name, 
-            cfg.run.split, 
+        if cfg.run.dataset_type == "repairllama": raise ValueError("RepairLLAMA does not support detection task")
+        dataset, max_prompt_length = get_primevul_detection_dataset(
             tokenizer, 
             cfg.grpo.max_prompt_length
         )
@@ -46,9 +46,8 @@ def main(cfg: Config) -> None:
             correctness_reward_func,
         ]
     elif cfg.run.task == "repair":
-        dataset, max_prompt_length = get_vuln_repair_dataset(
-            cfg.run.dataset_name,
-            cfg.run.split,
+        repair_dataset = get_primevul_repair_dataset if cfg.run.dataset_type == "primevul" else get_repairllama_dataset
+        dataset, max_prompt_length = repair_dataset(
             tokenizer,
             cfg.grpo.max_prompt_length
         )
