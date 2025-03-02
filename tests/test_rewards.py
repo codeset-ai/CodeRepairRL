@@ -1,9 +1,9 @@
-"""import sys
+import sys
 import unittest
 from pathlib import Path
 
 # Add the src directory to the Python path
-sys.path.append(str(Path(__file__).parent.parent))"""
+sys.path.append(str(Path(__file__).parent.parent))
 
 from src.utils.rewards import (
     extract_xml_answer,
@@ -11,6 +11,7 @@ from src.utils.rewards import (
     strict_format_reward_func,
     count_xml,
     xmlcount_reward_func,
+    # Repair specific reward functions
     count_diff_format,
     partial_diff_format_reward_func,
     diff_similarity_reward,
@@ -18,7 +19,7 @@ from src.utils.rewards import (
 )
 
 
-class TestRewards(unittest.TestCase):
+class TestClassificationRewards(unittest.TestCase):
     """Test cases for reward functions in src/utils/rewards.py."""
 
     def test_extract_xml_answer(self):
@@ -148,8 +149,10 @@ class TestRewards(unittest.TestCase):
         self.assertEqual(rewards[1], 0.0)
         self.assertLess(rewards[2], 0.5)
 
+
+class TestRepairRewards(unittest.TestCase):
     def test_count_diff_format(self):
-        """Test the count_diff_format function."""
+        """Test the count of diff format markers."""
         # Valid diff format
         valid_diff = (
             "<<<<<<< SEARCH\n"
@@ -160,7 +163,7 @@ class TestRewards(unittest.TestCase):
             "    print('hello world')\n"
             ">>>>>>> REPLACE"
         )
-        self.assertAlmostEqual(count_diff_format(valid_diff), 1.0, places=5)
+        self.assertAlmostEqual(count_diff_format(valid_diff), 0.3, places=5)
         
         # Missing SEARCH marker
         missing_search = (
@@ -171,7 +174,7 @@ class TestRewards(unittest.TestCase):
             "    print('hello world')\n"
             ">>>>>>> REPLACE"
         )
-        self.assertAlmostEqual(count_diff_format(missing_search), 0.4, places=5)  # 0.2 for divider + 0.2 for replace
+        self.assertAlmostEqual(count_diff_format(missing_search), 0.2, places=5)
         
         # Missing divider
         missing_divider = (
@@ -182,7 +185,7 @@ class TestRewards(unittest.TestCase):
             "    print('hello world')\n"
             ">>>>>>> REPLACE"
         )
-        self.assertAlmostEqual(count_diff_format(missing_divider), 0.4, places=5)  # 0.2 for search + 0.2 for replace
+        self.assertAlmostEqual(count_diff_format(missing_divider), 0.2, places=5)
         
         # Missing REPLACE marker
         missing_replace = (
@@ -193,7 +196,7 @@ class TestRewards(unittest.TestCase):
             "def hello():\n"
             "    print('hello world')\n"
         )
-        self.assertAlmostEqual(count_diff_format(missing_replace), 0.4, places=5)  # 0.2 for search + 0.2 for divider
+        self.assertAlmostEqual(count_diff_format(missing_replace), 0.2, places=5)
         
         # Has all markers but in wrong order
         wrong_order = (
@@ -205,7 +208,7 @@ class TestRewards(unittest.TestCase):
             "    print('hello')\n"
             "<<<<<<< SEARCH"
         )
-        self.assertAlmostEqual(count_diff_format(wrong_order), 0.6, places=5)  # 0.2 for each marker, no bonus for order
+        self.assertAlmostEqual(count_diff_format(wrong_order), 0.3, places=5)
         
         # No markers
         no_markers = "This is just some random text"
@@ -226,7 +229,7 @@ class TestRewards(unittest.TestCase):
             "    print('correct fixed')\n"
             ">>>>>>> REPLACE"
         )
-        self.assertAlmostEqual(count_diff_format(mixed_blocks), 1.0, places=5)  # Has one valid block
+        self.assertAlmostEqual(count_diff_format(mixed_blocks), 0.3, places=5)
 
     def test_partial_diff_format_reward_func(self):
         """Test the partial_diff_format_reward_func function."""
@@ -237,8 +240,8 @@ class TestRewards(unittest.TestCase):
         ]
         
         rewards = partial_diff_format_reward_func(completions)
-        self.assertAlmostEqual(rewards[0], 1.0, places=5)  # Valid diff
-        self.assertAlmostEqual(rewards[1], 0.4, places=5)  # Missing SEARCH marker
+        self.assertAlmostEqual(rewards[0], 0.3, places=5)  # Valid diff
+        self.assertAlmostEqual(rewards[1], 0.2, places=5)  # Missing SEARCH marker
         self.assertAlmostEqual(rewards[2], 0.0, places=5)  # No markers
 
     def test_diff_similarity_reward(self):
@@ -253,8 +256,7 @@ class TestRewards(unittest.TestCase):
             "    print('hello world')\n"
             ">>>>>>> REPLACE"
         )
-        generated_diff = reference_diff
-        self.assertEqual(diff_similarity_reward(reference_diff, generated_diff), 1.0)
+        self.assertEqual(diff_similarity_reward(reference_diff, reference_diff), 1.0)
         
         # Similar diffs (minor differences)
         similar_diff = (
@@ -284,23 +286,72 @@ class TestRewards(unittest.TestCase):
         
         # Invalid diff format
         invalid_diff = "This is not a valid diff"
-        self.assertEqual(diff_similarity_reward(reference_diff, invalid_diff), -1.0)
+        self.assertEqual(diff_similarity_reward(reference_diff, invalid_diff), 0.0)
 
     def test_diff_similarity_reward_func(self):
         """Test the diff_similarity_reward_func function."""
-        reference_diffs = [
-            "<<<<<<< SEARCH\ndef hello():\n    print('hello')\n=======\ndef hello():\n    print('hello world')\n>>>>>>> REPLACE",
-            "<<<<<<< SEARCH\ndef goodbye():\n    print('goodbye')\n=======\ndef goodbye():\n    print('goodbye world')\n>>>>>>> REPLACE"
-        ]
+        reference_diff = (
+            "<<<<<<< SEARCH\n"
+            "def hello():\n"
+            "    print('hello')\n"
+            "=======\n"
+            "def hello():\n"
+            "    print('hello world')\n"
+            ">>>>>>> REPLACE"
+        )
+        reference_diffs = [reference_diff] * 4
         
         completions = [
-            [{"content": "<<<<<<< SEARCH\ndef hello():\n    print('hello')\n=======\ndef hello():\n    print('hello world')\n>>>>>>> REPLACE"}],
+            [{"content": (
+                "<think>\n"
+                "This is a test\n"
+                "</think>\n"
+                "<answer>\n"
+                "```python\n"
+                "<<<<<<< SEARCH\n"
+                "def hello():\n"
+                "    print('hello')\n"
+                "=======\n"
+                "def hello():\n"
+                "    print('hello world')\n"
+                ">>>>>>> REPLACE\n"
+                "```\n"
+                "</answer>\n"
+            )}],
+            [{"content": (
+                "<think>\n"
+                "This is a test\n"
+                "</think>\n"
+                "<answer>\n"
+                "```python\n"
+                "<<<<<<< SEARCH\n"
+                "def hello():\n"
+                "    print('hello')\n"
+                "=======\n"
+                "def hello():\n"
+                "    print('goodbye world')\n"  # Slight difference
+                ">>>>>>> REPLACE\n"
+                "```\n"
+                "</answer>\n"
+            )}],
+            [{"content": (
+                "<<<<<<< SEARCH\n"
+                "def hello():\n"
+                "    print('hello')\n"
+                "=======\n"
+                "def hello():\n"
+                "    print('hello world')\n"
+                ">>>>>>> REPLACE"
+            )}],
             [{"content": "This is not a valid diff"}]
         ]
         
         rewards = diff_similarity_reward_func(completions, reference_diffs)
+        self.assertEqual(len(rewards), 4)
         self.assertEqual(rewards[0], 1.0)  # Identical to reference
-        self.assertEqual(rewards[1], -1.0)  # Invalid diff format
+        self.assertGreater(rewards[1], 0.8)  # Highly similar to reference
+        self.assertEqual(rewards[2], 0.0)  # Missing <answer> tags
+        self.assertEqual(rewards[3], 0.0)  # Invalid diff format
 
 
 if __name__ == "__main__":

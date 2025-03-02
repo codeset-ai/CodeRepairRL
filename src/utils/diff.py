@@ -5,24 +5,30 @@ from typing import List, Tuple, Optional
 
 def parse_search_replace_block(block: str) -> Tuple[Optional[str], Optional[str]]:
     """
-    Parse a single search/replace block.
-    
+    Parse a single search/replace block. 
+    We allow the search content to be optional to facilitate diffs creating new files
     Args:
         block: A string containing a search/replace block
         
     Returns:
         A tuple of (search_content, replace_content), or (None, None) if parsing fails
     """
-    # Define the pattern for a search/replace block
-    pattern = r"<<<<<<< SEARCH\n(.*?)\n=======\n(.*?)\n>>>>>>> REPLACE"
+    pattern_with_search = r"<<<<<<< SEARCH\n(.*?)\n=======\n(.*?)\n>>>>>>> REPLACE"
     
     # Use re.DOTALL to match across multiple lines
-    match = re.search(pattern, block, re.DOTALL)
+    match = re.search(pattern_with_search, block, re.DOTALL)
     
     if match:
         search_content = match.group(1)
         replace_content = match.group(2)
         return search_content, replace_content
+    
+    pattern_without_search = r"<<<<<<< SEARCH\n=======\n(.*?)\n>>>>>>> REPLACE"
+
+    match = re.search(pattern_without_search, block, re.DOTALL)
+
+    if match:
+        return "", match.group(1)
     
     return None, None
 
@@ -37,8 +43,7 @@ def parse_search_replace_diff(diff: str) -> List[Tuple[str, str]]:
     Returns:
         A list of (search_content, replace_content) tuples
     """
-    if not diff:
-        return []
+    if not diff: return []
     
     # Split the diff into blocks
     blocks = diff.split("\n\n")
@@ -63,8 +68,7 @@ def apply_search_replace_diff(code: str, diff: str) -> str:
     Returns:
         The code after applying the diff
     """
-    if not diff:
-        return code
+    if not diff: return code
     
     # Parse the diff into search/replace pairs
     replacements = parse_search_replace_diff(diff)

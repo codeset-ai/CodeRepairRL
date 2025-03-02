@@ -259,7 +259,63 @@ class TestDiffUtils(unittest.TestCase):
         )
 
         self.assertEqual(extracted, expected_blocks)
+
+    def test_extract_search_replace_blocks_from_llm_response_no_tags(self):
+        """Test extracting search/replace blocks from an LLM response with no tags."""
+        llm_response = (
+            "Here are the fixes:\n"
+            "\n"
+            "```python\n"
+            "<<<<<<< SEARCH\n"
+            "def calculate(x, y):\n"
+            "    return x / y\n"
+            "=======\n"
+            "def calculate(x, y):\n"
+            "    if y == 0:\n"
+            "        raise ZeroDivisionError(\"Cannot divide by zero\")\n"
+            "    return x / y\n"
+            ">>>>>>> REPLACE\n"
+            "```\n"
+            "\n"
+            "And another issue:\n"
+            "\n"
+            "```python\n"
+            "<<<<<<< SEARCH\n"
+            "    return value + 10\n"
+            "=======\n"
+            "    if value < 0:\n"
+            "        value = 0\n"
+            "    return value + 10\n"
+            ">>>>>>> REPLACE\n"
+            "```"
+        )
         
+        # Extract the blocks
+        extracted = extract_search_replace_blocks_from_llm_response(llm_response)
+        
+        # Define the expected blocks
+        expected_blocks = (
+            "<<<<<<< SEARCH\n"
+            "def calculate(x, y):\n"
+            "    return x / y\n"
+            "=======\n"
+            "def calculate(x, y):\n"
+            "    if y == 0:\n"
+            "        raise ZeroDivisionError(\"Cannot divide by zero\")\n"
+            "    return x / y\n"
+            ">>>>>>> REPLACE\n"
+            "\n"
+            "<<<<<<< SEARCH\n"
+            "    return value + 10\n"
+            "=======\n"
+            "    if value < 0:\n"
+            "        value = 0\n"
+            "    return value + 10\n"
+            ">>>>>>> REPLACE"
+        )
+
+        self.assertEqual(extracted, expected_blocks)
+
     def test_extract_search_replace_blocks_from_llm_response_no_blocks(self):
         """Test extracting search/replace blocks from an LLM response with no blocks."""
         no_blocks_response = "The LLM is yapping here without following the instructions."
