@@ -1,5 +1,15 @@
 # Research Papers
 
+## rStar-Math
+**Authors:** Xinyu Guan, Li Lyna Zhang, Yifei Liu, Ning Shang, Youran Sun, Yi Zhu, Fan Yang, Mao Yang  
+**Link:** https://arxiv.org/pdf/2501.04519
+
+<details>
+<summary><b>Summary</b></summary>
+
+This paper introduces rStar-Math, a framework that enables small language models (SLMs) to achieve state-of-the-art mathematical reasoning capabilities without distillation from larger models. The approach uses Monte Carlo Tree Search (MCTS) at test time, where a math policy SLM performs search guided by an SLM-based process reward model. The authors introduce three key innovations: (1) a code-augmented Chain-of-Thought data synthesis method that generates verified reasoning trajectories through MCTS rollouts; (2) a novel process reward model training method that avoids step-level score annotation; and (3) a self-evolution recipe where both the policy SLM and process preference model (PPM) iteratively improve. Through four rounds of self-evolution with millions of synthesized solutions for 747k math problems, rStar-Math dramatically improves small models' performance. For example, it boosts Qwen2.5-Math-7B from 58.8% to 90.0% and Phi3-mini-3.8B from 41.4% to 86.4% on the MATH benchmark, surpassing OpenAI's o1-preview. On the USA Math Olympiad (AIME), rStar-Math solves an average of 53.3% of problems, ranking among the top 20% of high school math competitors. This work demonstrates that small models can achieve exceptional reasoning capabilities through carefully designed search and training strategies, without requiring massive model scaling.
+</details>
+
 ## SWE-RL: Advancing LLM Reasoning via Reinforcement Learning on Open Software Evolution
 **Authors:** Yuxiang Wei, Olivier Duchenne, Jade Copet, Quentin Carbonneaux, Lingming Zhang, Daniel Fried, Gabriel Synnaeve, Rishabh Singh, Sida I. Wang  
 **Link:** [https://arxiv.org/pdf/2502.18449](https://arxiv.org/pdf/2502.18449)
