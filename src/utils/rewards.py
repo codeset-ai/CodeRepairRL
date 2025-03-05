@@ -1,7 +1,10 @@
 import re
 import difflib
 
-from src.utils.diff import extract_search_replace_blocks_from_llm_response, is_valid_diff_format
+from src.utils.diff import get_diff
+
+# Create search/replace diff instance for use in reward functions
+_diff = get_diff('search_replace')
 
 
 def extract_xml_answer(text: str) -> str:
@@ -91,8 +94,8 @@ def strict_diff_format_reward_func(completions, **kwargs) -> list[float]:
     Reward function that gives full credit for diff format.
     """
     contents = [completion[0]["content"] for completion in completions]
-    blocks = [extract_search_replace_blocks_from_llm_response(c) for c in contents]
-    return [1.0 if is_valid_diff_format(b) else 0.0 for b in blocks]
+    blocks = [_diff.extract_from_llm_response(c) for c in contents]
+    return [1.0 if _diff.is_valid_format(b) else 0.0 for b in blocks]
 
 def diff_similarity_reward(reference_blocks: str, generated_blocks: str) -> float:
     """
@@ -111,7 +114,7 @@ def diff_similarity_reward(reference_blocks: str, generated_blocks: str) -> floa
           0.0 means invalid diff format
     """
     # First check if the generated diff is in valid format
-    if not is_valid_diff_format(generated_blocks):
+    if not _diff.is_valid_format(generated_blocks):
         return 0.0
     
     # process each block separately (perhaps make ordering of blocks not matter)
@@ -144,7 +147,7 @@ def diff_similarity_reward_func(completions, reference, **kwargs) -> list[float]
     # Extract content from completions
     contents = [completion[0]["content"] for completion in completions]
     answers = [extract_xml_answer(c) for c in contents]
-    generated = [extract_search_replace_blocks_from_llm_response(c) for c in answers]
+    generated = [_diff.extract_from_llm_response(c) for c in answers]
     
     # Calculate similarity for each completion-reference pair
     similarities = [

@@ -5,18 +5,15 @@ from pathlib import Path
 # Add the src directory to the Python path
 sys.path.append(str(Path(__file__).parent.parent))
 
-from src.utils.diff import (
-    parse_search_replace_block,
-    parse_search_replace_diff,
-    apply_search_replace_diff,
-    is_valid_diff_format,
-    extract_search_replace_blocks_from_llm_response,
-    generate_search_replace_diff,
-)
+from src.utils.diff import SearchReplaceDiff, get_diff
 
 
-class TestDiffUtils(unittest.TestCase):
-    """Test cases for diff utilities in src/utils/diff.py."""
+class TestSearchReplaceDiff(unittest.TestCase):
+    """Test cases for SearchReplaceDiff in src/utils/diff.py."""
+    
+    def setUp(self):
+        """Set up a SearchReplaceDiff instance for testing."""
+        self.diff = SearchReplaceDiff()
 
     def test_parse_search_replace_block(self):
         """Test parsing a single search/replace block."""
@@ -30,7 +27,7 @@ class TestDiffUtils(unittest.TestCase):
             ">>>>>>> REPLACE"
         )
         
-        search_content, replace_content = parse_search_replace_block(block)
+        search_content, replace_content = self.diff.parse_block(block)
         
         self.assertEqual(search_content, "def hello():\n    print('hello')")
         self.assertEqual(replace_content, "def hello():\n    print('hello world')")
@@ -48,7 +45,7 @@ class TestDiffUtils(unittest.TestCase):
             "def hello():\n"
         )
 
-        search_content, replace_content = parse_search_replace_block(broken_block)
+        search_content, replace_content = self.diff.parse_block(broken_block)
 
         self.assertIsNone(search_content)
         self.assertIsNone(replace_content)
@@ -56,7 +53,7 @@ class TestDiffUtils(unittest.TestCase):
     def test_parse_search_replace_block_invalid_block(self):
         """Test parsing an invalid search/replace block."""
         invalid_block = "This is not a valid SEARCH/REPLACE block"
-        search_content, replace_content = parse_search_replace_block(invalid_block)
+        search_content, replace_content = self.diff.parse_block(invalid_block)
         
         self.assertIsNone(search_content)
         self.assertIsNone(replace_content)
@@ -81,7 +78,7 @@ class TestDiffUtils(unittest.TestCase):
             ">>>>>>> REPLACE"
         )
         
-        replacements = parse_search_replace_diff(diff)
+        replacements = self.diff.parse_diff(diff)
         
         self.assertEqual(len(replacements), 2)
         self.assertEqual(replacements[0][0], "def hello():\n    print('hello')")
@@ -91,7 +88,7 @@ class TestDiffUtils(unittest.TestCase):
 
     def test_parse_search_replace_diff_empty_diff(self):
         """Test parsing an empty diff."""
-        self.assertEqual(parse_search_replace_diff(""), [])
+        self.assertEqual(self.diff.parse_diff(""), [])
 
     def test_apply_search_replace_diff(self):
         """Test applying a search/replace diff to code."""
@@ -114,7 +111,7 @@ class TestDiffUtils(unittest.TestCase):
             ">>>>>>> REPLACE"
         )
         
-        result = apply_search_replace_diff(code, diff)
+        result = self.diff.apply_diff(code, diff)
         expected = "def hello():\n    print('hello world')\n\ndef goodbye():\n    print('goodbye world')"
         
         self.assertEqual(result, expected)
@@ -122,13 +119,13 @@ class TestDiffUtils(unittest.TestCase):
     def test_apply_search_replace_diff_empty_diff(self):
         """Test that applying an empty diff returns the original code."""
         code = "def hello():\n    print('hello')\n\ndef goodbye():\n    print('goodbye')"
-        self.assertEqual(apply_search_replace_diff(code, ""), code)
+        self.assertEqual(self.diff.apply_diff(code, ""), code)
 
     def test_apply_search_replace_diff_invalid_diff(self):
         """Test that applying an invalid diff returns the original code."""
         code = "def hello():\n    print('hello')\n\ndef goodbye():\n    print('goodbye')"
         invalid_diff = "This is not a valid SEARCH/REPLACE diff"
-        self.assertEqual(apply_search_replace_diff(code, invalid_diff), code)
+        self.assertEqual(self.diff.apply_diff(code, invalid_diff), code)
 
     def test_apply_search_replace_diff_to_empty_code(self):
         """Test that applying a diff to empty code returns the diff."""
@@ -139,7 +136,7 @@ class TestDiffUtils(unittest.TestCase):
             "    print('hello world')\n"
             ">>>>>>> REPLACE"
         )
-        self.assertEqual(apply_search_replace_diff("", diff), "def hello():\n    print('hello world')")
+        self.assertEqual(self.diff.apply_diff("", diff), "def hello():\n    print('hello world')")
     
 
     def test_validate_search_replace_diff(self):
@@ -189,14 +186,14 @@ class TestDiffUtils(unittest.TestCase):
             ">>>>>>> REPLACE"
         )
         
-        self.assertTrue(is_valid_diff_format(valid_diff))
-        self.assertFalse(is_valid_diff_format(missing_search))
-        self.assertFalse(is_valid_diff_format(missing_divider))
-        self.assertFalse(is_valid_diff_format(missing_replace))
-        self.assertFalse(is_valid_diff_format(wrong_order))
+        self.assertTrue(self.diff.is_valid_format(valid_diff))
+        self.assertFalse(self.diff.is_valid_format(missing_search))
+        self.assertFalse(self.diff.is_valid_format(missing_divider))
+        self.assertFalse(self.diff.is_valid_format(missing_replace))
+        self.assertFalse(self.diff.is_valid_format(wrong_order))
         
         # Empty diff is valid
-        self.assertTrue(is_valid_diff_format(""))
+        self.assertTrue(self.diff.is_valid_format(""))
 
     def test_extract_search_replace_blocks_from_llm_response(self):
         """Test extracting search/replace blocks from an LLM response."""
@@ -235,7 +232,7 @@ class TestDiffUtils(unittest.TestCase):
         )
         
         # Extract the blocks
-        extracted = extract_search_replace_blocks_from_llm_response(llm_response)
+        extracted = self.diff.extract_from_llm_response(llm_response)
         
         # Define the expected blocks
         expected_blocks = (
@@ -291,7 +288,7 @@ class TestDiffUtils(unittest.TestCase):
         )
         
         # Extract the blocks
-        extracted = extract_search_replace_blocks_from_llm_response(llm_response)
+        extracted = self.diff.extract_from_llm_response(llm_response)
         
         # Define the expected blocks
         expected_blocks = (
@@ -319,7 +316,7 @@ class TestDiffUtils(unittest.TestCase):
     def test_extract_search_replace_blocks_from_llm_response_no_blocks(self):
         """Test extracting search/replace blocks from an LLM response with no blocks."""
         no_blocks_response = "The LLM is yapping here without following the instructions."
-        self.assertEqual(extract_search_replace_blocks_from_llm_response(no_blocks_response), "")
+        self.assertEqual(self.diff.extract_from_llm_response(no_blocks_response), "")
 
     def test_simple_replace(self):
         """Test a simple replacement of a single line."""
@@ -334,7 +331,7 @@ class TestDiffUtils(unittest.TestCase):
             ">>>>>>> REPLACE"
         )
         
-        actual_diff = generate_search_replace_diff(before_code, after_code)
+        actual_diff = self.diff.generate_diff(before_code, after_code)
         self.assertEqual(actual_diff, expected_diff)
 
     def test_multi_line_replace(self):
@@ -352,7 +349,7 @@ class TestDiffUtils(unittest.TestCase):
             ">>>>>>> REPLACE"
         )
         
-        actual_diff = generate_search_replace_diff(before_code, after_code)
+        actual_diff = self.diff.generate_diff(before_code, after_code)
         self.assertEqual(actual_diff, expected_diff)
 
     def test_simple_deletion(self):
@@ -367,7 +364,7 @@ class TestDiffUtils(unittest.TestCase):
             ">>>>>>> REPLACE"
         )
         
-        actual_diff = generate_search_replace_diff(before_code, after_code)
+        actual_diff = self.diff.generate_diff(before_code, after_code)
         self.assertEqual(actual_diff, expected_diff)
 
     def test_multi_line_deletion(self):
@@ -384,7 +381,7 @@ class TestDiffUtils(unittest.TestCase):
             ">>>>>>> REPLACE"
         )
         
-        actual_diff = generate_search_replace_diff(before_code, after_code)
+        actual_diff = self.diff.generate_diff(before_code, after_code)
         self.assertEqual(actual_diff, expected_diff)
 
     def test_simple_insertion(self):
@@ -401,7 +398,7 @@ class TestDiffUtils(unittest.TestCase):
             ">>>>>>> REPLACE"
         )
         
-        actual_diff = generate_search_replace_diff(before_code, after_code)
+        actual_diff = self.diff.generate_diff(before_code, after_code)
         self.assertEqual(actual_diff, expected_diff)
 
     def test_multi_line_insertion(self):
@@ -421,7 +418,7 @@ class TestDiffUtils(unittest.TestCase):
             ">>>>>>> REPLACE"
         )
         
-        actual_diff = generate_search_replace_diff(before_code, after_code)
+        actual_diff = self.diff.generate_diff(before_code, after_code)
         self.assertEqual(actual_diff, expected_diff)
 
     def test_multiple_changes(self):
@@ -463,7 +460,7 @@ class TestDiffUtils(unittest.TestCase):
             ">>>>>>> REPLACE"
         )
         
-        actual_diff = generate_search_replace_diff(before_code, after_code)
+        actual_diff = self.diff.generate_diff(before_code, after_code)
         self.assertEqual(actual_diff, expected_diff)
 
     def test_indentation_preservation(self):
@@ -480,7 +477,7 @@ class TestDiffUtils(unittest.TestCase):
             ">>>>>>> REPLACE"
         )
         
-        actual_diff = generate_search_replace_diff(before_code, after_code)
+        actual_diff = self.diff.generate_diff(before_code, after_code)
         self.assertEqual(actual_diff, expected_diff)
 
     def test_empty_before_code(self):
@@ -496,7 +493,7 @@ class TestDiffUtils(unittest.TestCase):
             ">>>>>>> REPLACE"
         )
         
-        actual_diff = generate_search_replace_diff(before_code, after_code)
+        actual_diff = self.diff.generate_diff(before_code, after_code)
         self.assertEqual(actual_diff, expected_diff)
 
     def test_empty_after_code(self):
@@ -512,14 +509,14 @@ class TestDiffUtils(unittest.TestCase):
             ">>>>>>> REPLACE"
         )
         
-        actual_diff = generate_search_replace_diff(before_code, after_code)
+        actual_diff = self.diff.generate_diff(before_code, after_code)
         self.assertEqual(actual_diff, expected_diff)
 
     def test_no_changes(self):
         """Test with identical before and after code (no changes)."""
         code = "def unchanged():\n    return 42"
         
-        actual_diff = generate_search_replace_diff(code, code)
+        actual_diff = self.diff.generate_diff(code, code)
         self.assertEqual(actual_diff, "")
 
     def test_whitespace_changes(self):
@@ -535,7 +532,7 @@ class TestDiffUtils(unittest.TestCase):
             ">>>>>>> REPLACE"
         )
         
-        actual_diff = generate_search_replace_diff(before_code, after_code)
+        actual_diff = self.diff.generate_diff(before_code, after_code)
         self.assertEqual(actual_diff, expected_diff)
 
     def test_roundtrip(self):
@@ -583,10 +580,10 @@ class TestDiffUtils(unittest.TestCase):
         )
         
         # Generate diff
-        diff = generate_search_replace_diff(before_code, after_code)
+        diff = self.diff.generate_diff(before_code, after_code)
         
         # Apply diff
-        result = apply_search_replace_diff(before_code, diff)
+        result = self.diff.apply_diff(before_code, diff)
         
         # Verify result matches after_code
         self.assertEqual(result, after_code)
