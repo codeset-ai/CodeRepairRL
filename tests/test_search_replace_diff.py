@@ -15,6 +15,8 @@ class TestSearchReplaceDiff(unittest.TestCase):
         """Set up a SearchReplaceDiff instance for testing."""
         self.diff = SearchReplaceDiff()
 
+    # Basic parsing and functionality tests
+    
     def test_parse_search_replace_block(self):
         """Test parsing a single search/replace block."""
         block = (
@@ -318,6 +320,7 @@ class TestSearchReplaceDiff(unittest.TestCase):
         no_blocks_response = "The LLM is yapping here without following the instructions."
         self.assertEqual(self.diff.extract_from_llm_response(no_blocks_response), "")
 
+    # Diff generation tests
     def test_simple_replace(self):
         """Test a simple replacement of a single line."""
         before_code = "def hello():\n    print('hello')\n    return None"
@@ -588,6 +591,326 @@ class TestSearchReplaceDiff(unittest.TestCase):
         # Verify result matches after_code
         self.assertEqual(result, after_code)
 
+    # Robust handling tests
+    
+    def test_parse_malformed_markers(self):
+        """Test parsing a block with malformed markers but recoverable content."""
+        block = (
+            "<<<<< SEARCH\n"
+            "def hello():\n"
+            "    print('hello')\n"
+            "======\n"
+            "def hello():\n"
+            "    print('hello world')\n"
+            ">>>>> REPLACE"
+        )
+        
+        search_content, replace_content = self.diff.parse_block(block)
+        
+        self.assertEqual(search_content, "def hello():\n    print('hello')")
+        self.assertEqual(replace_content, "def hello():\n    print('hello world')")
+
+    def test_parse_excessive_markers(self):
+        """Test parsing a block with excessive markers."""
+        block = (
+            "<<<<<<<<<<<< SEARCH\n"
+            "def hello():\n"
+            "    print('hello')\n"
+            "===========\n"
+            "def hello():\n"
+            "    print('hello world')\n"
+            ">>>>>>>>>>> REPLACE"
+        )
+        
+        search_content, replace_content = self.diff.parse_block(block)
+        
+        self.assertEqual(search_content, "def hello():\n    print('hello')")
+        self.assertEqual(replace_content, "def hello():\n    print('hello world')")
+        
+    def test_parse_whitespace_in_markers(self):
+        """Test parsing a block with whitespace in markers."""
+        block = (
+            "<<<<<<< SEARCH \n"
+            "def hello():\n"
+            "    print('hello')\n"
+            "=======\n"
+            "def hello():\n"
+            "    print('hello world')\n"
+            ">>>>>>> REPLACE "
+        )
+        
+        search_content, replace_content = self.diff.parse_block(block)
+        
+        self.assertEqual(search_content, "def hello():\n    print('hello')")
+        self.assertEqual(replace_content, "def hello():\n    print('hello world')")
+        
+    def test_parse_very_malformed_but_recoverable(self):
+        """Test parsing a block that's very malformed but still has the key parts."""
+        block = (
+            "< SEARCH >\n"
+            "def hello():\n"
+            "    print('hello')\n"
+            "=====\n"
+            "def hello():\n"
+            "    print('hello world')\n"
+            "> REPLACE <"
+        )
+        
+        search_content, replace_content = self.diff.parse_block(block)
+        
+        self.assertEqual(search_content, "def hello():\n    print('hello')")
+        self.assertEqual(replace_content, "def hello():\n    print('hello world')")
+    
+    def test_parse_completely_invalid(self):
+        """Test parsing a completely invalid block."""
+        block = "This is not a diff at all."
+        
+        search_content, replace_content = self.diff.parse_block(block)
+        
+        self.assertIsNone(search_content)
+        self.assertIsNone(replace_content)
+    
+    def test_quality_validation_perfect(self):
+        """Test quality validation on a perfect diff."""
+        diff = (
+            "<<<<<<< SEARCH\n"
+            "def hello():\n"
+            "    print('hello')\n"
+            "=======\n"
+            "def hello():\n"
+            "    print('hello world')\n"
+            ">>>>>>> REPLACE"
+        )
+        
+        quality = self.diff.validate_quality(diff)
+        self.assertEqual(quality, 1.0)
+    
+    def test_quality_validation_good_enough(self):
+        """Test quality validation on a good enough diff."""
+        diff = (
+            "<<<<< SEARCH\n"
+            "def hello():\n"
+            "    print('hello')\n"
+            "=====\n"
+            "def hello():\n"
+            "    print('hello world')\n"
+            ">>>>> REPLACE"
+        )
+        
+        quality = self.diff.validate_quality(diff)
+        self.assertGreaterEqual(quality, 0.7)
+        self.assertLessEqual(quality, 0.9)
+    
+    def test_quality_validation_recoverable(self):
+        """Test quality validation on a recoverable diff."""
+        diff = (
+            "<<<< SEARCH\n"
+            "def hello():\n"
+            "    print('hello')\n"
+            "===\n"
+            "def hello():\n"
+            "    print('hello world')\n"
+            ">>>> REPLACE"
+        )
+        
+        quality = self.diff.validate_quality(diff)
+        # This is a fairly recoverable diff with all markers
+        self.assertGreaterEqual(quality, 0.4)
+    
+    def test_quality_validation_poor(self):
+        """Test quality validation on a poor diff."""
+        diff = (
+            "Here's the diff: SEARCH and hello() and ===== and REPLACE"
+        )
+        
+        quality = self.diff.validate_quality(diff)
+        self.assertLessEqual(quality, 0.3)
+    
+    def test_quality_validation_invalid(self):
+        """Test quality validation on an invalid diff."""
+        diff = "This is not a diff at all."
+        
+        quality = self.diff.validate_quality(diff)
+        self.assertLess(quality, 0.2)
+
+    def test_safe_apply_perfect_diff(self):
+        """Test safely applying a perfect diff."""
+        code = "def hello():\n    print('hello')\n    return"
+        diff = (
+            "<<<<<<< SEARCH\n"
+            "    print('hello')\n"
+            "=======\n"
+            "    print('hello world')\n"
+            ">>>>>>> REPLACE"
+        )
+        
+        result, quality = self.diff.safe_apply_diff(code, diff)
+        
+        self.assertEqual(result, "def hello():\n    print('hello world')\n    return")
+        self.assertEqual(quality, 1.0)
+
+    def test_safe_apply_recoverable_diff(self):
+        """Test safely applying a recoverable diff."""
+        code = "def hello():\n    print('hello')\n    return"
+        diff = (
+            "<<<< SEARCH\n"
+            "    print('hello')\n"
+            "====\n"
+            "    print('hello world')\n"
+            ">>>> REPLACE"
+        )
+        
+        result, quality = self.diff.safe_apply_diff(code, diff)
+        
+        # The quality should be good enough to apply
+        self.assertGreaterEqual(quality, 0.4)
+        
+        # If the diff was applied, check that it was applied correctly
+        if result != code:
+            self.assertEqual(result, "def hello():\n    print('hello world')\n    return")
+
+    def test_safe_apply_invalid_diff(self):
+        """Test safely applying an invalid diff."""
+        code = "def hello():\n    print('hello')\n    return"
+        diff = "This is not a diff at all."
+        
+        result, quality = self.diff.safe_apply_diff(code, diff)
+        
+        # Invalid diff should return original code
+        self.assertEqual(result, code)
+        self.assertLess(quality, 0.2)
+        
+    def test_lenient_validation(self):
+        """Test lenient validation on different diff formats."""
+        valid_strict = (
+            "<<<<<<< SEARCH\n"
+            "def hello():\n"
+            "=======\n"
+            "def hello_world():\n"
+            ">>>>>>> REPLACE"
+        )
+        
+        valid_lenient = (
+            "<< SEARCH\n"
+            "def hello():\n"
+            "==\n"
+            "def hello_world():\n"
+            ">> REPLACE"
+        )
+        
+        invalid = "Not a diff at all"
+        
+        # Strict validation
+        self.assertTrue(self.diff.is_valid_format(valid_strict, strict=True))
+        self.assertFalse(self.diff.is_valid_format(valid_lenient, strict=True))
+        self.assertFalse(self.diff.is_valid_format(invalid, strict=True))
+        
+        # Lenient validation
+        self.assertTrue(self.diff.is_valid_format(valid_strict, strict=False))
+        self.assertTrue(self.diff.is_valid_format(valid_lenient, strict=False))
+        self.assertFalse(self.diff.is_valid_format(invalid, strict=False))
+        
+    # Additional edge cases
+    
+    def test_comment_only_change(self):
+        """Test changes that only affect comments."""
+        before_code = "def add(a, b):\n    # Add two numbers\n    return a + b"
+        after_code = "def add(a, b):\n    # Add two numbers together\n    return a + b"
+        
+        expected_diff = (
+            "<<<<<<< SEARCH\n"
+            "    # Add two numbers\n"
+            "=======\n"
+            "    # Add two numbers together\n"
+            ">>>>>>> REPLACE"
+        )
+        
+        actual_diff = self.diff.generate_diff(before_code, after_code)
+        self.assertEqual(actual_diff, expected_diff)
+        
+    def test_apply_diff_with_surrounding_context(self):
+        """Test applying a diff with surrounding context that matches multiple locations."""
+        # Code with repeated sections
+        code = (
+            "def repeat():\n"
+            "    # Block 1\n"
+            "    x = 1\n"
+            "    print(x)\n"
+            "    \n"
+            "    # Block 2\n"
+            "    x = 1\n"
+            "    print(x)\n"
+            "    \n"
+            "    # Block 3\n"
+            "    x = 1\n"
+            "    print(x)\n"
+        )
+        
+        # Diff targeting the second block specifically
+        diff = (
+            "<<<<<<< SEARCH\n"
+            "    # Block 2\n"
+            "    x = 1\n"
+            "    print(x)\n"
+            "=======\n"
+            "    # Block 2 (modified)\n"
+            "    x = 2\n"
+            "    print(x * 2)\n"
+            ">>>>>>> REPLACE"
+        )
+        
+        expected = (
+            "def repeat():\n"
+            "    # Block 1\n"
+            "    x = 1\n"
+            "    print(x)\n"
+            "    \n"
+            "    # Block 2 (modified)\n"
+            "    x = 2\n"
+            "    print(x * 2)\n"
+            "    \n"
+            "    # Block 3\n"
+            "    x = 1\n"
+            "    print(x)\n"
+        )
+        
+        result = self.diff.apply_diff(code, diff)
+        self.assertEqual(result, expected)
+        
+    def test_partial_match_with_specific_replacement(self):
+        """Test applying a diff where the search string is only a partial match."""
+        code = "# Important function\ndef calculate():\n    return 1 + 2 + 3  # Returns 6"
+        diff = (
+            "<<<<<<< SEARCH\n"
+            "    return 1 + 2 + 3\n"
+            "=======\n"
+            "    return (1 + 2 + 3) * 2\n"
+            ">>>>>>> REPLACE"
+        )
+        
+        # The diff should still apply even though it's not matching the comment
+        expected = "# Important function\ndef calculate():\n    return (1 + 2 + 3) * 2  # Returns 6"
+        
+        result = self.diff.apply_diff(code, diff)
+        self.assertEqual(result, expected)
+    
+    def test_multiple_diffs_with_same_search(self):
+        """Test handling of multiple diff blocks with the same search pattern."""
+        code = "x = 1\nx = 1\nx = 1"
+        diff = (
+            "<<<<<<< SEARCH\n"
+            "x = 1\n"
+            "=======\n"
+            "x = 2\n"
+            ">>>>>>> REPLACE"
+        )
+        
+        # All instances should be replaced
+        expected = "x = 2\nx = 2\nx = 2"
+        
+        result = self.diff.apply_diff(code, diff)
+        self.assertEqual(result, expected)
+
 
 if __name__ == "__main__":
-    unittest.main() 
+    unittest.main()

@@ -19,8 +19,30 @@ class Diff(ABC):
         pass
     
     @abstractmethod
-    def is_valid_format(self, diff_text: str) -> bool:
-        """Validate that a diff is properly formatted."""
+    def is_valid_format(self, diff_text: str, strict: bool = True) -> bool:
+        """
+        Validate that a diff is properly formatted.
+        
+        Args:
+            diff_text: The diff text to validate
+            strict: If True, use strict validation; if False, be more lenient
+            
+        Returns:
+            True if the diff is valid, False otherwise
+        """
+        pass
+    
+    @abstractmethod
+    def validate_quality(self, diff_text: str) -> float:
+        """
+        Assess the quality of a diff format on a scale from 0.0 to 1.0.
+        
+        Args:
+            diff_text: The diff text to validate
+            
+        Returns:
+            A score between 0.0 and 1.0 indicating the quality of the diff
+        """
         pass
     
     @abstractmethod
@@ -32,6 +54,34 @@ class Diff(ABC):
     def generate_diff(self, before_code: str, after_code: str) -> str:
         """Generate a diff between two code snippets."""
         pass
+        
+    def safe_apply_diff(self, code: str, diff_text: str) -> Tuple[str, float]:
+        """
+        Safely apply a diff to code, with quality assessment.
+        If the diff has issues, it tries to recover and apply what it can.
+        
+        Args:
+            code: The original code
+            diff_text: The diff to apply
+            
+        Returns:
+            A tuple of (resulting_code, quality_score) where quality_score
+            indicates how confidently the diff was applied (1.0 = perfect)
+        """
+        # First check quality
+        quality = self.validate_quality(diff_text)
+        
+        # If quality is good enough, try to apply
+        if quality >= 0.4:  # Apply if at least partially recoverable
+            try:
+                result = self.apply_diff(code, diff_text)
+                return result, quality
+            except Exception as e:
+                # If application fails, return original with low quality
+                return code, 0.1
+        
+        # If quality is too low, don't attempt to apply
+        return code, quality
 
 
 class SearchReplaceDiff(Diff):
@@ -40,7 +90,8 @@ class SearchReplaceDiff(Diff):
     def parse_block(self, block: str) -> Tuple[Optional[str], Optional[str]]:
         """
         Parse a single search/replace block. 
-        We allow the search content to be optional to facilitate diffs creating new files
+        We allow the search content to be optional to facilitate diffs creating new files.
+        This method is robust against common formatting errors.
         
         Args:
             block: A string containing a search/replace block
@@ -48,23 +99,43 @@ class SearchReplaceDiff(Diff):
         Returns:
             A tuple of (search_content, replace_content), or (None, None) if parsing fails
         """
+        # Try various patterns, from most exact to most forgiving
+        
+        # Standard pattern
         pattern_with_search = r"<<<<<<< SEARCH\n(.*?)\n=======\n(.*?)\n>>>>>>> REPLACE"
-        
-        # Use re.DOTALL to match across multiple lines
         match = re.search(pattern_with_search, block, re.DOTALL)
-        
         if match:
             search_content = match.group(1)
             replace_content = match.group(2)
             return search_content, replace_content
         
+        # Pattern without search content (for new files)
         pattern_without_search = r"<<<<<<< SEARCH\n=======\n(.*?)\n>>>>>>> REPLACE"
-    
         match = re.search(pattern_without_search, block, re.DOTALL)
-    
         if match:
             return "", match.group(1)
         
+        # More forgiving patterns below - these handle common LLM formatting mistakes
+        
+        # Slight variations in marker spacing/formatting
+        pattern_forgiving = r"<+\s*S+EARCH\s*>*\n(.*?)\n=+\n(.*?)\n>+\s*R+EPLACE\s*<*"
+        match = re.search(pattern_forgiving, block, re.DOTALL)
+        if match:
+            search_content = match.group(1)
+            replace_content = match.group(2)
+            return search_content, replace_content
+        
+        # Just get before/after with markers as separators (very forgiving)
+        if "SEARCH" in block and "=====" in block and "REPLACE" in block:
+            try:
+                parts = re.split(r"<+[^>]*SEARCH[^>]*>+|\n=+\n|<+[^>]*REPLACE[^>]*>+", block)
+                if len(parts) >= 3:  # Should have parts before, between, and after markers
+                    search_content = parts[1].strip()
+                    replace_content = parts[2].strip()
+                    return search_content, replace_content
+            except:
+                pass
+                
         return None, None
     
     def parse_diff(self, diff_text: str) -> List[Tuple[str, str]]:
@@ -113,12 +184,13 @@ class SearchReplaceDiff(Diff):
         
         return result
     
-    def is_valid_format(self, diff_text: str) -> bool:
+    def is_valid_format(self, diff_text: str, strict: bool = True) -> bool:
         """
         Validate that a search/replace diff is properly formatted.
         
         Args:
             diff_text: The search/replace diff to validate
+            strict: Whether to use strict validation (default: True)
             
         Returns:
             True if the diff is valid, False otherwise
@@ -131,27 +203,103 @@ class SearchReplaceDiff(Diff):
         
         for block in blocks:
             # Check if the block contains the required markers
-            if "<<<<<<< SEARCH" not in block:
+            if "SEARCH" not in block:
                 return False
-            if "=======" not in block:
+            if "=" not in block:
                 return False
-            if ">>>>>>> REPLACE" not in block:
-                return False
-            
-            # Check if the markers are in the correct order
-            search_idx = block.find("<<<<<<< SEARCH")
-            divider_idx = block.find("=======")
-            replace_idx = block.find(">>>>>>> REPLACE")
-            
-            if not (search_idx < divider_idx < replace_idx):
+            if "REPLACE" not in block:
                 return False
             
-            # Parse the block to ensure it's valid
+            if strict:
+                # Strict validation - check exact markers and order
+                if "<<<<<<< SEARCH" not in block:
+                    return False
+                if "=======" not in block:
+                    return False
+                if ">>>>>>> REPLACE" not in block:
+                    return False
+                
+                # Check if the markers are in the correct order
+                search_idx = block.find("<<<<<<< SEARCH")
+                divider_idx = block.find("=======")
+                replace_idx = block.find(">>>>>>> REPLACE")
+                
+                if not (search_idx < divider_idx < replace_idx):
+                    return False
+            
+            # Parse the block to check if we can extract content
             search_content, replace_content = self.parse_block(block)
             if search_content is None or replace_content is None:
                 return False
         
         return True
+        
+    def validate_quality(self, diff_text: str) -> float:
+        """
+        Assess the quality of a search/replace diff on a scale from 0.0 to 1.0.
+        
+        Args:
+            diff_text: The search/replace diff to validate
+            
+        Returns:
+            A score between 0.0 and 1.0 indicating the quality of the diff:
+            - 1.0: Perfect format with all blocks in correct format
+            - 0.7-0.9: Valid but with minor formatting issues
+            - 0.4-0.6: Recoverable with non-standard format
+            - 0.1-0.3: Has some diff markers but major issues
+            - 0.0: Couldn't recognize as a diff at all
+        """
+        if not diff_text:
+            return 1.0  # Empty diff is valid
+            
+        # Perfect format check
+        if self.is_valid_format(diff_text, strict=True):
+            return 1.0
+            
+        # Check if valid with lenient rules
+        if self.is_valid_format(diff_text, strict=False):
+            return 0.8  # Good enough to use but not perfect
+        
+        # If we get here, the diff has issues but might be partially recoverable
+        
+        # Split into potential blocks by double newlines
+        # or try to identify block boundaries by markers
+        blocks = []
+        if "\n\n" in diff_text:
+            blocks = diff_text.split("\n\n")
+        else:
+            # Try to split by diff markers
+            potential_blocks = re.split(r"(<+[^>]*SEARCH|>{3,}[^<]*REPLACE)", diff_text)
+            for i in range(0, len(potential_blocks)-1, 2):
+                if i+1 < len(potential_blocks):
+                    blocks.append(potential_blocks[i] + potential_blocks[i+1])
+            
+        if not blocks:
+            blocks = [diff_text]  # Just treat the whole thing as one block
+        
+        # Calculate score based on parseable blocks
+        parseable_count = 0
+        total_blocks = len(blocks)
+        
+        for block in blocks:
+            # Basic markers check
+            has_search = "SEARCH" in block
+            has_divider = "====" in block or "----" in block
+            has_replace = "REPLACE" in block
+            
+            # Only counts if it has all three markers
+            if has_search and has_divider and has_replace:
+                search_content, replace_content = self.parse_block(block)
+                if search_content is not None and replace_content is not None:
+                    parseable_count += 1
+                    
+        if total_blocks == 0:
+            return 0.0
+            
+        ratio = parseable_count / total_blocks
+        
+        # Scale from 0.1 to 0.6 based on parseable ratio
+        return min(0.6, max(0.1, ratio * 0.6))
     
     def extract_from_llm_response(self, response: str) -> str:
         """
@@ -261,6 +409,7 @@ class UnifiedDiff(Diff):
     def parse_diff(self, diff_text: str) -> List[Dict[str, Any]]:
         """
         Parse a unified diff into a structured format.
+        This method is robust against common formatting errors in LLM outputs.
         
         Args:
             diff_text: A string containing a unified diff
@@ -276,14 +425,21 @@ class UnifiedDiff(Diff):
         current_hunk = None
         
         for line in lines:
-            # Check for header or hunk lines
-            if line.startswith('@@'):
+            # Check for header or hunk lines - with robust matching
+            if '@' in line and '-' in line and '+' in line:
+                # Try to parse as a hunk header
+                
                 # If we have a previous hunk, add it to the result
                 if current_hunk is not None:
                     hunks.append(current_hunk)
                 
-                # Parse the hunk header
-                match = re.match(r'@@ -(\d+),?(\d+)? \+(\d+),?(\d+)? @@', line)
+                # First try standard format
+                match = re.search(r'@@ -(\d+),?(\d+)? \+(\d+),?(\d+)? @@', line)
+                
+                # If no match, try more forgiving pattern
+                if not match:
+                    match = re.search(r'@+\s*-\s*(\d+)[,:]?(\d+)?\s+\+\s*(\d+)[,:]?(\d+)?', line)
+                
                 if match:
                     # Start a new hunk
                     old_start = int(match.group(1))
@@ -298,8 +454,31 @@ class UnifiedDiff(Diff):
                         'new_count': new_count,
                         'lines': []
                     }
+                else:
+                    # If we can't parse, just create a best-guess hunk
+                    # This allows recovery from malformed header but valid content
+                    nums = re.findall(r'\d+', line)
+                    if len(nums) >= 2:
+                        current_hunk = {
+                            'old_start': int(nums[0]),
+                            'old_count': int(nums[1]) if len(nums) > 2 else 1,
+                            'new_start': int(nums[2]) if len(nums) > 2 else int(nums[1]),
+                            'new_count': int(nums[3]) if len(nums) > 3 else 1,
+                            'lines': []
+                        }
             elif current_hunk is not None:
                 # Add the line to the current hunk
+                # Normalize leading characters if needed
+                if line and line[0] not in ['+', '-', ' ']:
+                    # Try to guess the line type
+                    if line.startswith('add') or line.startswith('ins'):
+                        line = '+' + line[3:]
+                    elif line.startswith('del') or line.startswith('rem'):
+                        line = '-' + line[3:]
+                    else:
+                        # Default to context line
+                        line = ' ' + line
+                
                 current_hunk['lines'].append(line)
         
         # Add the last hunk if there is one
@@ -356,12 +535,13 @@ class UnifiedDiff(Diff):
         # Join lines with newline character to preserve the original format
         return '\n'.join(result_lines)
     
-    def is_valid_format(self, diff_text: str) -> bool:
+    def is_valid_format(self, diff_text: str, strict: bool = True) -> bool:
         """
         Validate that a unified diff is properly formatted.
         
         Args:
             diff_text: The unified diff to validate
+            strict: Whether to use strict validation (default: True)
             
         Returns:
             True if the diff is valid, False otherwise
@@ -370,9 +550,14 @@ class UnifiedDiff(Diff):
             return True
         
         try:
-            # Check if the diff contains at least one hunk header
-            if not re.search(r'@@ -\d+,?\d*? \+\d+,?\d*? @@', diff_text):
-                return False
+            if strict:
+                # Check if the diff contains at least one properly formatted hunk header
+                if not re.search(r'@@ -\d+,?\d*? \+\d+,?\d*? @@', diff_text):
+                    return False
+            else:
+                # More lenient check - just look for something that resembles a hunk header
+                if not re.search(r'@+\s*-\s*\d+.*\+\s*\d+.*@+', diff_text):
+                    return False
                 
             # Try to parse it
             hunks = self.parse_diff(diff_text)
@@ -381,6 +566,74 @@ class UnifiedDiff(Diff):
             return len(hunks) > 0
         except:
             return False
+            
+    def validate_quality(self, diff_text: str) -> float:
+        """
+        Assess the quality of a unified diff on a scale from 0.0 to 1.0.
+        
+        Args:
+            diff_text: The unified diff to validate
+            
+        Returns:
+            A score between 0.0 and 1.0 indicating the quality of the diff:
+            - 1.0: Perfect format with all hunks properly formatted
+            - 0.7-0.9: Valid but with minor formatting issues
+            - 0.4-0.6: Recoverable with non-standard format
+            - 0.1-0.3: Has some diff markers but major issues
+            - 0.0: Couldn't recognize as a diff at all
+        """
+        if not diff_text:
+            return 1.0  # Empty diff is valid
+            
+        # Perfect format check
+        if self.is_valid_format(diff_text, strict=True):
+            return 1.0
+            
+        # Check if valid with lenient rules
+        if self.is_valid_format(diff_text, strict=False):
+            return 0.8  # Good enough to use but not perfect
+        
+        # Count basic indicators of diff format
+        has_hunk_markers = '@' in diff_text
+        has_add_lines = re.search(r'^\+', diff_text, re.MULTILINE) is not None
+        has_remove_lines = re.search(r'^-', diff_text, re.MULTILINE) is not None
+        has_context_lines = re.search(r'^ ', diff_text, re.MULTILINE) is not None
+        
+        # Score based on markers present
+        score = 0.0
+        if has_hunk_markers:
+            score += 0.2
+        if has_add_lines:
+            score += 0.1
+        if has_remove_lines:
+            score += 0.1
+        if has_context_lines:
+            score += 0.1
+            
+        # Check if we can recover any hunks
+        try:
+            # Try to recognize hunk headers with a very forgiving pattern
+            potential_hunks = re.split(r'(?:^|\n)@+[^@\n]*@+', diff_text)
+            
+            # If we found potential hunks, check if any looks valid
+            for hunk in potential_hunks[1:]:  # Skip first part (before first header)
+                has_valid_content = False
+                lines = hunk.splitlines()
+                for line in lines:
+                    # Check if line starts with diff markers
+                    if line and line[0] in ['+', '-', ' ']:
+                        has_valid_content = True
+                        break
+                        
+                if has_valid_content:
+                    score += 0.1  # Add a bit for each recoverable hunk
+            
+            score = min(0.6, score)  # Cap at 0.6 for partial recovery
+        except:
+            # If analysis fails, just return the basic marker score
+            pass
+            
+        return score
     
     def extract_from_llm_response(self, response: str) -> str:
         """

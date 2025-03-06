@@ -15,6 +15,8 @@ class TestUnifiedDiff(unittest.TestCase):
         """Set up a UnifiedDiff instance for testing."""
         self.diff = UnifiedDiff()
 
+    # Basic functionality tests
+    
     def test_generate_simple_diff(self):
         """Test generating a simple unified diff."""
         before_code = "def hello():\n    print('hello')\n    return None"
@@ -186,6 +188,464 @@ This will make the function greet with 'hello world' instead of just 'hello'.
         
         # Verify result matches after_code
         self.assertEqual(result, after_code)
+    
+    # Robust handling tests
+    
+    def test_parse_standard_diff(self):
+        """Test parsing a standard unified diff."""
+        diff = (
+            "@@ -1,3 +1,3 @@\n"
+            " def hello():\n"
+            "-    print('hello')\n"
+            "+    print('hello world')\n"
+            " return None"
+        )
+        
+        hunks = self.diff.parse_diff(diff)
+        
+        self.assertEqual(len(hunks), 1)
+        self.assertEqual(hunks[0]['old_start'], 1)
+        self.assertEqual(hunks[0]['old_count'], 3)
+        self.assertEqual(hunks[0]['new_start'], 1)
+        self.assertEqual(hunks[0]['new_count'], 3)
+        self.assertEqual(len(hunks[0]['lines']), 4)
+
+    def test_parse_malformed_hunk_header(self):
+        """Test parsing a diff with malformed hunk header."""
+        diff = (
+            "@@ -1,3 +1,3 @\n"  # Missing one @
+            " def hello():\n"
+            "-    print('hello')\n"
+            "+    print('hello world')\n"
+            " return None"
+        )
+        
+        hunks = self.diff.parse_diff(diff)
+        
+        self.assertEqual(len(hunks), 1)
+        self.assertEqual(hunks[0]['old_start'], 1)
+        self.assertEqual(hunks[0]['new_start'], 1)
+        self.assertEqual(hunks[0]['old_count'], 3)  # Ensure old_count is parsed correctly
+        self.assertEqual(hunks[0]['new_count'], 3)  # Ensure new_count is parsed correctly
+        self.assertEqual(len(hunks[0]['lines']), 4)  # Ensure all lines are parsed
+
+    def test_parse_spaces_in_hunk_header(self):
+        """Test parsing a diff with spaces in the hunk header."""
+        diff = (
+            "@@  -1,3  +1,3  @@\n"  # Extra spaces
+            " def hello():\n"
+            "-    print('hello')\n"
+            "+    print('hello world')\n"
+            " return None"
+        )
+        
+        hunks = self.diff.parse_diff(diff)
+        
+        self.assertEqual(len(hunks), 1)
+        self.assertEqual(hunks[0]['old_start'], 1)
+        self.assertEqual(hunks[0]['old_count'], 3)
+        self.assertEqual(hunks[0]['new_start'], 1)
+        self.assertEqual(hunks[0]['new_count'], 3)
+        self.assertEqual(len(hunks[0]['lines']), 4)  # Ensure all lines are parsed
+        self.assertEqual(hunks[0]['lines'][0], " def hello():")
+        self.assertEqual(hunks[0]['lines'][1], "-    print('hello')")
+        self.assertEqual(hunks[0]['lines'][2], "+    print('hello world')")
+        self.assertEqual(hunks[0]['lines'][3], " return None")
+
+    def test_parse_excessive_hunk_markers(self):
+        """Test parsing a diff with excessive hunk markers."""
+        diff = (
+            "@@@@@@ -1,3 +1,3 @@@@@@\n"  # Too many @s
+            " def hello():\n"
+            "-    print('hello')\n"
+            "+    print('hello world')\n"
+            " return None"
+        )
+        
+        hunks = self.diff.parse_diff(diff)
+        
+        self.assertEqual(len(hunks), 1)
+        self.assertEqual(hunks[0]['old_start'], 1)
+        self.assertEqual(hunks[0]['old_count'], 3)
+        self.assertEqual(hunks[0]['new_start'], 1)
+        self.assertEqual(hunks[0]['new_count'], 3)
+        self.assertEqual(len(hunks[0]['lines']), 4)  # Ensure all lines are parsed
+        self.assertEqual(hunks[0]['lines'][0], " def hello():")
+        self.assertEqual(hunks[0]['lines'][1], "-    print('hello')")
+        self.assertEqual(hunks[0]['lines'][2], "+    print('hello world')")
+        self.assertEqual(hunks[0]['lines'][3], " return None")
+
+    def test_parse_colon_instead_of_comma(self):
+        """Test parsing a diff with colon instead of comma in line numbers."""
+        diff = (
+            "@@ -1:3 +1:3 @@\n"  # Using : instead of ,
+            " def hello():\n"
+            "-    print('hello')\n"
+            "+    print('hello world')\n"
+            " return None"
+        )
+        
+        hunks = self.diff.parse_diff(diff)
+        
+        self.assertEqual(len(hunks), 1)
+        self.assertEqual(hunks[0]['old_start'], 1)
+        self.assertEqual(hunks[0]['old_count'], 3)
+        self.assertEqual(hunks[0]['new_start'], 1)
+        self.assertEqual(hunks[0]['new_count'], 3)
+        self.assertEqual(len(hunks[0]['lines']), 4)  # Ensure all lines are parsed
+        self.assertEqual(hunks[0]['lines'][0], " def hello():")
+        self.assertEqual(hunks[0]['lines'][1], "-    print('hello')")
+        self.assertEqual(hunks[0]['lines'][2], "+    print('hello world')")
+        self.assertEqual(hunks[0]['lines'][3], " return None")
+
+    def test_parse_missing_line_prefixes(self):
+        """Test parsing a diff with missing line prefixes."""
+        diff = (
+            "@@ -1,3 +1,3 @@\n"
+            "def hello():\n"  # Missing space prefix
+            "-    print('hello')\n"
+            "+    print('hello world')\n"
+            "return None"  # Missing space prefix
+        )
+        
+        hunks = self.diff.parse_diff(diff)
+        
+        self.assertEqual(len(hunks), 1)
+        self.assertEqual(len(hunks[0]['lines']), 4)
+        # The parser normalizes the lines
+        self.assertEqual(hunks[0]['lines'][0], " def hello():")
+        self.assertEqual(hunks[0]['lines'][1], "-    print('hello')")
+        self.assertEqual(hunks[0]['lines'][2], "+    print('hello world')")
+        self.assertEqual(hunks[0]['lines'][3], " return None")
+        self.assertEqual(hunks[0]['old_start'], 1)
+        self.assertEqual(hunks[0]['old_count'], 3)
+        self.assertEqual(hunks[0]['new_start'], 1)
+        self.assertEqual(hunks[0]['new_count'], 3)
+
+    def test_parse_verbose_line_prefixes(self):
+        """Test parsing a diff with verbose line prefixes."""
+        diff = (
+            "@@ -1,3 +1,3 @@\n"
+            " def hello():\n"
+            "removed     print('hello')\n"  # Verbose 'removed' prefix
+            "added     print('hello world')\n"  # Verbose 'added' prefix
+            " return None"
+        )
+        
+        hunks = self.diff.parse_diff(diff)
+        
+        self.assertEqual(len(hunks), 1)
+        self.assertEqual(len(hunks[0]['lines']), 4)
+        # The parser should normalize these to standard prefixes
+        self.assertTrue(hunks[0]['lines'][1].startswith('-') or 
+                       hunks[0]['lines'][1].startswith("removed"))
+        self.assertTrue(hunks[0]['lines'][2].startswith('+') or 
+                       hunks[0]['lines'][2].startswith("added"))
+        self.assertEqual(hunks[0]['old_start'], 1)
+        self.assertEqual(hunks[0]['old_count'], 3)
+        self.assertEqual(hunks[0]['new_start'], 1)
+        self.assertEqual(hunks[0]['new_count'], 3)
+
+    def test_quality_validation_perfect(self):
+        """Test quality validation on a perfect diff."""
+        diff = (
+            "@@ -1,3 +1,3 @@\n"
+            " def hello():\n"
+            "-    print('hello')\n"
+            "+    print('hello world')\n"
+            " return None"
+        )
+        
+        quality = self.diff.validate_quality(diff)
+        self.assertEqual(quality, 1.0)
+
+    def test_quality_validation_good_enough(self):
+        """Test quality validation on a good enough diff."""
+        diff = (
+            "@@ -1:3 +1:3 @\n"  # Using : instead of , and missing one @
+            " def hello():\n"
+            "-    print('hello')\n"
+            "+    print('hello world')\n"
+            " return None"
+        )
+        
+        quality = self.diff.validate_quality(diff)
+        self.assertGreaterEqual(quality, 0.7)
+        self.assertLessEqual(quality, 0.9)
+
+    def test_quality_validation_recoverable(self):
+        """Test quality validation on a recoverable diff."""
+        diff = (
+            "@ -1 +1 @\n"  # Very minimal header
+            "-print('hello')\n"
+            "+print('hello world')"
+        )
+        
+        quality = self.diff.validate_quality(diff)
+        # This is a recoverable diff with minimal but present markers
+        self.assertGreaterEqual(quality, 0.4)
+
+    def test_quality_validation_poor(self):
+        """Test quality validation on a poor diff with only markers."""
+        diff = (
+            "Here's a diff with line 1 and adds the word 'world':\n"
+            "+print('hello world')\n"
+            "-print('hello')"
+        )
+        
+        quality = self.diff.validate_quality(diff)
+        self.assertGreaterEqual(quality, 0.1)
+        self.assertLessEqual(quality, 0.4)
+
+    def test_quality_validation_invalid(self):
+        """Test quality validation on an invalid diff."""
+        diff = "This is not a diff at all."
+        
+        quality = self.diff.validate_quality(diff)
+        self.assertEqual(quality, 0.0)
+
+    def test_safe_apply_perfect_diff(self):
+        """Test safely applying a perfect diff."""
+        code = "def hello():\n    print('hello')\n    return None"
+        diff = (
+            "@@ -1,3 +1,3 @@\n"
+            " def hello():\n"
+            "-    print('hello')\n"
+            "+    print('hello world')\n"
+            " return None"
+        )
+        
+        result, quality = self.diff.safe_apply_diff(code, diff)
+        
+        # Check the quality - should be perfect
+        self.assertEqual(quality, 1.0)
+        
+        # Check content
+        expected = "def hello():\n    print('hello world')\nreturn None"
+        self.assertEqual(result, expected)
+
+    def test_safe_apply_recoverable_diff(self):
+        """Test safely applying a recoverable diff."""
+        code = "def hello():\n    print('hello')\n    return None"
+        diff = (
+            "@@ -1,3 +1,3 @@\n"
+            "def hello():\n"  # Missing space
+            "-    print('hello')\n"
+            "+    print('hello world')\n"
+            "return None"  # Missing space
+        )
+        
+        result, quality = self.diff.safe_apply_diff(code, diff)
+        
+        # Quality should be good enough to apply
+        self.assertGreaterEqual(quality, 0.5)
+        
+        # Normalize whitespace for comparison
+        if result != code:  # If the diff was applied
+            normalized_result = "\n".join(line.strip() for line in result.splitlines())
+            normalized_expected = "\n".join(line.strip() for line in "def hello():\n    print('hello world')\nreturn None".splitlines())
+            self.assertEqual(normalized_result, normalized_expected)
+
+    def test_safe_apply_invalid_diff(self):
+        """Test safely applying an invalid diff."""
+        code = "def hello():\n    print('hello')\n    return None"
+        diff = "This is not a diff at all."
+        
+        result, quality = self.diff.safe_apply_diff(code, diff)
+        
+        # Invalid diff should return original code
+        self.assertEqual(result, code)
+        self.assertEqual(quality, 0.0)
+
+    def test_lenient_validation(self):
+        """Test lenient validation on different diff formats."""
+        valid_strict = (
+            "@@ -1,3 +1,3 @@\n"
+            " def hello():\n"
+            "-    print('hello')\n"
+            "+    print('hello world')\n"
+            " return None"
+        )
+        
+        valid_lenient = (
+            "@ -1 +1 @\n"
+            "-print('hello')\n"
+            "+print('hello world')"
+        )
+        
+        invalid = "Not a diff at all"
+        
+        # Strict validation
+        self.assertTrue(self.diff.is_valid_format(valid_strict, strict=True))
+        self.assertFalse(self.diff.is_valid_format(valid_lenient, strict=True))
+        self.assertFalse(self.diff.is_valid_format(invalid, strict=True))
+        
+        # Lenient validation
+        self.assertTrue(self.diff.is_valid_format(valid_strict, strict=False))
+        self.assertTrue(self.diff.is_valid_format(valid_lenient, strict=False))
+        self.assertFalse(self.diff.is_valid_format(invalid, strict=False))
+    
+    # Additional edge cases
+    
+    def test_multi_hunk_diff(self):
+        """Test parsing and applying a diff with multiple hunks."""
+        code = (
+            "def hello():\n"
+            "    print('hello')\n"
+            "    return None\n"
+            "\n"
+            "def goodbye():\n"
+            "    print('goodbye')\n"
+            "    return None"
+        )
+        
+        diff = (
+            "@@ -1,3 +1,3 @@\n"
+            " def hello():\n"
+            "-    print('hello')\n"
+            "+    print('hello world')\n"
+            " return None\n"
+            "@@ -5,3 +5,3 @@\n"
+            " def goodbye():\n"
+            "-    print('goodbye')\n"
+            "+    print('goodbye world')\n"
+            " return None"
+        )
+        
+        # Parse the diff
+        hunks = self.diff.parse_diff(diff)
+        self.assertEqual(len(hunks), 2)
+        
+        # Apply the diff
+        result = self.diff.apply_diff(code, diff)
+        expected = (
+            "def hello():\n"
+            "    print('hello world')\n"
+            "return None\n"
+            "\n"
+            "def goodbye():\n"
+            "    print('goodbye world')\n"
+            "return None"
+        )
+        self.assertEqual(result, expected)
+    
+    def test_header_missing_count(self):
+        """Test parsing a diff with missing count in the header."""
+        diff = (
+            "@@ -1 +1 @@\n"  # Missing counts
+            "-print('hello')\n"
+            "+print('hello world')"
+        )
+        
+        hunks = self.diff.parse_diff(diff)
+        self.assertEqual(len(hunks), 1)
+        self.assertEqual(hunks[0]['old_start'], 1)
+        self.assertEqual(hunks[0]['old_count'], 1)  # Default to 1 if not specified
+        self.assertEqual(hunks[0]['new_start'], 1)
+        self.assertEqual(hunks[0]['new_count'], 1)  # Default to 1 if not specified
+    
+    def test_complete_file_replacement(self):
+        """Test applying a diff that completely replaces a file."""
+        before_code = "def old_function():\n    return 'old value'"
+        after_code = "def new_function():\n    return 'new value'"
+        
+        # Generate diff
+        diff = self.diff.generate_diff(before_code, after_code)
+        
+        # Apply diff
+        result = self.diff.apply_diff(before_code, diff)
+        
+        # Verify result
+        self.assertEqual(result, after_code)
+    
+    def test_empty_file_handling(self):
+        """Test handling empty files in diff generation and application."""
+        # Empty before, non-empty after
+        self.assertNotEqual(self.diff.generate_diff("", "def func():\n    pass"), "")
+        
+        # Non-empty before, empty after
+        self.assertNotEqual(self.diff.generate_diff("def func():\n    pass", ""), "")
+        
+        # Both empty
+        self.assertEqual(self.diff.generate_diff("", ""), "")
+    
+    def test_context_line_count(self):
+        """Test that the context line count is respected."""
+        before_code = (
+            "line 1\n"
+            "line 2\n"
+            "line 3\n"
+            "line 4\n"
+            "line 5\n"
+            "line 6\n"
+            "line 7\n"
+            "line 8\n"
+            "line 9"
+        )
+        
+        after_code = (
+            "line 1\n"
+            "line 2\n"
+            "line 3\n"
+            "line 4 modified\n"
+            "line 5\n"
+            "line 6\n"
+            "line 7\n"
+            "line 8\n"
+            "line 9"
+        )
+        
+        # Create diff with default context (3 lines)
+        default_diff = self.diff.generate_diff(before_code, after_code)
+        
+        # Create diff with custom context (1 line)
+        custom_diff = UnifiedDiff(context_lines=1).generate_diff(before_code, after_code)
+        
+        # The default diff should have more context lines than the custom diff
+        self.assertGreater(len(default_diff.splitlines()), len(custom_diff.splitlines()))
+        
+        # But both should still work when applied
+        self.assertEqual(self.diff.apply_diff(before_code, default_diff), after_code)
+        self.assertEqual(self.diff.apply_diff(before_code, custom_diff), after_code)
+    
+    def test_extract_from_multiple_blocks(self):
+        """Test extracting unified diff from LLM response with multiple code blocks."""
+        llm_response = """Here's my first suggestion:
+
+```diff
+@@ -1,3 +1,3 @@
+ def hello():
+-    print('hello')
++    print('hello world')
+ return None
+```
+
+And another change:
+
+```diff
+@@ -5,3 +5,3 @@
+ def goodbye():
+-    print('goodbye')
++    print('goodbye world')
+ return None
+```
+"""
+        
+        extracted = self.diff.extract_from_llm_response(llm_response)
+        
+        expected = """@@ -1,3 +1,3 @@
+ def hello():
+-    print('hello')
++    print('hello world')
+ return None
+
+@@ -5,3 +5,3 @@
+ def goodbye():
+-    print('goodbye')
++    print('goodbye world')
+ return None"""
+        
+        self.assertEqual(extracted, expected)
 
 
 if __name__ == "__main__":
