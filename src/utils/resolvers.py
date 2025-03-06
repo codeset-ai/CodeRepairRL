@@ -8,7 +8,7 @@ def resolve_git_commit_hash(git_commit_hash=None):
         return git_commit_hash
     
     try: return subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode('utf-8').strip()
-    except: "unknown"
+    except: return "unknown"
 
 def resolve_bf16(use_bf16=None):
     """Resolves whether to use BF16 based on GPU architecture."""
