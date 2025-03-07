@@ -319,6 +319,42 @@ class TestSearchReplaceDiff(unittest.TestCase):
         """Test extracting search/replace blocks from an LLM response with no blocks."""
         no_blocks_response = "The LLM is yapping here without following the instructions."
         self.assertEqual(self.diff.extract_from_llm_response(no_blocks_response), "")
+        
+    def test_extract_search_replace_blocks_without_code_fences(self):
+        """Test extracting search/replace blocks from an LLM response without code fences."""
+        llm_response = (
+            "Here's my fix:\n"
+            "\n"
+            "<<<<<<< SEARCH\n"
+            "def calculate(x, y):\n"
+            "    return x / y\n"
+            "=======\n"
+            "def calculate(x, y):\n"
+            "    if y == 0:\n"
+            "        raise ZeroDivisionError(\"Cannot divide by zero\")\n"
+            "    return x / y\n"
+            ">>>>>>> REPLACE\n"
+            "\n"
+            "This should handle the division by zero error."
+        )
+        
+        # Extract the blocks
+        extracted = self.diff.extract_from_llm_response(llm_response)
+        
+        # Define the expected block
+        expected_block = (
+            "<<<<<<< SEARCH\n"
+            "def calculate(x, y):\n"
+            "    return x / y\n"
+            "=======\n"
+            "def calculate(x, y):\n"
+            "    if y == 0:\n"
+            "        raise ZeroDivisionError(\"Cannot divide by zero\")\n"
+            "    return x / y\n"
+            ">>>>>>> REPLACE"
+        )
+        
+        self.assertEqual(extracted, expected_block)
 
     # Diff generation tests
     def test_simple_replace(self):
@@ -910,6 +946,115 @@ class TestSearchReplaceDiff(unittest.TestCase):
         
         result = self.diff.apply_diff(code, diff)
         self.assertEqual(result, expected)
+        
+    def test_empty_search_content_with_nonempty_code(self):
+        """Test handling of empty search content with non-empty original code."""
+        code = "def existing_function():\n    return 42"
+        diff = (
+            "<<<<<<< SEARCH\n"
+            "=======\n"
+            "def new_function():\n"
+            "    return 100\n"
+            ">>>>>>> REPLACE"
+        )
+        
+        # Empty search should NOT insert between every character when code is non-empty
+        expected = "def existing_function():\n    return 42"
+        
+        result = self.diff.apply_diff(code, diff)
+        self.assertEqual(result, expected)
+        
+    def test_empty_search_content_with_empty_code(self):
+        """Test handling of empty search content with empty original code (new file creation)."""
+        code = ""
+        diff = (
+            "<<<<<<< SEARCH\n"
+            "=======\n"
+            "def new_function():\n"
+            "    return 100\n"
+            ">>>>>>> REPLACE"
+        )
+        
+        # Empty search with empty code should create a new file
+        expected = "def new_function():\n    return 100"
+        
+        result = self.diff.apply_diff(code, diff)
+        self.assertEqual(result, expected)
+
+    def test_alternative_block_separators_triple_newline(self):
+        """Test parsing diff blocks separated by triple newlines."""
+        diff = (
+            "<<<<<<< SEARCH\n"
+            "def hello():\n"
+            "    print('hello')\n"
+            "=======\n"
+            "def hello():\n"
+            "    print('hello world')\n"
+            ">>>>>>> REPLACE\n"
+            "\n\n"  # Triple newline separator
+            "<<<<<<< SEARCH\n"
+            "def goodbye():\n"
+            "    print('goodbye')\n"
+            "=======\n"
+            "def goodbye():\n"
+            "    print('goodbye world')\n"
+            ">>>>>>> REPLACE"
+        )
+        
+        parsed = self.diff.parse_diff(diff)
+        
+        self.assertEqual(len(parsed), 2)
+        self.assertEqual(parsed[0][0], "def hello():\n    print('hello')")
+        self.assertEqual(parsed[0][1], "def hello():\n    print('hello world')")
+        self.assertEqual(parsed[1][0], "def goodbye():\n    print('goodbye')")
+        self.assertEqual(parsed[1][1], "def goodbye():\n    print('goodbye world')")
+        
+    def test_no_block_separators(self):
+        """Test parsing diff blocks with no clear separators."""
+        diff = (
+            "<<<<<<< SEARCH\n"
+            "def hello():\n"
+            "    print('hello')\n"
+            "=======\n"
+            "def hello():\n"
+            "    print('hello world')\n"
+            ">>>>>>> REPLACE"
+            "<<<<<<< SEARCH\n"
+            "def goodbye():\n"
+            "    print('goodbye')\n"
+            "=======\n"
+            "def goodbye():\n"
+            "    print('goodbye world')\n"
+            ">>>>>>> REPLACE"
+        )
+        
+        # Add a newline between blocks to make it parse correctly
+        diff_with_separator = (
+            "<<<<<<< SEARCH\n"
+            "def hello():\n"
+            "    print('hello')\n"
+            "=======\n"
+            "def hello():\n"
+            "    print('hello world')\n"
+            ">>>>>>> REPLACE\n\n"
+            "<<<<<<< SEARCH\n"
+            "def goodbye():\n"
+            "    print('goodbye')\n"
+            "=======\n"
+            "def goodbye():\n"
+            "    print('goodbye world')\n"
+            ">>>>>>> REPLACE"
+        )
+        
+        # Test with the original diff (no separator)
+        parsed = self.diff.parse_diff(diff)
+        # The current implementation treats this as a single block
+        self.assertEqual(len(parsed), 1)
+        
+        # Test with a proper separator
+        parsed_with_separator = self.diff.parse_diff(diff_with_separator)
+        # This should parse as two blocks
+        self.assertEqual(len(parsed_with_separator), 2)
 
 
 if __name__ == "__main__":

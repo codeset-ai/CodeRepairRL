@@ -150,8 +150,59 @@ class SearchReplaceDiff(Diff):
         """
         if not diff_text: return []
         
-        # Split the diff into blocks
+        # Try different block separators
+        # First try standard double newline separator
         blocks = diff_text.split("\n\n")
+        
+        # If we only got one block but it contains multiple SEARCH/REPLACE markers,
+        # try alternative separators
+        if len(blocks) == 1 and blocks[0].count("SEARCH") > 1:
+            # Try triple newline
+            blocks = diff_text.split("\n\n\n")
+            
+            # If that didn't work, try to split on REPLACE/SEARCH boundaries
+            if len(blocks) == 1 and blocks[0].count("SEARCH") > 1:
+                # Look for patterns like "REPLACE ... SEARCH" which indicate block boundaries
+                pattern = r"(>>>>+\s*REPLACE.*?<<<+\s*SEARCH)"
+                # Split on these boundaries but keep the markers
+                parts = re.split(pattern, diff_text, flags=re.DOTALL)
+                
+                if len(parts) > 1:
+                    new_blocks = []
+                    for i in range(0, len(parts), 2):
+                        if i+1 < len(parts):
+                            # Combine the content with the boundary
+                            boundary = parts[i+1]
+                            split_point = boundary.find("SEARCH")
+                            if split_point != -1:
+                                # Split the boundary at SEARCH
+                                first_part = boundary[:split_point]
+                                second_part = boundary[split_point:]
+                                # Add the first block with its ending
+                                new_blocks.append(parts[i] + first_part)
+                                # Start the next block
+                                if i+2 < len(parts):
+                                    new_blocks.append(second_part + parts[i+2])
+                        else:
+                            new_blocks.append(parts[i])
+                    
+                    if len(new_blocks) > len(blocks):
+                        blocks = new_blocks
+                
+                # If we still only have one block, try to split directly on REPLACE/SEARCH boundaries
+                if len(blocks) == 1 and blocks[0].count("SEARCH") > 1:
+                    # Find all occurrences of SEARCH markers
+                    search_markers = [m.start() for m in re.finditer(r'<<<+\s*SEARCH', diff_text)]
+                    
+                    if len(search_markers) > 1:
+                        new_blocks = []
+                        for i in range(len(search_markers)):
+                            start = search_markers[i]
+                            end = search_markers[i+1] if i+1 < len(search_markers) else len(diff_text)
+                            new_blocks.append(diff_text[start:end])
+                        
+                        blocks = new_blocks
+        
         result = []
         
         for block in blocks:
@@ -180,7 +231,13 @@ class SearchReplaceDiff(Diff):
         
         # Apply each replacement
         for search_content, replace_content in replacements:
-            result = result.replace(search_content, replace_content)
+            # Special case for empty search content - only apply if code is empty
+            # This handles "new file" creation without inserting between every character
+            if search_content == "":
+                if result == "":
+                    result = replace_content
+            else:
+                result = result.replace(search_content, replace_content)
         
         return result
     
@@ -311,16 +368,35 @@ class SearchReplaceDiff(Diff):
         Returns:
             A string containing only the search/replace blocks
         """
-        # Look for blocks between triple backticks
+        search_replace_blocks = []
+        
+        # First try to find blocks between triple backticks (standard code blocks)
         code_blocks = re.findall(r"```(?:.*?)\n(.*?)```", response, re.DOTALL)
         
-        # Filter to only include blocks that contain search/replace markers
-        search_replace_blocks = []
         for block in code_blocks:
             if "<<<<<<< SEARCH" in block and "=======" in block and ">>>>>>> REPLACE" in block:
                 # Normalize the block by removing any trailing newlines
                 normalized_block = block.rstrip()
                 search_replace_blocks.append(normalized_block)
+        
+        # If no blocks found with code fences, try to extract directly
+        if not search_replace_blocks:
+            # Look for search/replace blocks without code fences
+            direct_blocks = re.findall(
+                r"<<<+\s*SEARCH\s*>*\n(.*?)\n=+\n(.*?)\n>+\s*REPLACE\s*<*", 
+                response, 
+                re.DOTALL
+            )
+            
+            for search_content, replace_content in direct_blocks:
+                block = (
+                    "<<<<<<< SEARCH\n"
+                    f"{search_content}\n"
+                    "=======\n"
+                    f"{replace_content}\n"
+                    ">>>>>>> REPLACE"
+                )
+                search_replace_blocks.append(block)
         
         # Join the blocks with double newlines
         return "\n\n".join(search_replace_blocks)
@@ -431,7 +507,9 @@ class UnifiedDiff(Diff):
                 
                 # If we have a previous hunk, add it to the result
                 if current_hunk is not None:
-                    hunks.append(current_hunk)
+                    # Validate the hunk before adding it
+                    if self._validate_hunk(current_hunk):
+                        hunks.append(current_hunk)
                 
                 # First try standard format
                 match = re.search(r'@@ -(\d+),?(\d+)? \+(\d+),?(\d+)? @@', line)
@@ -459,13 +537,23 @@ class UnifiedDiff(Diff):
                     # This allows recovery from malformed header but valid content
                     nums = re.findall(r'\d+', line)
                     if len(nums) >= 2:
-                        current_hunk = {
-                            'old_start': int(nums[0]),
-                            'old_count': int(nums[1]) if len(nums) > 2 else 1,
-                            'new_start': int(nums[2]) if len(nums) > 2 else int(nums[1]),
-                            'new_count': int(nums[3]) if len(nums) > 3 else 1,
-                            'lines': []
-                        }
+                        try:
+                            current_hunk = {
+                                'old_start': int(nums[0]),
+                                'old_count': int(nums[1]) if len(nums) > 2 else 1,
+                                'new_start': int(nums[2]) if len(nums) > 2 else int(nums[1]),
+                                'new_count': int(nums[3]) if len(nums) > 3 else 1,
+                                'lines': []
+                            }
+                        except (ValueError, IndexError):
+                            # If conversion fails, create a minimal valid hunk
+                            current_hunk = {
+                                'old_start': 1,
+                                'old_count': 1,
+                                'new_start': 1,
+                                'new_count': 1,
+                                'lines': []
+                            }
             elif current_hunk is not None:
                 # Add the line to the current hunk
                 # Normalize leading characters if needed
@@ -483,9 +571,35 @@ class UnifiedDiff(Diff):
         
         # Add the last hunk if there is one
         if current_hunk is not None:
-            hunks.append(current_hunk)
+            # Validate the hunk before adding it
+            if self._validate_hunk(current_hunk):
+                hunks.append(current_hunk)
             
         return hunks
+    
+    def _validate_hunk(self, hunk: Dict[str, Any]) -> bool:
+        """
+        Validate a hunk to ensure it has valid line counts and content.
+        
+        Args:
+            hunk: A hunk dictionary to validate
+            
+        Returns:
+            True if the hunk is valid, False otherwise
+        """
+        # Check if the hunk has any lines
+        if not hunk['lines']:
+            return False
+            
+        # Check if line counts are positive
+        if hunk['old_count'] <= 0 or hunk['new_count'] <= 0:
+            return False
+            
+        # Check if start positions are positive
+        if hunk['old_start'] <= 0 or hunk['new_start'] <= 0:
+            return False
+            
+        return True
     
     def apply_diff(self, code: str, diff_text: str) -> str:
         """
@@ -645,16 +759,44 @@ class UnifiedDiff(Diff):
         Returns:
             A string containing only the unified diff blocks
         """
-        # Look for blocks between triple backticks
+        diff_blocks = []
+        
+        # First try to find blocks between triple backticks
         code_blocks = re.findall(r"```(?:diff|patch)?\n(.*?)```", response, re.DOTALL)
         
-        # Filter to only include blocks that contain unified diff markers
-        diff_blocks = []
         for block in code_blocks:
             if re.search(r'@@ -\d+,?\d*? \+\d+,?\d*? @@', block):
                 # Normalize the block by removing any trailing newlines
                 normalized_block = block.rstrip()
                 diff_blocks.append(normalized_block)
+        
+        # If no blocks found with code fences, try to extract directly
+        if not diff_blocks:
+            # Look for hunk headers directly in the text
+            hunk_headers = re.findall(r'@@ -\d+,?\d*? \+\d+,?\d*? @@', response)
+            
+            if hunk_headers:
+                # Split the response by hunk headers
+                parts = re.split(r'(@@ -\d+,?\d*? \+\d+,?\d*? @@)', response)
+                
+                # Reconstruct the diff blocks
+                for i in range(1, len(parts), 2):
+                    if i+1 < len(parts):
+                        # Combine header with content
+                        hunk = parts[i] + parts[i+1]
+                        # Extract lines until we hit something that's clearly not part of the diff
+                        lines = []
+                        for line in hunk.splitlines():
+                            if line.startswith('+') or line.startswith('-') or line.startswith(' '):
+                                lines.append(line)
+                            elif re.match(r'@@ -\d+,?\d*? \+\d+,?\d*? @@', line):
+                                lines.append(line)
+                            else:
+                                # Stop at non-diff content
+                                break
+                        
+                        if lines:
+                            diff_blocks.append('\n'.join(lines))
         
         # Join the blocks with double newlines
         return "\n\n".join(diff_blocks)

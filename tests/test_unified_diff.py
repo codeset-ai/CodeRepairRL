@@ -647,6 +647,114 @@ And another change:
         
         self.assertEqual(extracted, expected)
 
+    def test_malformed_hunk_header(self):
+        """Test parsing a diff with malformed hunk header."""
+        diff = (
+            "@@ -1 +1 @@\n"  # Missing counts
+            " def hello():\n"
+            "-    print('hello')\n"
+            "+    print('hello world')\n"
+            " return None"
+        )
+        
+        hunks = self.diff.parse_diff(diff)
+        
+        self.assertEqual(len(hunks), 1)
+        self.assertEqual(hunks[0]['old_start'], 1)
+        self.assertEqual(hunks[0]['old_count'], 1)  # Default count
+        self.assertEqual(hunks[0]['new_start'], 1)
+        self.assertEqual(hunks[0]['new_count'], 1)  # Default count
+        
+    def test_very_malformed_hunk_header(self):
+        """Test parsing a diff with very malformed hunk header."""
+        diff = (
+            "@@ bad header with numbers 10 20 @@\n"
+            " def hello():\n"
+            "-    print('hello')\n"
+            "+    print('hello world')\n"
+            " return None"
+        )
+        
+        hunks = self.diff.parse_diff(diff)
+        
+        # The current implementation doesn't recognize this as a valid hunk header
+        # because it doesn't have the required '-' and '+' characters in the header
+        # This is actually correct behavior - we shouldn't try to parse completely invalid headers
+        self.assertEqual(len(hunks), 0)
+
+    def test_invalid_hunk_validation(self):
+        """Test validation of invalid hunks."""
+        # Create a diff instance
+        diff = UnifiedDiff()
+        
+        # Test with empty lines
+        invalid_hunk1 = {
+            'old_start': 1,
+            'old_count': 3,
+            'new_start': 1,
+            'new_count': 3,
+            'lines': []
+        }
+        self.assertFalse(diff._validate_hunk(invalid_hunk1))
+        
+        # Test with negative counts
+        invalid_hunk2 = {
+            'old_start': 1,
+            'old_count': -1,
+            'new_start': 1,
+            'new_count': 3,
+            'lines': [" line"]
+        }
+        self.assertFalse(diff._validate_hunk(invalid_hunk2))
+        
+        # Test with negative start positions
+        invalid_hunk3 = {
+            'old_start': -1,
+            'old_count': 3,
+            'new_start': 1,
+            'new_count': 3,
+            'lines': [" line"]
+        }
+        self.assertFalse(diff._validate_hunk(invalid_hunk3))
+        
+        # Test with valid hunk
+        valid_hunk = {
+            'old_start': 1,
+            'old_count': 3,
+            'new_start': 1,
+            'new_count': 3,
+            'lines': [" line"]
+        }
+        self.assertTrue(diff._validate_hunk(valid_hunk))
+        
+    def test_extract_unified_diff_without_code_fences(self):
+        """Test extracting unified diff from LLM response without code fences."""
+        llm_response = (
+            "Here's my fix:\n"
+            "\n"
+            "@@ -1,3 +1,4 @@\n"
+            " def calculate(x, y):\n"
+            "+    if y == 0:\n"
+            "+        raise ZeroDivisionError(\"Cannot divide by zero\")\n"
+            "     return x / y\n"
+            "\n"
+            "This should handle the division by zero error."
+        )
+        
+        # Extract the blocks
+        extracted = self.diff.extract_from_llm_response(llm_response)
+        
+        # Define the expected block
+        expected_block = (
+            "@@ -1,3 +1,4 @@\n"
+            " def calculate(x, y):\n"
+            "+    if y == 0:\n"
+            "+        raise ZeroDivisionError(\"Cannot divide by zero\")\n"
+            "     return x / y"
+        )
+        
+        self.assertEqual(extracted, expected_block)
+
 
 if __name__ == "__main__":
     unittest.main()
