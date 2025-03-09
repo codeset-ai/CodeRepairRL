@@ -6,7 +6,13 @@ from abc import ABC, abstractmethod
 
 
 class Diff(ABC):
-    """Base class for all diff implementations."""
+    """
+    Base class for all diff implementations.
+    
+    Diff implementations are designed to be robust against malformed or poorly formatted inputs,
+    attempting to parse and apply diffs even when they don't perfectly match the expected format.
+    Each implementation defines its own tolerance for format errors and recovery strategies.
+    """
     
     @abstractmethod
     def parse_diff(self, diff_text: str) -> Any:
@@ -58,15 +64,17 @@ class Diff(ABC):
     def safe_apply_diff(self, code: str, diff_text: str) -> Tuple[str, float]:
         """
         Safely apply a diff to code, with quality assessment.
-        If the diff has issues, it tries to recover and apply what it can.
+        
+        Evaluates the quality of the diff format before applying it.
+        Returns both the modified code and a quality score indicating
+        how well-formed the diff was.
         
         Args:
             code: The original code
             diff_text: The diff to apply
             
         Returns:
-            A tuple of (resulting_code, quality_score) where quality_score
-            indicates how confidently the diff was applied (1.0 = perfect)
+            A tuple of (modified_code, quality_score)
         """
         # First check quality
         quality = self.validate_quality(diff_text)
@@ -85,7 +93,15 @@ class Diff(ABC):
 
 
 class SearchReplaceDiff(Diff):
-    """Implementation of diff utilities using search/replace blocks format."""
+    """
+    Implementation of diff utilities using search/replace blocks format.
+    
+    Robust against common formatting errors in LLM outputs, including:
+    - Variations in marker syntax (e.g., different numbers of < or > characters)
+    - Whitespace variations around markers
+    - Missing or malformed block separators
+    - Blocks without code fences in LLM responses
+    """
     
     def parse_block(self, block: str) -> Tuple[Optional[str], Optional[str]]:
         """
@@ -141,6 +157,10 @@ class SearchReplaceDiff(Diff):
     def parse_diff(self, diff_text: str) -> List[Tuple[str, str]]:
         """
         Parse a search/replace diff into a list of (search, replace) tuples.
+        
+        Handles various block separator formats, including double newlines,
+        triple newlines, and cases with no clear separators. Attempts to
+        recover blocks even from poorly formatted inputs.
         
         Args:
             diff_text: A string containing one or more search/replace blocks
@@ -295,16 +315,18 @@ class SearchReplaceDiff(Diff):
         """
         Assess the quality of a search/replace diff on a scale from 0.0 to 1.0.
         
+        Evaluates how well the diff follows the expected format:
+        - 1.0: Perfect format with all blocks correctly formatted
+        - 0.7-0.9: Valid but with minor formatting issues
+        - 0.4-0.6: Recoverable with non-standard format
+        - 0.1-0.3: Has some diff markers but major issues
+        - 0.0: Couldn't recognize as a diff at all
+        
         Args:
-            diff_text: The search/replace diff to validate
+            diff_text: The diff text to validate
             
         Returns:
-            A score between 0.0 and 1.0 indicating the quality of the diff:
-            - 1.0: Perfect format with all blocks in correct format
-            - 0.7-0.9: Valid but with minor formatting issues
-            - 0.4-0.6: Recoverable with non-standard format
-            - 0.1-0.3: Has some diff markers but major issues
-            - 0.0: Couldn't recognize as a diff at all
+            A score between 0.0 and 1.0 indicating the quality of the diff
         """
         if not diff_text:
             return 1.0  # Empty diff is valid
@@ -361,6 +383,9 @@ class SearchReplaceDiff(Diff):
     def extract_from_llm_response(self, response: str) -> str:
         """
         Extract search/replace blocks from an LLM response.
+        
+        Handles both code-fenced blocks and direct diff content in the response.
+        Attempts to recover valid blocks even when formatting is imperfect.
         
         Args:
             response: The full response from an LLM
@@ -471,7 +496,15 @@ class SearchReplaceDiff(Diff):
 
 
 class UnifiedDiff(Diff):
-    """Implementation of diff utilities using unified diff format."""
+    """
+    Implementation of diff utilities using unified diff format.
+    
+    Robust against common formatting errors in LLM outputs, including:
+    - Malformed hunk headers with missing or incorrect counts
+    - Variations in hunk header syntax (e.g., using colons instead of commas)
+    - Missing or incorrect line prefixes (automatically normalized)
+    - Blocks without code fences in LLM responses
+    """
     
     def __init__(self, context_lines: int = 3):
         """
@@ -605,6 +638,10 @@ class UnifiedDiff(Diff):
         """
         Apply a unified diff to code.
         
+        Handles inaccurate line numbers in hunk headers by checking if the content
+        at the specified line matches the expected content, and if not, searching
+        for the closest matching line.
+        
         Args:
             code: The original code
             diff_text: The unified diff to apply
@@ -628,23 +665,68 @@ class UnifiedDiff(Diff):
         for hunk in reversed(hunks):
             old_start = hunk['old_start'] - 1  # 0-indexed
             old_count = hunk['old_count']
-            new_start = hunk['new_start'] - 1  # 0-indexed
             
-            # Process the lines in the hunk
-            old_lines = []
-            new_lines = []
-            
+            # Extract the lines that should be removed or kept as context
+            expected_lines = []
             for line in hunk['lines']:
-                if line.startswith('-'):
-                    old_lines.append(line[1:])
-                elif line.startswith('+'):
-                    new_lines.append(line[1:])
-                elif line.startswith(' '):
-                    old_lines.append(line[1:])
-                    new_lines.append(line[1:])
+                if line.startswith('-') or line.startswith(' '):
+                    expected_lines.append(line[1:])
             
-            # Replace the old lines with the new lines
-            result_lines[old_start:old_start + old_count] = new_lines
+            # If there are no lines to match, just use the specified position
+            if not expected_lines:
+                new_lines = [line[1:] for line in hunk['lines'] if line.startswith('+')]
+                result_lines[old_start:old_start + old_count] = new_lines
+                continue
+            
+            # Check if the content at the specified position matches
+            matches_at_position = True
+            for i, expected in enumerate(expected_lines):
+                if old_start + i >= len(lines) or lines[old_start + i] != expected:
+                    matches_at_position = False
+                    break
+            
+            # If it matches, use the specified position
+            if matches_at_position:
+                new_lines = [line[1:] for line in hunk['lines'] if line.startswith('+') or line.startswith(' ')]
+                result_lines[old_start:old_start + old_count] = new_lines
+                continue
+            
+            # Otherwise, search for the best matching position
+            best_position = -1
+            best_match_count = -1
+            
+            # Only search if we have at least one line to match
+            if expected_lines:
+                first_line = expected_lines[0]
+                # Find all occurrences of the first line
+                for i in range(len(lines)):
+                    if lines[i] == first_line:
+                        # Check how many consecutive lines match
+                        match_count = 0
+                        for j in range(len(expected_lines)):
+                            if i + j < len(lines) and lines[i + j] == expected_lines[j]:
+                                match_count += 1
+                            else:
+                                break
+                        
+                        # If this is the best match so far, remember it
+                        if match_count > best_match_count:
+                            best_match_count = match_count
+                            best_position = i
+            
+            # If we found a better position, use it
+            if best_position != -1 and best_match_count > 0:
+                old_start = best_position
+                
+                # Process the lines in the hunk to get the new lines
+                new_lines = []
+                for line in hunk['lines']:
+                    if line.startswith('+') or line.startswith(' '):
+                        new_lines.append(line[1:])
+                
+                # Replace the old lines with the new lines
+                result_lines[old_start:old_start + old_count] = new_lines
+            # If we didn't find any matching content, skip this hunk
             
         # Join lines with newline character to preserve the original format
         return '\n'.join(result_lines)
@@ -753,6 +835,10 @@ class UnifiedDiff(Diff):
         """
         Extract unified diff blocks from an LLM response.
         
+        Handles both code-fenced blocks and direct diff content in the response.
+        Recognizes hunk headers even without code fences and extracts the
+        associated content.
+        
         Args:
             response: The full response from an LLM
             
@@ -846,3 +932,62 @@ def get_diff(diff_type: str = 'search_replace', **kwargs) -> Diff:
         return UnifiedDiff(context_lines=context_lines)
     else:
         raise ValueError(f"Unknown diff type: {diff_type}") 
+    
+
+if __name__ == "__main__":
+    """Example script demonstrating the use of different diff implementations."""
+    
+    print("=== Diff Utility Example ===\n")
+    
+    # Sample code
+    before_code = """def calculate(x, y):
+        # Add two numbers
+        result = x + y
+        return result"""
+    
+    after_code = """def calculate(x, y):
+        # Add two numbers and multiply by 2
+        result = (x + y) * 2
+        return result"""
+    
+    print("Before code:")
+    print("------------")
+    print(before_code)
+    print("\nAfter code:")
+    print("-----------")
+    print(after_code)
+    
+    # Get different diff implementations
+    search_replace_diff = get_diff('search_replace')
+    unified_diff = get_diff('unified')
+    
+    # Generate diffs
+    sr_diff = search_replace_diff.generate_diff(before_code, after_code)
+    unified = unified_diff.generate_diff(before_code, after_code)
+    
+    # Display diffs
+    print("\nSearch/Replace Diff:")
+    print("-------------------")
+    print(sr_diff)
+    
+    print("\nUnified Diff:")
+    print("-------------")
+    print(unified)
+    
+    # Apply diffs
+    sr_result = search_replace_diff.apply_diff(before_code, sr_diff)
+    unified_result = unified_diff.apply_diff(before_code, unified)
+    
+    # Verify results
+    print("\nVerification:")
+    print("-------------")
+    print(f"Search/Replace result matches: {sr_result == after_code}")
+    print(f"Unified Diff result matches: {unified_result == after_code}")
+    
+    # Custom unified diff with more context lines
+    custom_unified = get_diff('unified', context_lines=5)
+    custom_diff = custom_unified.generate_diff(before_code, after_code)
+    
+    print("\nUnified Diff with 5 context lines:")
+    print("---------------------------------")
+    print(custom_diff)

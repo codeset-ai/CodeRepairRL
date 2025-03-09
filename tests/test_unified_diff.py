@@ -755,6 +755,316 @@ And another change:
         
         self.assertEqual(extracted, expected_block)
 
+    def test_inaccurate_line_numbers(self):
+        """Test applying a diff with inaccurate line numbers in hunk headers."""
+        # Original code with multiple occurrences of the same line
+        code = (
+            "def calculate():\n"
+            "    x = 10\n"
+            "    y = 20\n"
+            "    x = 10\n"  # Duplicate line
+            "    z = 30\n"
+            "    return x + y + z"  # No trailing newline
+        )
+        
+        # Diff with incorrect line number (targeting line 4 but specifying line 2)
+        # Include context to make it clear which occurrence we want to change
+        diff = (
+            "@@ -2,3 +2,3 @@\n"  # Should be line 3, not line 2
+            "     x = 10\n"
+            "-    y = 20\n"
+            "-    x = 10\n"
+            "+    y = 20\n"
+            "+    x = 15\n"
+        )
+        
+        # Expected result - should change the second occurrence of "x = 10"
+        expected = (
+            "def calculate():\n"
+            "    x = 10\n"
+            "    y = 20\n"
+            "    x = 15\n"  # This should be changed
+            "    z = 30\n"
+            "    return x + y + z"  # No trailing newline
+        )
+        
+        # Apply the diff
+        result = self.diff.apply_diff(code, diff)
+        
+        # Check if the result matches the expected output
+        self.assertEqual(result, expected)
+
+    def test_inaccurate_line_numbers_multiple_occurrences(self):
+        """Test applying a diff with multiple occurrences of the target line."""
+        # Code with three identical lines
+        code = (
+            "def process_data():\n"
+            "    value = 10\n"
+            "    value = 10\n"
+            "    value = 10\n"
+            "    return value"
+        )
+        
+        # Diff targeting the middle occurrence but with incorrect line number
+        diff = (
+            "@@ -1,2 +1,2 @@\n"  # Should be line 3, not line 1
+            " def process_data():\n"
+            "-    value = 10\n"
+            "+    value = 20\n"
+        )
+        
+        # Expected result - should change the first occurrence since it's closest to line 1
+        expected = (
+            "def process_data():\n"
+            "    value = 20\n"
+            "    value = 10\n"
+            "    value = 10\n"
+            "    return value"
+        )
+        
+        result = self.diff.apply_diff(code, diff)
+        self.assertEqual(result, expected)
+        
+    def test_inaccurate_line_numbers_with_context(self):
+        """Test applying a diff with inaccurate line numbers but unique context."""
+        # Code with similar lines but different context
+        code = (
+            "def first_function():\n"
+            "    x = 5\n"
+            "    return x\n"
+            "\n"
+            "def second_function():\n"
+            "    x = 5\n"
+            "    return x * 2"
+        )
+        
+        # Diff targeting the second x=5 but with incorrect line number
+        diff = (
+            "@@ -2,2 +2,2 @@\n"  # Should be line 6, not line 2
+            "     x = 5\n"
+            "-    return x * 2\n"
+            "+    return x * 3\n"
+        )
+        
+        # Expected result - should change the second function due to context
+        expected = (
+            "def first_function():\n"
+            "    x = 5\n"
+            "    return x\n"
+            "\n"
+            "def second_function():\n"
+            "    x = 5\n"
+            "    return x * 3"
+        )
+        
+        result = self.diff.apply_diff(code, diff)
+        self.assertEqual(result, expected)
+        
+    def test_inaccurate_line_numbers_no_match(self):
+        """Test applying a diff where the content doesn't match anywhere."""
+        code = (
+            "def calculate():\n"
+            "    x = 10\n"
+            "    y = 20\n"
+            "    return x + y"
+        )
+        
+        # Diff with content that doesn't match anywhere in the code
+        diff = (
+            "@@ -2,1 +2,1 @@\n"
+            "-    z = 30\n"
+            "+    z = 40\n"
+        )
+        
+        # Expected result - diff should not be applied
+        expected = code
+        
+        result = self.diff.apply_diff(code, diff)
+        self.assertEqual(result, expected)
+        
+    def test_inaccurate_line_numbers_partial_match(self):
+        """Test applying a diff with partial content matches."""
+        code = (
+            "def calculate():\n"
+            "    # Initialize variables\n"
+            "    x = 10\n"
+            "    y = 20\n"
+            "    # Calculate result\n"
+            "    result = x + y\n"
+            "    return result"
+        )
+        
+        # Diff with content that partially matches multiple places
+        diff = (
+            "@@ -5,1 +5,1 @@\n"  # Should be line 6, not line 5
+            "-    result = x + y\n"
+            "+    result = x * y\n"
+        )
+        
+        # Expected result - should change line 6 based on content
+        expected = (
+            "def calculate():\n"
+            "    # Initialize variables\n"
+            "    x = 10\n"
+            "    y = 20\n"
+            "    # Calculate result\n"
+            "    result = x * y\n"
+            "    return result"
+        )
+        
+        result = self.diff.apply_diff(code, diff)
+        self.assertEqual(result, expected)
+        
+    def test_inaccurate_line_numbers_multiple_hunks(self):
+        """Test applying a diff with multiple hunks having inaccurate line numbers."""
+        code = (
+            "def first_function():\n"
+            "    x = 5\n"
+            "    return x\n"
+            "\n"
+            "def second_function():\n"
+            "    y = 10\n"
+            "    return y\n"
+            "\n"
+            "def third_function():\n"
+            "    z = 15\n"
+            "    return z"
+        )
+        
+        # Diff with multiple hunks, all with incorrect line numbers
+        diff = (
+            "@@ -2,1 +2,1 @@\n"  # Should be line 2, correct
+            "-    x = 5\n"
+            "+    x = 50\n"
+            "@@ -5,1 +5,1 @@\n"  # Should be line 6, not line 5
+            "-    y = 10\n"
+            "+    y = 100\n"
+            "@@ -8,1 +8,1 @@\n"  # Should be line 10, not line 8
+            "-    z = 15\n"
+            "+    z = 150\n"
+        )
+        
+        # Expected result - should change all three functions based on content
+        expected = (
+            "def first_function():\n"
+            "    x = 50\n"
+            "    return x\n"
+            "\n"
+            "def second_function():\n"
+            "    y = 100\n"
+            "    return y\n"
+            "\n"
+            "def third_function():\n"
+            "    z = 150\n"
+            "    return z"
+        )
+        
+        result = self.diff.apply_diff(code, diff)
+        self.assertEqual(result, expected)
+
+    def test_inaccurate_line_numbers_empty_code(self):
+        """Test applying a diff with inaccurate line numbers to empty code."""
+        code = ""
+        
+        # Diff with line numbers that can't possibly match empty code
+        diff = (
+            "@@ -5,1 +5,1 @@\n"
+            "-    x = 10\n"
+            "+    x = 20\n"
+        )
+        
+        # Expected result - diff should not be applied to empty code
+        expected = ""
+        
+        result = self.diff.apply_diff(code, diff)
+        self.assertEqual(result, expected)
+        
+    def test_inaccurate_line_numbers_out_of_bounds(self):
+        """Test applying a diff with line numbers that are out of bounds."""
+        code = (
+            "def calculate():\n"
+            "    x = 10\n"
+            "    return x"
+        )
+        
+        # Diff with line numbers that are out of bounds
+        diff = (
+            "@@ -10,1 +10,1 @@\n"  # Line 10 doesn't exist
+            "-    y = 20\n"
+            "+    y = 30\n"
+        )
+        
+        # Expected result - diff should not be applied
+        expected = code
+        
+        result = self.diff.apply_diff(code, diff)
+        self.assertEqual(result, expected)
+        
+    def test_inaccurate_line_numbers_ambiguous_match(self):
+        """Test applying a diff with ambiguous matches (multiple equally good matches)."""
+        # Code with identical blocks
+        code = (
+            "def first():\n"
+            "    x = 10\n"
+            "    y = 20\n"
+            "\n"
+            "def second():\n"
+            "    x = 10\n"
+            "    y = 20"  # No trailing newline
+        )
+        
+        # Diff that could match either block
+        diff = (
+            "@@ -2,2 +2,2 @@\n"
+            "     x = 10\n"
+            "-    y = 20\n"
+            "+    y = 30\n"
+        )
+        
+        # Expected result - should change the first occurrence since it's closest to line 2
+        expected = (
+            "def first():\n"
+            "    x = 10\n"
+            "    y = 30\n"
+            "\n"
+            "def second():\n"
+            "    x = 10\n"
+            "    y = 20"  # No trailing newline
+        )
+        
+        result = self.diff.apply_diff(code, diff)
+        self.assertEqual(result, expected)
+        
+    def test_inaccurate_line_numbers_mixed_matches(self):
+        """Test applying a diff with some hunks matching and others not."""
+        code = (
+            "def calculate():\n"
+            "    x = 10\n"
+            "    y = 20\n"
+            "    return x + y"
+        )
+        
+        # Diff with one hunk that matches and one that doesn't
+        diff = (
+            "@@ -2,1 +2,1 @@\n"
+            "-    x = 10\n"
+            "+    x = 15\n"
+            "@@ -5,1 +5,1 @@\n"  # This line doesn't exist
+            "-    z = 30\n"
+            "+    z = 40\n"
+        )
+        
+        # Expected result - only the matching hunk should be applied
+        expected = (
+            "def calculate():\n"
+            "    x = 15\n"
+            "    y = 20\n"
+            "    return x + y"
+        )
+        
+        result = self.diff.apply_diff(code, diff)
+        self.assertEqual(result, expected)
+
 
 if __name__ == "__main__":
     unittest.main()
