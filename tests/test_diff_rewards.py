@@ -6,6 +6,9 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 
 from src.utils.rewards import (
+    count_search_replace_markers,
+    count_unified_diff_markers,
+    partial_diff_format_reward_func,
     extract_xml_answer,
     correctness_reward_func,
     strict_format_reward_func,
@@ -14,9 +17,81 @@ from src.utils.rewards import (
 )
 
 
-class TestClassificationRewards(unittest.TestCase):
-    """Test cases for non-diff related reward functions in src/utils/rewards.py."""
-
+class TestDiffRewards(unittest.TestCase):
+    """Test cases for diff-based reward functions in src/utils/rewards.py."""
+    
+    # Diff marker counting tests
+    
+    def test_count_search_replace_markers(self):
+        """Test counting of search/replace markers."""
+        # Perfect format
+        perfect = (
+            "<<<<<<< SEARCH\n"
+            "def hello():\n"
+            "=======\n"
+            "def hello_world():\n"
+            ">>>>>>> REPLACE"
+        )
+        self.assertAlmostEqual(count_search_replace_markers(perfect), 0.3, places=1)
+        
+        # Partial markers
+        partial = "SEARCH and ===== but no REPLACE"
+        self.assertAlmostEqual(count_search_replace_markers(partial), 0.2, places=1)
+        
+        # No markers
+        none = "No markers at all"
+        self.assertAlmostEqual(count_search_replace_markers(none), 0.0, places=1)
+    
+    def test_count_unified_diff_markers(self):
+        """Test counting of unified diff markers."""
+        # Perfect format
+        perfect = (
+            "@@ -1,3 +1,3 @@\n"
+            " context\n"
+            "-removed\n"
+            "+added\n"
+        )
+        self.assertAlmostEqual(count_unified_diff_markers(perfect), 0.4, places=1)
+        
+        # Partial markers - only @@ markers
+        partial = "@@ but no +/- markers"
+        self.assertAlmostEqual(count_unified_diff_markers(partial), 0.1, places=1)
+        
+        # Only line markers
+        line_only = "+added line\n-removed line"
+        self.assertAlmostEqual(count_unified_diff_markers(line_only), 0.2, places=1)
+        
+        # No markers
+        none = "No markers at all"
+        self.assertAlmostEqual(count_unified_diff_markers(none), 0.0, places=1)
+    
+    # Diff format reward tests
+    
+    def test_partial_diff_format_reward_func(self):
+        """Test the partial diff format reward function."""
+        # Create test completions
+        completions = [
+            [{"content": "<<<<<<< SEARCH\ndef hello()\n=======\ndef hello_world()\n>>>>>>> REPLACE"}],
+            [{"content": "@@ -1,3 +1,3 @@\n+added\n-removed"}],
+            [{"content": "No markers at all"}]
+        ]
+        
+        # Test for search_replace diff type
+        sr_rewards = partial_diff_format_reward_func(completions, diff_type="search_replace")
+        self.assertEqual(len(sr_rewards), 3)
+        self.assertAlmostEqual(sr_rewards[0], 0.3, places=1)  # All markers
+        self.assertAlmostEqual(sr_rewards[1], 0.0, places=1)  # No search/replace markers
+        self.assertAlmostEqual(sr_rewards[2], 0.0, places=1)  # No markers
+        
+        # Test for unified diff type
+        unified_rewards = partial_diff_format_reward_func(completions, diff_type="unified")
+        self.assertEqual(len(unified_rewards), 3)
+        self.assertAlmostEqual(unified_rewards[0], 0.0, places=1)  # No unified markers
+        self.assertGreaterEqual(unified_rewards[1], 0.2)  # Some markers
+        self.assertAlmostEqual(unified_rewards[2], 0.0, places=1)  # No markers
+    
+    # XML handling reward tests
+    
     def test_extract_xml_answer(self):
         """Test extracting answers from XML tags."""
         # Valid XML answer
@@ -100,54 +175,23 @@ class TestClassificationRewards(unittest.TestCase):
     def test_count_xml(self):
         """Test the count_xml function."""
         # Perfect format
-        perfect_format = (
-            "<think>\n"
-            "Thinking process\n"
-            "</think>\n"
-            "<answer>\n"
-            "CWE-79\n"
-            "</answer>"
-        )
-        self.assertEqual(count_xml(perfect_format), 0.5)
+        perfect_format = "<think>\nThinking process\n</think>\n<answer>\nCWE-79\n</answer>"
+        self.assertAlmostEqual(count_xml(perfect_format), 0.5, places=2)
         
         # Missing think opening tag
-        missing_think_open = (
-            "Thinking process\n"
-            "</think>\n"
-            "<answer>\n"
-            "CWE-79\n"
-            "</answer>"
-        )
+        missing_think_open = "Thinking process\n</think>\n<answer>\nCWE-79\n</answer>"
         self.assertAlmostEqual(count_xml(missing_think_open), 0.375, places=2)
         
         # Missing think closing tag
-        missing_think_close = (
-            "<think>\n"
-            "Thinking process\n"
-            "<answer>\n"
-            "CWE-79\n"
-            "</answer>"
-        )
+        missing_think_close = "<think>\nThinking process\n<answer>\nCWE-79\n</answer>"
         self.assertAlmostEqual(count_xml(missing_think_close), 0.375, places=2)
         
         # Missing answer opening tag
-        missing_answer_open = (
-            "<think>\n"
-            "Thinking process\n"
-            "</think>\n"
-            "CWE-79\n"
-            "</answer>"
-        )
+        missing_answer_open = "<think>\nThinking process\n</think>\nCWE-79\n</answer>"
         self.assertAlmostEqual(count_xml(missing_answer_open), 0.375, places=2)
         
         # Missing answer closing tag
-        missing_answer_close = (
-            "<think>\n"
-            "Thinking process\n"
-            "</think>\n"
-            "<answer>\n"
-            "CWE-79"
-        )
+        missing_answer_close = "<think>\nThinking process\n</think>\n<answer>\nCWE-79"
         self.assertAlmostEqual(count_xml(missing_answer_close), 0.375, places=2)
         
         # No tags
@@ -155,27 +199,11 @@ class TestClassificationRewards(unittest.TestCase):
         self.assertEqual(count_xml(no_tags), 0.0)
         
         # Text before think tag (slight penalty)
-        text_before_think = (
-            "Some text before\n"
-            "<think>\n"
-            "Thinking process\n"
-            "</think>\n"
-            "<answer>\n"
-            "CWE-79\n"
-            "</answer>"
-        )
+        text_before_think = "Some text before\n<think>\nThinking process\n</think>\n<answer>\nCWE-79\n</answer>"
         self.assertLess(count_xml(text_before_think), 0.5)
         
         # Text after answer tag (slight penalty)
-        text_after_answer = (
-            "<think>\n"
-            "Thinking process\n"
-            "</think>\n"
-            "<answer>\n"
-            "CWE-79\n"
-            "</answer>\n"
-            "Some text after"
-        )
+        text_after_answer = "<think>\nThinking process\n</think>\n<answer>\nCWE-79\n</answer>\nSome text after"
         self.assertLess(count_xml(text_after_answer), 0.5)
 
     def test_xmlcount_reward_func(self):
@@ -187,9 +215,18 @@ class TestClassificationRewards(unittest.TestCase):
         ]
         
         rewards = xmlcount_reward_func(completions)
-        self.assertEqual(rewards[0], 0.5)
+        self.assertAlmostEqual(rewards[0], 0.5, places=2)
         self.assertEqual(rewards[1], 0.0)
         self.assertLess(rewards[2], 0.5)
+    
+    # Test that reward functions handle empty completions
+    
+    def test_reward_function_empty_completions(self):
+        """Test reward functions with empty completions list."""
+        empty_completions = []
+        
+        self.assertEqual(partial_diff_format_reward_func(empty_completions, diff_type="search_replace"), [])
+        self.assertEqual(xmlcount_reward_func(empty_completions), [])
 
 
 if __name__ == "__main__":
