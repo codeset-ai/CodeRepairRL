@@ -31,7 +31,7 @@ CONFIG="base_grpo_config"
 NUM_GPUS=2
 CONTAINER_IMAGE="ttc.sif"
 PROJECT_DIR="$(pwd)"
-SCRATCH_DIR="/scratch/local/$SLURM_JOB_ID"
+SCRATCH_DIR="/proj/berzelius-2024-336/users/x_bjabj/$SLURM_JOB_ID"
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do

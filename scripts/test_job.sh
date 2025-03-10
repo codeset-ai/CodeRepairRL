@@ -20,7 +20,8 @@ echo "Directory: $(pwd)"
 
 # Define container variables
 PROJECT_DIR="$(pwd)"
-SCRATCH_DIR="/home/x_bjabj/scratch/$SLURM_JOB_ID"
+SCRATCH_DIR="/proj/berzelius-2024-336/users/x_bjabj/$SLURM_JOB_ID"
+# SCRATCH_DIR="/proj/berzelius-2025-72/users/x_bjabj/$SLURM_JOB_ID"
 # Move container to scratch directory which is likely allowed
 CONTAINER_IMAGE="$SCRATCH_DIR/ttc.sif"
 
