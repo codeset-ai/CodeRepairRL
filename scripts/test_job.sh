@@ -21,7 +21,7 @@ echo "Directory: $(pwd)"
 # Define container variables
 PROJECT_DIR="$(pwd)"
 SCRATCH_DIR="/proj/berzelius-2024-336/users/x_bjabj/$SLURM_JOB_ID"
-# SCRATCH_DIR="/proj/berzelius-2025-72/users/x_bjabj/$SLURM_JOB_ID"
+# SCRATCH_DIR="/proj/berzelius-2025-72/users/x_bjabj/$SLURM_JOB_ID"  # for some reason this project does not exist yet
 # Move container to scratch directory which is likely allowed
 CONTAINER_IMAGE="$SCRATCH_DIR/ttc.sif"
 
@@ -45,16 +45,17 @@ fi
 
 # Print Python and CUDA information
 echo "Python version:"
-apptainer exec --nv $CONTAINER_IMAGE python --version
+# The double dash (--) separates uv options from the command to be executed in the uv environment
+apptainer exec --nv $CONTAINER_IMAGE uv run -- python --version
 
 echo "CUDA availability:"
-apptainer exec --nv $CONTAINER_IMAGE python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
-apptainer exec --nv $CONTAINER_IMAGE python -c "import torch; print(f'CUDA device count: {torch.cuda.device_count()}')"
-apptainer exec --nv $CONTAINER_IMAGE python -c "import torch; print(f'CUDA device name: {torch.cuda.get_device_name(0)}')"
+apptainer exec --nv $CONTAINER_IMAGE uv run -- python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
+apptainer exec --nv $CONTAINER_IMAGE uv run -- python -c "import torch; print(f'CUDA device count: {torch.cuda.device_count()}')"
+apptainer exec --nv $CONTAINER_IMAGE uv run -- python -c "import torch; print(f'CUDA device name: {torch.cuda.get_device_name(0)}')"
 
 # Test importing key libraries
 echo "Testing imports..."
-apptainer exec --nv $CONTAINER_IMAGE python -c "
+apptainer exec --nv $CONTAINER_IMAGE uv run -- python -c "
 import torch
 import transformers
 import trl
@@ -66,7 +67,7 @@ print('All imports successful!')
 
 # Test torchrun
 echo "Testing torchrun..."
-apptainer exec --nv $CONTAINER_IMAGE torchrun --nproc-per-node=1 -m torch.distributed.run --help
+apptainer exec --nv $CONTAINER_IMAGE uv run -- torchrun --nproc-per-node=1 -m torch.distributed.run --help
 
 # Clean up
 echo "Cleaning up scratch directory..."

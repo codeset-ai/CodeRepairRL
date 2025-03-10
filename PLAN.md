@@ -1,7 +1,6 @@
 # Project Planning
 
 
-
 ## March 10 - March 16, 2025
 
 ### Checkpoint: Monday, March 10, 2025
@@ -11,6 +10,7 @@
   - Issues with scalability
 
 #### Tasks
+- [ ] Read MUFIN
 - [ ] Fix SLURM scripts (get a basic training run going)
 - [ ] Train on SWE-Bench-lite on diff matching
 - [ ] Setup Defect4J as reward signal and train on it
@@ -18,7 +18,11 @@
 #### Thoughts
 - Should we do have an agent scaffolding like SWE-Agent / OpenHands / Agentless
 - Would be really cool to reinforce tool usage but that requires a lot of engineering
-
+- Bug fix diff matching is probably almost equivalent to running the tests
+  - At least for simple bugs which only require changing a couple lines
+- Perhaps a more interesting task is implementing something new with well defined behaviour
+  - Then oracle patch diff matching is a vastly different objective from passing the tests
+  - Can we create a synthetic dataset for this?
 
 
 ## March 3 - March 9, 2025

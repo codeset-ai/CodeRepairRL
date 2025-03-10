@@ -1,7 +1,6 @@
 Bootstrap: docker
 From: python:3.11-slim
 
-
 %files
     # Copy project files into the container
     pyproject.toml /opt/ttc/pyproject.toml
@@ -12,16 +11,16 @@ From: python:3.11-slim
     # Install system dependencies
     apt-get update && apt-get install -y build-essential curl git && rm -rf /var/lib/apt/lists/*
     
-    # Install uv and add to PATH
+    # Install uv
     curl -LsSf https://astral.sh/uv/install.sh | sh
     
-    # Add uv to PATH
-    export PATH="/root/.local/bin:$PATH"
-    echo 'export PATH="/root/.local/bin:$PATH"' >> $APPTAINER_ENVIRONMENT
-    
-    # Verify uv is in PATH
+    # Verify uv installation (this check only affects the build-time shell)
     which uv || echo "uv not found in PATH"
     
-    # Install dependencies
+    # Install dependencies using uv
     cd /opt/ttc
     /root/.local/bin/uv sync
+
+%environment
+    # Ensure uv is in the PATH at runtime
+    export PATH="/root/.local/bin:$PATH"

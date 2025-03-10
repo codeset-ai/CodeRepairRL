@@ -66,9 +66,10 @@ for dir in data models; do
   fi
 done
 
-# Run the training script with Apptainer
-echo "Running: torchrun --nproc-per-node=$NUM_GPUS $SCRIPT +experiment=$CONFIG"
-apptainer run --nv --bind $BIND_PATHS $CONTAINER_IMAGE torchrun --nproc-per-node=$NUM_GPUS $SCRIPT +experiment=$CONFIG
+# Run the training script with Apptainer using uv
+echo "Running: uv run -- torchrun --nproc-per-node=$NUM_GPUS $SCRIPT +experiment=$CONFIG"
+# The double dash (--) separates uv options from the command to be executed in the uv environment
+apptainer run --nv --bind $BIND_PATHS $CONTAINER_IMAGE uv run -- torchrun --nproc-per-node=$NUM_GPUS $SCRIPT +experiment=$CONFIG
 
 # Copy results from scratch to project directory if needed
 if [ -d "$SCRATCH_DIR/results" ]; then
