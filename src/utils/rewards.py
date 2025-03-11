@@ -1,7 +1,7 @@
 import re
 import difflib
 
-from src.utils.diff import get_diff
+from src.utils.diff import SearchReplaceDiff, UnifiedDiff
 
 
 def extract_xml_answer(text: str) -> str:

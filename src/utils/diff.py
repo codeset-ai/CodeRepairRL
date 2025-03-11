@@ -1,9 +1,9 @@
 import re
 import difflib
-from enum import Enum
-from typing import List, Tuple, Optional, Dict, Any, Union
+from typing import List, Tuple, Optional, Dict, Any, Type, TypeVar, ClassVar
 from abc import ABC, abstractmethod
 
+T = TypeVar('T', bound='Diff')
 
 class Diff(ABC):
     """
@@ -13,24 +13,36 @@ class Diff(ABC):
     attempting to parse and apply diffs even when they don't perfectly match the expected format.
     Each implementation defines its own tolerance for format errors and recovery strategies.
     """
-    
+
+    @staticmethod
     @abstractmethod
-    def parse_diff(self, diff_text: str) -> Any:
-        """Parse a diff string into a structured format."""
+    def extract_from_llm_response(response: str) -> List[T]:
+        """Extract diff blocks from an LLM response and return a list of Diff objects."""
+        pass
+    
+    @classmethod
+    @abstractmethod
+    def from_string(cls: Type[T], diff_text: str) -> T:
+        """Parse a diff string into a structured Diff object."""
+        pass
+
+    @classmethod
+    @abstractmethod
+    def from_codes(cls: Type[T], before_code: str, after_code: str) -> T:
+        """Generate a Diff object representing the changes between two code snippets."""
         pass
     
     @abstractmethod
-    def apply_diff(self, code: str, diff_text: str) -> str:
-        """Apply a diff to the given code."""
+    def apply_diff(self, code: str) -> str:
+        """Apply this diff to the given code."""
         pass
     
     @abstractmethod
-    def is_valid_format(self, diff_text: str, strict: bool = True) -> bool:
+    def is_valid_format(self, strict: bool = True) -> bool:
         """
-        Validate that a diff is properly formatted.
+        Validate that this diff is properly formatted.
         
         Args:
-            diff_text: The diff text to validate
             strict: If True, use strict validation; if False, be more lenient
             
         Returns:
@@ -39,31 +51,23 @@ class Diff(ABC):
         pass
     
     @abstractmethod
-    def validate_quality(self, diff_text: str) -> float:
+    def validate_quality(self) -> float:
         """
-        Assess the quality of a diff format on a scale from 0.0 to 1.0.
+        Assess the quality of this diff format on a scale from 0.0 to 1.0.
         
-        Args:
-            diff_text: The diff text to validate
-            
         Returns:
-            A score between 0.0 and 1.0 indicating the quality of the diff
+            A score between 0.0 and 1.0 indicating the quality of the diff, 1.0 is perfect
         """
         pass
     
     @abstractmethod
-    def extract_from_llm_response(self, response: str) -> str:
-        """Extract diff blocks from an LLM response."""
-        pass
-    
-    @abstractmethod
-    def generate_diff(self, before_code: str, after_code: str) -> str:
-        """Generate a diff between two code snippets."""
+    def to_string(self) -> str:
+        """Convert this diff object to its string representation."""
         pass
         
-    def safe_apply_diff(self, code: str, diff_text: str) -> Tuple[str, float]:
+    def safe_apply_diff(self, code: str) -> Tuple[str, float]:
         """
-        Safely apply a diff to code, with quality assessment.
+        Safely apply this diff to code, with quality assessment.
         
         Evaluates the quality of the diff format before applying it.
         Returns both the modified code and a quality score indicating
@@ -71,18 +75,17 @@ class Diff(ABC):
         
         Args:
             code: The original code
-            diff_text: The diff to apply
             
         Returns:
             A tuple of (modified_code, quality_score)
         """
         # First check quality
-        quality = self.validate_quality(diff_text)
+        quality = self.validate_quality()
         
         # If quality is good enough, try to apply
         if quality >= 0.4:  # Apply if at least partially recoverable
             try:
-                result = self.apply_diff(code, diff_text)
+                result = self.apply_diff(code)
                 return result, quality
             except Exception as e:
                 # If application fails, return original with low quality
@@ -103,72 +106,30 @@ class SearchReplaceDiff(Diff):
     - Blocks without code fences in LLM responses
     """
     
-    def parse_block(self, block: str) -> Tuple[Optional[str], Optional[str]]:
+    def __init__(self, blocks: List[Tuple[str, str]]):
         """
-        Parse a single search/replace block. 
-        We allow the search content to be optional to facilitate diffs creating new files.
-        This method is robust against common formatting errors.
+        Initialize with a list of (search, replace) tuples.
         
         Args:
-            block: A string containing a search/replace block
-            
-        Returns:
-            A tuple of (search_content, replace_content), or (None, None) if parsing fails
+            blocks: List of (search_content, replace_content) tuples
         """
-        # Try various patterns, from most exact to most forgiving
-        
-        # Standard pattern
-        pattern_with_search = r"<<<<<<< SEARCH\n(.*?)\n=======\n(.*?)\n>>>>>>> REPLACE"
-        match = re.search(pattern_with_search, block, re.DOTALL)
-        if match:
-            search_content = match.group(1)
-            replace_content = match.group(2)
-            return search_content, replace_content
-        
-        # Pattern without search content (for new files)
-        pattern_without_search = r"<<<<<<< SEARCH\n=======\n(.*?)\n>>>>>>> REPLACE"
-        match = re.search(pattern_without_search, block, re.DOTALL)
-        if match:
-            return "", match.group(1)
-        
-        # More forgiving patterns below - these handle common LLM formatting mistakes
-        
-        # Slight variations in marker spacing/formatting
-        pattern_forgiving = r"<+\s*S+EARCH\s*>*\n(.*?)\n=+\n(.*?)\n>+\s*R+EPLACE\s*<*"
-        match = re.search(pattern_forgiving, block, re.DOTALL)
-        if match:
-            search_content = match.group(1)
-            replace_content = match.group(2)
-            return search_content, replace_content
-        
-        # Just get before/after with markers as separators (very forgiving)
-        if "SEARCH" in block and "=====" in block and "REPLACE" in block:
-            try:
-                parts = re.split(r"<+[^>]*SEARCH[^>]*>+|\n=+\n|<+[^>]*REPLACE[^>]*>+", block)
-                if len(parts) >= 3:  # Should have parts before, between, and after markers
-                    search_content = parts[1].strip()
-                    replace_content = parts[2].strip()
-                    return search_content, replace_content
-            except:
-                pass
-                
-        return None, None
+        self.blocks = blocks
     
-    def parse_diff(self, diff_text: str) -> List[Tuple[str, str]]:
+    @classmethod
+    def from_string(cls, diff_text: str) -> 'SearchReplaceDiff':
         """
-        Parse a search/replace diff into a list of (search, replace) tuples.
+        Parse a search/replace diff into a SearchReplaceDiff object.
         
-        Handles various block separator formats, including double newlines,
-        triple newlines, and cases with no clear separators. Attempts to
-        recover blocks even from poorly formatted inputs.
+        Handles various block separator formats and is robust against common LLM formatting errors.
         
         Args:
             diff_text: A string containing one or more search/replace blocks
             
         Returns:
-            A list of (search_content, replace_content) tuples
+            A SearchReplaceDiff object
         """
-        if not diff_text: return []
+        if not diff_text: 
+            return cls([])
         
         # Try different block separators
         # First try standard double newline separator
@@ -188,7 +149,7 @@ class SearchReplaceDiff(Diff):
                 parts = re.split(pattern, diff_text, flags=re.DOTALL)
                 
                 if len(parts) > 1:
-                    new_blocks = []
+                    blocks = []
                     for i in range(0, len(parts), 2):
                         if i+1 < len(parts):
                             # Combine the content with the boundary
@@ -199,299 +160,220 @@ class SearchReplaceDiff(Diff):
                                 first_part = boundary[:split_point]
                                 second_part = boundary[split_point:]
                                 # Add the first block with its ending
-                                new_blocks.append(parts[i] + first_part)
+                                blocks.append(parts[i] + first_part)
                                 # Start the next block
                                 if i+2 < len(parts):
-                                    new_blocks.append(second_part + parts[i+2])
+                                    blocks.append(second_part + parts[i+2])
                         else:
-                            new_blocks.append(parts[i])
-                    
-                    if len(new_blocks) > len(blocks):
-                        blocks = new_blocks
-                
-                # If we still only have one block, try to split directly on REPLACE/SEARCH boundaries
-                if len(blocks) == 1 and blocks[0].count("SEARCH") > 1:
-                    # Find all occurrences of SEARCH markers
-                    search_markers = [m.start() for m in re.finditer(r'<<<+\s*SEARCH', diff_text)]
-                    
-                    if len(search_markers) > 1:
-                        new_blocks = []
-                        for i in range(len(search_markers)):
-                            start = search_markers[i]
-                            end = search_markers[i+1] if i+1 < len(search_markers) else len(diff_text)
-                            new_blocks.append(diff_text[start:end])
-                        
-                        blocks = new_blocks
+                            blocks.append(parts[i])
         
         result = []
         
         for block in blocks:
-            search_content, replace_content = self.parse_block(block)
-            if search_content is not None and replace_content is not None:
+            # Try various patterns, from most exact to most forgiving
+            
+            # Standard pattern
+            pattern_with_search = r"<<<+\s*SEARCH\s*>*\n(.*?)\n=+\n(.*?)\n>>>+\s*REPLACE\s*<*"
+            match = re.search(pattern_with_search, block, re.DOTALL)
+            if match:
+                search_content = match.group(1)
+                replace_content = match.group(2)
                 result.append((search_content, replace_content))
+                continue
+            
+            # Pattern without search content (for new files)
+            pattern_without_search = r"<<<+\s*SEARCH\s*>*\n=+\n(.*?)\n>>>+\s*REPLACE\s*<*"
+            match = re.search(pattern_without_search, block, re.DOTALL)
+            if match:
+                result.append(("", match.group(1)))
+                continue
+            
+            # Just get before/after with markers as separators (very forgiving)
+            if "SEARCH" in block and "=====" in block and "REPLACE" in block:
+                try:
+                    parts = re.split(r"<+[^>]*SEARCH[^>]*>+|\n=+\n|<+[^>]*REPLACE[^>]*>+", block)
+                    if len(parts) >= 3:  # Should have parts before, between, and after markers
+                        search_content = parts[1].strip()
+                        replace_content = parts[2].strip()
+                        result.append((search_content, replace_content))
+                except:
+                    pass
         
-        return result
+        return cls(result)
     
-    def apply_diff(self, code: str, diff_text: str) -> str:
+    @classmethod
+    def from_codes(cls, before_code: str, after_code: str) -> 'SearchReplaceDiff':
         """
-        Apply a search/replace diff to code.
+        Generate a SearchReplaceDiff object representing the changes between before and after code versions.
         
-        Args:
-            code: The original code
-            diff_text: The search/replace diff to apply
-            
-        Returns:
-            The code after applying the diff
-        """
-        if not diff_text: return code
-        
-        # Parse the diff into search/replace pairs
-        replacements = self.parse_diff(diff_text)
-        result = code
-        
-        # Apply each replacement
-        for search_content, replace_content in replacements:
-            # Special case for empty search content - only apply if code is empty
-            # This handles "new file" creation without inserting between every character
-            if search_content == "":
-                if result == "":
-                    result = replace_content
-            else:
-                result = result.replace(search_content, replace_content)
-        
-        return result
-    
-    def is_valid_format(self, diff_text: str, strict: bool = True) -> bool:
-        """
-        Validate that a search/replace diff is properly formatted.
-        
-        Args:
-            diff_text: The search/replace diff to validate
-            strict: Whether to use strict validation (default: True)
-            
-        Returns:
-            True if the diff is valid, False otherwise
-        """
-        if not diff_text:
-            return True
-        
-        # Split the diff into blocks
-        blocks = diff_text.split("\n\n")
-        
-        for block in blocks:
-            # Check if the block contains the required markers
-            if "SEARCH" not in block:
-                return False
-            if "=" not in block:
-                return False
-            if "REPLACE" not in block:
-                return False
-            
-            if strict:
-                # Strict validation - check exact markers and order
-                if "<<<<<<< SEARCH" not in block:
-                    return False
-                if "=======" not in block:
-                    return False
-                if ">>>>>>> REPLACE" not in block:
-                    return False
-                
-                # Check if the markers are in the correct order
-                search_idx = block.find("<<<<<<< SEARCH")
-                divider_idx = block.find("=======")
-                replace_idx = block.find(">>>>>>> REPLACE")
-                
-                if not (search_idx < divider_idx < replace_idx):
-                    return False
-            
-            # Parse the block to check if we can extract content
-            search_content, replace_content = self.parse_block(block)
-            if search_content is None or replace_content is None:
-                return False
-        
-        return True
-        
-    def validate_quality(self, diff_text: str) -> float:
-        """
-        Assess the quality of a search/replace diff on a scale from 0.0 to 1.0.
-        
-        Evaluates how well the diff follows the expected format:
-        - 1.0: Perfect format with all blocks correctly formatted
-        - 0.7-0.9: Valid but with minor formatting issues
-        - 0.4-0.6: Recoverable with non-standard format
-        - 0.1-0.3: Has some diff markers but major issues
-        - 0.0: Couldn't recognize as a diff at all
-        
-        Args:
-            diff_text: The diff text to validate
-            
-        Returns:
-            A score between 0.0 and 1.0 indicating the quality of the diff
-        """
-        if not diff_text:
-            return 1.0  # Empty diff is valid
-            
-        # Perfect format check
-        if self.is_valid_format(diff_text, strict=True):
-            return 1.0
-            
-        # Check if valid with lenient rules
-        if self.is_valid_format(diff_text, strict=False):
-            return 0.8  # Good enough to use but not perfect
-        
-        # If we get here, the diff has issues but might be partially recoverable
-        
-        # Split into potential blocks by double newlines
-        # or try to identify block boundaries by markers
-        blocks = []
-        if "\n\n" in diff_text:
-            blocks = diff_text.split("\n\n")
-        else:
-            # Try to split by diff markers
-            potential_blocks = re.split(r"(<+[^>]*SEARCH|>{3,}[^<]*REPLACE)", diff_text)
-            for i in range(0, len(potential_blocks)-1, 2):
-                if i+1 < len(potential_blocks):
-                    blocks.append(potential_blocks[i] + potential_blocks[i+1])
-            
-        if not blocks:
-            blocks = [diff_text]  # Just treat the whole thing as one block
-        
-        # Calculate score based on parseable blocks
-        parseable_count = 0
-        total_blocks = len(blocks)
-        
-        for block in blocks:
-            # Basic markers check
-            has_search = "SEARCH" in block
-            has_divider = "====" in block or "----" in block
-            has_replace = "REPLACE" in block
-            
-            # Only counts if it has all three markers
-            if has_search and has_divider and has_replace:
-                search_content, replace_content = self.parse_block(block)
-                if search_content is not None and replace_content is not None:
-                    parseable_count += 1
-                    
-        if total_blocks == 0:
-            return 0.0
-            
-        ratio = parseable_count / total_blocks
-        
-        # Scale from 0.1 to 0.6 based on parseable ratio
-        return min(0.6, max(0.1, ratio * 0.6))
-    
-    def extract_from_llm_response(self, response: str) -> str:
-        """
-        Extract search/replace blocks from an LLM response.
-        
-        Handles both code-fenced blocks and direct diff content in the response.
-        Attempts to recover valid blocks even when formatting is imperfect.
-        
-        Args:
-            response: The full response from an LLM
-            
-        Returns:
-            A string containing only the search/replace blocks
-        """
-        search_replace_blocks = []
-        
-        # First try to find blocks between triple backticks (standard code blocks)
-        code_blocks = re.findall(r"```(?:.*?)\n(.*?)```", response, re.DOTALL)
-        
-        for block in code_blocks:
-            if "<<<<<<< SEARCH" in block and "=======" in block and ">>>>>>> REPLACE" in block:
-                # Normalize the block by removing any trailing newlines
-                normalized_block = block.rstrip()
-                search_replace_blocks.append(normalized_block)
-        
-        # If no blocks found with code fences, try to extract directly
-        if not search_replace_blocks:
-            # Look for search/replace blocks without code fences
-            direct_blocks = re.findall(
-                r"<<<+\s*SEARCH\s*>*\n(.*?)\n=+\n(.*?)\n>+\s*REPLACE\s*<*", 
-                response, 
-                re.DOTALL
-            )
-            
-            for search_content, replace_content in direct_blocks:
-                block = (
-                    "<<<<<<< SEARCH\n"
-                    f"{search_content}\n"
-                    "=======\n"
-                    f"{replace_content}\n"
-                    ">>>>>>> REPLACE"
-                )
-                search_replace_blocks.append(block)
-        
-        # Join the blocks with double newlines
-        return "\n\n".join(search_replace_blocks)
-    
-    def generate_diff(self, before_code: str, after_code: str) -> str:
-        """
-        Generate a SEARCH/REPLACE diff between before and after code versions.
+        Uses difflib to intelligently find the changes and create search/replace blocks with context.
         
         Args:
             before_code: The original code snippet
             after_code: The fixed/modified code snippet
             
         Returns:
-            A SEARCH/REPLACE diff representing the changes, focusing on changed chunks
+            A SearchReplaceDiff object representing the changes
         """
+        if before_code == after_code:
+            return cls([])
+        
         # Split code into lines
         before_lines = before_code.splitlines()
         after_lines = after_code.splitlines()
         
         # Use SequenceMatcher to find differences
         matcher = difflib.SequenceMatcher(None, before_lines, after_lines)
-        search_replace_blocks = []
+        blocks = []
+        
+        # Context lines to include before and after changes
+        context_lines = 2
         
         for tag, i1, i2, j1, j2 in matcher.get_opcodes():
-            # We only care about changes for SEARCH/REPLACE format
-            if tag == 'replace':
-                search_chunk = '\n'.join(before_lines[i1:i2])
-                replace_chunk = '\n'.join(after_lines[j1:j2])
+            if tag == 'equal':
+                continue
                 
-                # Create a SEARCH/REPLACE block
-                block = "<<<<<<< SEARCH\n"
-                block += f"{search_chunk}\n"
-                block += "=======\n"
-                block += f"{replace_chunk}\n"
-                block += ">>>>>>> REPLACE"
-                
-                search_replace_blocks.append(block)
+            # Calculate context boundaries
+            start1 = max(0, i1 - context_lines)
+            end1 = min(len(before_lines), i2 + context_lines)
+            start2 = max(0, j1 - context_lines)
+            end2 = min(len(after_lines), j2 + context_lines)
             
-            # For deletions, we just need a SEARCH block with empty REPLACE
-            elif tag == 'delete':
-                search_chunk = '\n'.join(before_lines[i1:i2])
-                
-                block = "<<<<<<< SEARCH\n"
-                block += f"{search_chunk}\n"
-                block += "=======\n"
-                block += ">>>>>>> REPLACE"
-                
-                search_replace_blocks.append(block)
+            # Extract the changed lines with context
+            before_chunk = '\n'.join(before_lines[start1:end1])
+            after_chunk = '\n'.join(after_lines[start2:end2])
             
-            # For insertions, we need context (the line before insertion)
-            elif tag == 'insert':
-                replace_chunk = '\n'.join(after_lines[j1:j2])
-                
-                # Need to find the context (the line before insertion)
-                context_line = ""
-                if i1 > 0:
-                    context_line = before_lines[i1-1]
-                
-                block = "<<<<<<< SEARCH\n"
-                if context_line:
-                    block += f"{context_line}\n"
-                block += "=======\n"
-                if context_line:
-                    block += f"{context_line}\n"
-                block += f"{replace_chunk}\n"
-                block += ">>>>>>> REPLACE"
-                
-                search_replace_blocks.append(block)
+            # Only add non-empty chunks
+            if before_chunk or after_chunk:
+                blocks.append((before_chunk, after_chunk))
         
-        # Join all blocks
+        # If no specific changes were found but the files are different,
+        # fall back to treating the entire files as a single change
+        if not blocks and before_code != after_code:
+            blocks = [(before_code, after_code)]
+            
+        return cls(blocks)
+    
+    @staticmethod
+    def extract_from_llm_response(response: str) -> List['SearchReplaceDiff']:
+        """
+        Extract search/replace blocks from an LLM response and return a list of SearchReplaceDiff objects.
+        
+        Args:
+            response: The full response from an LLM
+            
+        Returns:
+            A list of SearchReplaceDiff objects
+        """
+        # First try to find blocks between triple backticks
+        code_blocks = re.findall(r"```(?:.*?)\n(.*?)```", response, re.DOTALL)
+        
+        # If no blocks found with code fences, try to extract directly
+        if not code_blocks:
+            code_blocks = [response]
+            
+        return [SearchReplaceDiff.from_string(block) for block in code_blocks if block.strip()]
+    
+    def apply_diff(self, code: str) -> str:
+        """
+        Apply this search/replace diff to code.
+        
+        Args:
+            code: The original code
+            
+        Returns:
+            The code after applying the diff
+        """
+        if not self.blocks: 
+            return code
+        
+        result = code
+        
+        # Apply each search/replace pair in sequence
+        for search_content, replace_content in self.blocks:
+            if not search_content:
+                # If search is empty, this is a new file creation
+                if not result:
+                    result = replace_content
+            else:
+                # Otherwise, perform the replacement
+                result = result.replace(search_content, replace_content)
+        
+        return result
+    
+    def validate_quality(self) -> float:
+        """
+        Assess the quality of this diff format on a scale from 0.0 to 1.0.
+        
+        Returns:
+            A score between 0.0 and 1.0 indicating the quality of the diff
+        """
+        if not self.blocks:
+            return 0.0
+        
+        # Start with a perfect score
+        score = 1.0
+        
+        # Check each block for quality issues
+        for search_content, replace_content in self.blocks:
+            # Both parts should exist (though search can be empty for new files)
+            if replace_content is None:
+                score -= 0.3
+                continue
+                
+            # Check that the replacement isn't identical to the search
+            if search_content == replace_content and search_content:
+                score -= 0.2
+                
+            # Empty blocks are invalid
+            if not replace_content and not search_content:
+                score = 0.0
+                break
+                
+            # Penalize very large blocks slightly (they're more error-prone)
+            if search_content and len(search_content) > 1000:
+                score -= 0.1
+                
+            # Penalize very small blocks slightly (they might be too granular)
+            if search_content and len(search_content) < 3:
+                score -= 0.1
+        
+        # Normalize score to 0.0-1.0 range
+        return min(1.0, max(0.0, score))
+    
+    def is_valid_format(self, strict: bool = True) -> bool:
+        """
+        Validate that this diff is properly formatted.
+        
+        Args:
+            strict: If True, use strict validation; if False, be more lenient
+            
+        Returns:
+            True if the diff is valid, False otherwise
+        """
+        return self.validate_quality() == 1.0 if strict else self.validate_quality() >= 0.4
+    
+    
+    def to_string(self) -> str:
+        """
+        Convert this diff object to its string representation.
+        
+        Returns:
+            A string containing the search/replace blocks
+        """
+        search_replace_blocks = []
+        
+        for search_content, replace_content in self.blocks:
+            block = (
+                "<<<<<<< SEARCH\n"
+                f"{search_content}\n"
+                "=======\n"
+                f"{replace_content}\n"
+                ">>>>>>> REPLACE"
+            )
+            search_replace_blocks.append(block)
+        
+        # Join the blocks with double newlines
         return "\n\n".join(search_replace_blocks)
 
 
@@ -499,341 +381,258 @@ class UnifiedDiff(Diff):
     """
     Implementation of diff utilities using unified diff format.
     
-    Robust against common formatting errors in LLM outputs, including:
-    - Malformed hunk headers with missing or incorrect counts
-    - Variations in hunk header syntax (e.g., using colons instead of commas)
-    - Missing or incorrect line prefixes (automatically normalized)
-    - Blocks without code fences in LLM responses
+    Unified diffs are a standard format used by tools like git diff.
+    This implementation is robust against common formatting errors in LLM outputs.
     """
     
-    def __init__(self, context_lines: int = 3):
+    def __init__(self, hunks: List[Dict[str, Any]], context_lines: int = 3):
         """
-        Initialize a UnifiedDiff with the given number of context lines.
+        Initialize with a list of hunks and context line count.
         
         Args:
-            context_lines: Number of context lines around changes (default: 3)
+            hunks: List of hunk dictionaries
+            context_lines: Number of context lines to include in diffs (default: 3)
         """
+        self.hunks = hunks
         self.context_lines = context_lines
     
-    def parse_diff(self, diff_text: str) -> List[Dict[str, Any]]:
+    @classmethod
+    def from_string(cls, diff_text: str) -> 'UnifiedDiff':
         """
-        Parse a unified diff into a structured format.
-        This method is robust against common formatting errors in LLM outputs.
+        Parse a unified diff string into a UnifiedDiff object.
+        
+        Handles standard unified diff format with @@ markers and +/- line prefixes.
+        Attempts to recover from common formatting errors.
         
         Args:
             diff_text: A string containing a unified diff
             
         Returns:
-            A list of diff hunks, each containing position and change information
+            A UnifiedDiff object
         """
         if not diff_text:
-            return []
-        
-        lines = diff_text.splitlines()
+            return cls([], 3)
+            
         hunks = []
         current_hunk = None
         
-        for line in lines:
-            # Check for header or hunk lines - with robust matching
-            if '@' in line and '-' in line and '+' in line:
-                # Try to parse as a hunk header
-                
-                # If we have a previous hunk, add it to the result
+        for line in diff_text.splitlines():
+            # Look for hunk headers
+            hunk_match = re.match(r'@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@(.*)', line)
+            
+            if hunk_match:
+                # If we were processing a hunk, add it to the list
                 if current_hunk is not None:
-                    # Validate the hunk before adding it
-                    if self._validate_hunk(current_hunk):
-                        hunks.append(current_hunk)
+                    hunks.append(current_hunk)
                 
-                # First try standard format
-                match = re.search(r'@@ -(\d+),?(\d+)? \+(\d+),?(\d+)? @@', line)
+                # Parse the hunk header
+                start1 = int(hunk_match.group(1))
+                count1 = int(hunk_match.group(2) or 1)
+                start2 = int(hunk_match.group(3))
+                count2 = int(hunk_match.group(4) or 1)
+                heading = hunk_match.group(5).strip()
                 
-                # If no match, try more forgiving pattern
-                if not match:
-                    match = re.search(r'@+\s*-\s*(\d+)[,:]?(\d+)?\s+\+\s*(\d+)[,:]?(\d+)?', line)
-                
-                if match:
-                    # Start a new hunk
-                    old_start = int(match.group(1))
-                    old_count = int(match.group(2)) if match.group(2) else 1
-                    new_start = int(match.group(3))
-                    new_count = int(match.group(4)) if match.group(4) else 1
-                    
-                    current_hunk = {
-                        'old_start': old_start,
-                        'old_count': old_count,
-                        'new_start': new_start,
-                        'new_count': new_count,
-                        'lines': []
-                    }
-                else:
-                    # If we can't parse, just create a best-guess hunk
-                    # This allows recovery from malformed header but valid content
-                    nums = re.findall(r'\d+', line)
-                    if len(nums) >= 2:
-                        try:
-                            current_hunk = {
-                                'old_start': int(nums[0]),
-                                'old_count': int(nums[1]) if len(nums) > 2 else 1,
-                                'new_start': int(nums[2]) if len(nums) > 2 else int(nums[1]),
-                                'new_count': int(nums[3]) if len(nums) > 3 else 1,
-                                'lines': []
-                            }
-                        except (ValueError, IndexError):
-                            # If conversion fails, create a minimal valid hunk
-                            current_hunk = {
-                                'old_start': 1,
-                                'old_count': 1,
-                                'new_start': 1,
-                                'new_count': 1,
-                                'lines': []
-                            }
+                # Create a new hunk
+                current_hunk = {
+                    'start1': start1,
+                    'count1': count1,
+                    'start2': start2,
+                    'count2': count2,
+                    'heading': heading,
+                    'lines': []
+                }
             elif current_hunk is not None:
                 # Add the line to the current hunk
-                # Normalize leading characters if needed
-                if line and line[0] not in ['+', '-', ' ']:
-                    # Try to guess the line type
-                    if line.startswith('add') or line.startswith('ins'):
-                        line = '+' + line[3:]
-                    elif line.startswith('del') or line.startswith('rem'):
-                        line = '-' + line[3:]
+                if line.startswith('+') or line.startswith('-') or line.startswith(' '):
+                    current_hunk['lines'].append(line)
+                # Handle other lines that might be part of the diff but not properly formatted
+                elif line.strip() and not line.startswith('diff ') and not line.startswith('index '):
+                    # Try to recover malformed lines by guessing their type
+                    if line.startswith('+++') or line.startswith('---'):
+                        # These are file headers, ignore them
+                        continue
                     else:
-                        # Default to context line
-                        line = ' ' + line
-                
-                current_hunk['lines'].append(line)
+                        # Assume it's a context line if we can't tell
+                        current_hunk['lines'].append(' ' + line)
         
         # Add the last hunk if there is one
         if current_hunk is not None:
-            # Validate the hunk before adding it
-            if self._validate_hunk(current_hunk):
-                hunks.append(current_hunk)
+            hunks.append(current_hunk)
             
-        return hunks
+        # Determine context lines from the diff if possible
+        context_lines = 3  # Default
+        if hunks:
+            # Try to infer context lines from the diff
+            context_line_counts = []
+            for hunk in hunks:
+                # Count consecutive context lines at the beginning of the hunk
+                count = 0
+                for line in hunk['lines']:
+                    if line.startswith(' '):
+                        count += 1
+                    else:
+                        break
+                if count > 0:
+                    context_line_counts.append(count)
+            
+            if context_line_counts:
+                # Use the most common context line count
+                context_lines = max(set(context_line_counts), key=context_line_counts.count)
+        
+        return cls(hunks, context_lines)
     
     def _validate_hunk(self, hunk: Dict[str, Any]) -> bool:
         """
-        Validate a hunk to ensure it has valid line counts and content.
+        Validate that a hunk is properly formatted.
         
         Args:
-            hunk: A hunk dictionary to validate
+            hunk: The hunk to validate
             
         Returns:
             True if the hunk is valid, False otherwise
         """
-        # Check if the hunk has any lines
-        if not hunk['lines']:
-            return False
-            
-        # Check if line counts are positive
-        if hunk['old_count'] <= 0 or hunk['new_count'] <= 0:
-            return False
-            
-        # Check if start positions are positive
-        if hunk['old_start'] <= 0 or hunk['new_start'] <= 0:
+        # Check that the hunk has all required fields
+        required_fields = ['start1', 'count1', 'start2', 'count2', 'lines']
+        for field in required_fields:
+            if field not in hunk:
+                return False
+                
+        # Check that line counts match the actual lines
+        plus_count = sum(1 for line in hunk['lines'] if line.startswith('+'))
+        minus_count = sum(1 for line in hunk['lines'] if line.startswith('-'))
+        
+        # In a valid hunk, the line counts should match the header
+        # But we allow some flexibility for malformed diffs
+        if abs(plus_count - hunk['count2']) > 2 or abs(minus_count - hunk['count1']) > 2:
             return False
             
         return True
     
-    def apply_diff(self, code: str, diff_text: str) -> str:
+    def apply_diff(self, code: str) -> str:
         """
-        Apply a unified diff to code.
-        
-        Handles inaccurate line numbers in hunk headers by checking if the content
-        at the specified line matches the expected content, and if not, searching
-        for the closest matching line.
+        Apply this unified diff to code.
         
         Args:
             code: The original code
-            diff_text: The unified diff to apply
             
         Returns:
             The code after applying the diff
         """
-        if not diff_text:
+        if not self.hunks:
             return code
-        
-        # Parse the diff
-        hunks = self.parse_diff(diff_text)
-        if not hunks:
-            return code
-        
+            
         # Split the code into lines
         lines = code.splitlines()
         result_lines = lines.copy()
         
         # Apply each hunk in reverse order to avoid line number changes
-        for hunk in reversed(hunks):
-            old_start = hunk['old_start'] - 1  # 0-indexed
-            old_count = hunk['old_count']
+        for hunk in reversed(self.hunks):
+            start1 = hunk['start1']
+            count1 = hunk['count1']
+            start2 = hunk['start2']
+            count2 = hunk['count2']
             
-            # Extract the lines that should be removed or kept as context
-            expected_lines = []
-            for line in hunk['lines']:
-                if line.startswith('-') or line.startswith(' '):
-                    expected_lines.append(line[1:])
+            # Extract the lines from the hunk
+            hunk_lines = hunk['lines']
             
-            # If there are no lines to match, just use the specified position
-            if not expected_lines:
-                new_lines = [line[1:] for line in hunk['lines'] if line.startswith('+')]
-                result_lines[old_start:old_start + old_count] = new_lines
-                continue
+            # Verify that the hunk matches the code
+            original_lines = lines[start1-1:start1-1+count1]
+            hunk_original = [line[1:] for line in hunk_lines if line.startswith(' ') or line.startswith('-')]
             
-            # Check if the content at the specified position matches
-            matches_at_position = True
-            for i, expected in enumerate(expected_lines):
-                if old_start + i >= len(lines) or lines[old_start + i] != expected:
-                    matches_at_position = False
-                    break
-            
-            # If it matches, use the specified position
-            if matches_at_position:
-                new_lines = [line[1:] for line in hunk['lines'] if line.startswith('+') or line.startswith(' ')]
-                result_lines[old_start:old_start + old_count] = new_lines
-                continue
-            
-            # Otherwise, search for the best matching position
-            best_position = -1
-            best_match_count = -1
-            
-            # Only search if we have at least one line to match
-            if expected_lines:
-                first_line = expected_lines[0]
-                # Find all occurrences of the first line
-                for i in range(len(lines)):
-                    if lines[i] == first_line:
-                        # Check how many consecutive lines match
-                        match_count = 0
-                        for j in range(len(expected_lines)):
-                            if i + j < len(lines) and lines[i + j] == expected_lines[j]:
-                                match_count += 1
-                            else:
-                                break
+            # Check if the hunk matches the code
+            # We use a fuzzy match to handle minor differences
+            if len(original_lines) != len(hunk_original):
+                # Try to find the closest match
+                for offset in range(-5, 6):  # Try offsets from -5 to +5
+                    if start1 + offset - 1 < 0:
+                        continue
+                    if start1 + offset - 1 + count1 > len(lines):
+                        continue
                         
-                        # If this is the best match so far, remember it
-                        if match_count > best_match_count:
-                            best_match_count = match_count
-                            best_position = i
+                    test_lines = lines[start1+offset-1:start1+offset-1+count1]
+                    if len(test_lines) == len(hunk_original):
+                        # Check similarity
+                        similarity = sum(1 for a, b in zip(test_lines, hunk_original) if a == b) / len(test_lines)
+                        if similarity > 0.7:  # If more than 70% match, use this offset
+                            start1 += offset
+                            break
             
-            # If we found a better position, use it
-            if best_position != -1 and best_match_count > 0:
-                old_start = best_position
-                
-                # Process the lines in the hunk to get the new lines
-                new_lines = []
-                for line in hunk['lines']:
-                    if line.startswith('+') or line.startswith(' '):
-                        new_lines.append(line[1:])
-                
-                # Replace the old lines with the new lines
-                result_lines[old_start:old_start + old_count] = new_lines
-            # If we didn't find any matching content, skip this hunk
+            # Extract the new lines from the hunk
+            new_lines = [line[1:] for line in hunk_lines if line.startswith(' ') or line.startswith('+')]
             
-        # Join lines with newline character to preserve the original format
+            # Replace the lines in the result
+            result_lines[start1-1:start1-1+count1] = new_lines
+        
+        # Join the lines back into a string
         return '\n'.join(result_lines)
     
-    def is_valid_format(self, diff_text: str, strict: bool = True) -> bool:
+    def is_valid_format(self, strict: bool = True) -> bool:
         """
-        Validate that a unified diff is properly formatted.
+        Validate that this diff is properly formatted.
         
         Args:
-            diff_text: The unified diff to validate
-            strict: Whether to use strict validation (default: True)
+            strict: If True, use strict validation; if False, be more lenient
             
         Returns:
             True if the diff is valid, False otherwise
         """
-        if not diff_text:
+        if not self.hunks:
             return True
-        
-        try:
+            
+        # Check each hunk
+        for hunk in self.hunks:
             if strict:
-                # Check if the diff contains at least one properly formatted hunk header
-                if not re.search(r'@@ -\d+,?\d*? \+\d+,?\d*? @@', diff_text):
+                # In strict mode, validate each hunk thoroughly
+                if not self._validate_hunk(hunk):
                     return False
             else:
-                # More lenient check - just look for something that resembles a hunk header
-                if not re.search(r'@+\s*-\s*\d+.*\+\s*\d+.*@+', diff_text):
+                # In lenient mode, just check that the hunk has lines
+                if 'lines' not in hunk or not hunk['lines']:
                     return False
-                
-            # Try to parse it
-            hunks = self.parse_diff(diff_text)
-            
-            # If parsing succeeded and we got at least one hunk, it's probably valid
-            return len(hunks) > 0
-        except:
-            return False
-            
-    def validate_quality(self, diff_text: str) -> float:
-        """
-        Assess the quality of a unified diff on a scale from 0.0 to 1.0.
         
-        Args:
-            diff_text: The unified diff to validate
-            
-        Returns:
-            A score between 0.0 and 1.0 indicating the quality of the diff:
-            - 1.0: Perfect format with all hunks properly formatted
-            - 0.7-0.9: Valid but with minor formatting issues
-            - 0.4-0.6: Recoverable with non-standard format
-            - 0.1-0.3: Has some diff markers but major issues
-            - 0.0: Couldn't recognize as a diff at all
-        """
-        if not diff_text:
-            return 1.0  # Empty diff is valid
-            
-        # Perfect format check
-        if self.is_valid_format(diff_text, strict=True):
-            return 1.0
-            
-        # Check if valid with lenient rules
-        if self.is_valid_format(diff_text, strict=False):
-            return 0.8  # Good enough to use but not perfect
-        
-        # Count basic indicators of diff format
-        has_hunk_markers = '@' in diff_text
-        has_add_lines = re.search(r'^\+', diff_text, re.MULTILINE) is not None
-        has_remove_lines = re.search(r'^-', diff_text, re.MULTILINE) is not None
-        has_context_lines = re.search(r'^ ', diff_text, re.MULTILINE) is not None
-        
-        # Score based on markers present
-        score = 0.0
-        if has_hunk_markers:
-            score += 0.2
-        if has_add_lines:
-            score += 0.1
-        if has_remove_lines:
-            score += 0.1
-        if has_context_lines:
-            score += 0.1
-            
-        # Check if we can recover any hunks
-        try:
-            # Try to recognize hunk headers with a very forgiving pattern
-            potential_hunks = re.split(r'(?:^|\n)@+[^@\n]*@+', diff_text)
-            
-            # If we found potential hunks, check if any looks valid
-            for hunk in potential_hunks[1:]:  # Skip first part (before first header)
-                has_valid_content = False
-                lines = hunk.splitlines()
-                for line in lines:
-                    # Check if line starts with diff markers
-                    if line and line[0] in ['+', '-', ' ']:
-                        has_valid_content = True
-                        break
-                        
-                if has_valid_content:
-                    score += 0.1  # Add a bit for each recoverable hunk
-            
-            score = min(0.6, score)  # Cap at 0.6 for partial recovery
-        except:
-            # If analysis fails, just return the basic marker score
-            pass
-            
-        return score
+        return True
     
-    def extract_from_llm_response(self, response: str) -> str:
+    def validate_quality(self) -> float:
         """
-        Extract unified diff blocks from an LLM response.
+        Assess the quality of this diff format on a scale from 0.0 to 1.0.
+        
+        Returns:
+            A score between 0.0 and 1.0 indicating the quality of the diff
+        """
+        if not self.hunks:
+            return 0.0
+            
+        # Start with a perfect score
+        score = 1.0
+        
+        # Check each hunk for quality issues
+        for hunk in self.hunks:
+            # Check that the hunk is valid
+            if not self._validate_hunk(hunk):
+                score -= 0.3
+                continue
+                
+            # Check line counts
+            plus_count = sum(1 for line in hunk['lines'] if line.startswith('+'))
+            minus_count = sum(1 for line in hunk['lines'] if line.startswith('-'))
+            
+            # Penalize mismatches between header and actual line counts
+            if plus_count != hunk['count2']:
+                score -= 0.1
+            if minus_count != hunk['count1']:
+                score -= 0.1
+                
+            # Penalize very large hunks (they're more error-prone)
+            if len(hunk['lines']) > 50:
+                score -= 0.1
+        
+        # Normalize score to 0.0-1.0 range
+        return min(1.0, max(0.0, score))
+    
+    @staticmethod
+    def extract_from_llm_response(response: str) -> List['UnifiedDiff']:
+        """
+        Extract unified diff blocks from an LLM response and return a list of UnifiedDiff objects.
         
         Handles both code-fenced blocks and direct diff content in the response.
         Recognizes hunk headers even without code fences and extracts the
@@ -843,7 +642,7 @@ class UnifiedDiff(Diff):
             response: The full response from an LLM
             
         Returns:
-            A string containing only the unified diff blocks
+            A list of UnifiedDiff objects
         """
         diff_blocks = []
         
@@ -884,55 +683,112 @@ class UnifiedDiff(Diff):
                         if lines:
                             diff_blocks.append('\n'.join(lines))
         
-        # Join the blocks with double newlines
-        return "\n\n".join(diff_blocks)
+        # Create a list of UnifiedDiff objects
+        result = []
+        for block in diff_blocks:
+            diff = cls.from_string(block)
+            if diff.hunks:  # Only add non-empty diffs
+                result.append(diff)
+                
+        return result
     
-    def generate_diff(self, before_code: str, after_code: str) -> str:
+    @classmethod
+    def generate_diff(cls, before_code: str, after_code: str) -> 'UnifiedDiff':
         """
-        Generate a unified diff between two code snippets.
+        Generate a UnifiedDiff object representing the changes between before and after code versions.
         
         Args:
             before_code: The original code snippet
             after_code: The fixed/modified code snippet
             
         Returns:
-            A unified diff representing the changes
+            A UnifiedDiff object representing the changes
         """
         # Split code into lines
         before_lines = before_code.splitlines()
         after_lines = after_code.splitlines()
         
-        # Use difflib to generate unified diff
-        diff = difflib.unified_diff(
+        # Default context lines
+        context_lines = 3
+        
+        # Generate unified diff
+        diff_lines = list(difflib.unified_diff(
             before_lines, 
             after_lines,
-            n=self.context_lines,
+            n=context_lines,
             lineterm=''
-        )
+        ))
         
-        return '\n'.join(diff)
-
-
-# Diff factory function
-def get_diff(diff_type: str = 'search_replace', **kwargs) -> Diff:
-    """
-    Get a diff instance of the specified type.
-    
-    Args:
-        diff_type: The type of diff to create ('search_replace' or 'unified')
-        **kwargs: Additional arguments to pass to the diff constructor
+        # Skip the file headers (first two lines)
+        if len(diff_lines) >= 2:
+            diff_lines = diff_lines[2:]
         
-    Returns:
-        A Diff instance
-    """
-    if diff_type == 'search_replace':
-        return SearchReplaceDiff()
-    elif diff_type == 'unified':
-        context_lines = kwargs.get('context_lines', 3)
-        return UnifiedDiff(context_lines=context_lines)
-    else:
-        raise ValueError(f"Unknown diff type: {diff_type}") 
+        # Parse the diff into hunks
+        hunks = []
+        current_hunk = None
+        
+        for line in diff_lines:
+            # Look for hunk headers
+            hunk_match = re.match(r'@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@(.*)', line)
+            
+            if hunk_match:
+                # If we were processing a hunk, add it to the list
+                if current_hunk is not None:
+                    hunks.append(current_hunk)
+                
+                # Parse the hunk header
+                start1 = int(hunk_match.group(1))
+                count1 = int(hunk_match.group(2) or 1)
+                start2 = int(hunk_match.group(3))
+                count2 = int(hunk_match.group(4) or 1)
+                heading = hunk_match.group(5).strip()
+                
+                # Create a new hunk
+                current_hunk = {
+                    'start1': start1,
+                    'count1': count1,
+                    'start2': start2,
+                    'count2': count2,
+                    'heading': heading,
+                    'lines': []
+                }
+            elif current_hunk is not None:
+                # Add the line to the current hunk
+                current_hunk['lines'].append(line)
+        
+        # Add the last hunk if there is one
+        if current_hunk is not None:
+            hunks.append(current_hunk)
+            
+        return cls(hunks, context_lines)
     
+    def to_string(self) -> str:
+        """
+        Convert this diff object to its string representation.
+        
+        Returns:
+            A string containing the unified diff
+        """
+        lines = []
+        
+        # Add file headers (placeholder)
+        lines.append('--- a/file')
+        lines.append('+++ b/file')
+        
+        # Add each hunk
+        for hunk in self.hunks:
+            # Add the hunk header
+            header = f"@@ -{hunk['start1']},{hunk['count1']} +{hunk['start2']},{hunk['count2']} @@"
+            if hunk.get('heading'):
+                header += f" {hunk['heading']}"
+            lines.append(header)
+            
+            # Add the hunk lines
+            lines.extend(hunk['lines'])
+            
+        # Join the lines with newlines
+        return '\n'.join(lines)
+
 
 if __name__ == "__main__":
     """Example script demonstrating the use of different diff implementations."""

@@ -5,7 +5,7 @@ from pathlib import Path
 # Add the src directory to the Python path
 sys.path.append(str(Path(__file__).parent.parent))
 
-from src.utils.diff import SearchReplaceDiff, get_diff
+from src.utils.diff import SearchReplaceDiff
 
 
 class TestSearchReplaceDiff(unittest.TestCase):
