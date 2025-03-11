@@ -175,23 +175,54 @@ class TestDiffRewards(unittest.TestCase):
     def test_count_xml(self):
         """Test the count_xml function."""
         # Perfect format
-        perfect_format = "<think>\nThinking process\n</think>\n<answer>\nCWE-79\n</answer>"
+        perfect_format = (
+            "<think>\n"
+            "Thinking process\n"
+            "</think>\n"
+            "<answer>\n"
+            "CWE-79\n"
+            "</answer>"
+        )
         self.assertAlmostEqual(count_xml(perfect_format), 0.5, places=2)
         
         # Missing think opening tag
-        missing_think_open = "Thinking process\n</think>\n<answer>\nCWE-79\n</answer>"
+        missing_think_open = (
+            "Thinking process\n"
+            "</think>\n"
+            "<answer>\n"
+            "CWE-79\n"
+            "</answer>"
+        )
         self.assertAlmostEqual(count_xml(missing_think_open), 0.375, places=2)
         
         # Missing think closing tag
-        missing_think_close = "<think>\nThinking process\n<answer>\nCWE-79\n</answer>"
+        missing_think_close = (
+            "<think>\n"
+            "Thinking process\n"
+            "<answer>\n"
+            "CWE-79\n"
+            "</answer>"
+        )
         self.assertAlmostEqual(count_xml(missing_think_close), 0.375, places=2)
         
         # Missing answer opening tag
-        missing_answer_open = "<think>\nThinking process\n</think>\nCWE-79\n</answer>"
+        missing_answer_open = (
+            "<think>\n"
+            "Thinking process\n"
+            "</think>\n"
+            "CWE-79\n"
+            "</answer>"
+        )
         self.assertAlmostEqual(count_xml(missing_answer_open), 0.375, places=2)
         
         # Missing answer closing tag
-        missing_answer_close = "<think>\nThinking process\n</think>\n<answer>\nCWE-79"
+        missing_answer_close = (
+            "<think>\n"
+            "Thinking process\n"
+            "</think>\n"
+            "<answer>\n"
+            "CWE-79"
+        )
         self.assertAlmostEqual(count_xml(missing_answer_close), 0.375, places=2)
         
         # No tags
@@ -199,11 +230,27 @@ class TestDiffRewards(unittest.TestCase):
         self.assertEqual(count_xml(no_tags), 0.0)
         
         # Text before think tag (slight penalty)
-        text_before_think = "Some text before\n<think>\nThinking process\n</think>\n<answer>\nCWE-79\n</answer>"
+        text_before_think = (
+            "Some text before\n"
+            "<think>\n"
+            "Thinking process\n"
+            "</think>\n"
+            "<answer>\n"
+            "CWE-79\n"
+            "</answer>"
+        )
         self.assertLess(count_xml(text_before_think), 0.5)
         
         # Text after answer tag (slight penalty)
-        text_after_answer = "<think>\nThinking process\n</think>\n<answer>\nCWE-79\n</answer>\nSome text after"
+        text_after_answer = (
+            "<think>\n"
+            "Thinking process\n"
+            "</think>\n"
+            "<answer>\n"
+            "CWE-79\n"
+            "</answer>\n"
+            "Some text after"
+        )
         self.assertLess(count_xml(text_after_answer), 0.5)
 
     def test_xmlcount_reward_func(self):
