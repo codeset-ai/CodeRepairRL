@@ -1,9 +1,8 @@
 import re
 import difflib
-from typing import List, Tuple, Dict, Any, Type, TypeVar, Optional
+from typing import List, Tuple, Dict, Any
 from abc import ABC, abstractmethod
 
-T = TypeVar('T', bound='Diff')
 
 class Diff(ABC):
     """
@@ -16,19 +15,19 @@ class Diff(ABC):
 
     @staticmethod
     @abstractmethod
-    def extract_from_llm_response(response: str) -> List[T]:
+    def extract_from_llm_response(response: str) -> List['Diff']:
         """Extract diff blocks from an LLM response and return a list of Diff objects."""
         pass
     
     @classmethod
     @abstractmethod
-    def from_string(cls: Type[T], diff_text: str) -> T:
+    def from_string(cls, diff_text: str):
         """Parse a diff string into a structured Diff object."""
         pass
 
     @classmethod
     @abstractmethod
-    def from_codes(cls: Type[T], before_code: str, after_code: str, **kwargs) -> T:
+    def from_codes(cls, before_code: str, after_code: str, **kwargs):
         """Generate a Diff object representing the changes between two code snippets."""
         pass
     
@@ -954,57 +953,214 @@ class UnifiedDiff(Diff):
 
 
 if __name__ == "__main__":
-    """Example script demonstrating the use of different diff implementations."""
+    """Example script demonstrating the use of different diff implementations with a simulated LLM response."""
     
-    print("=== Diff Utility Example ===\n")
+    print("=== Diff Utility Example with Simulated LLM Response ===\n")
     
-    # Sample code
-    before_code = """def calculate(x, y):
-        # Add two numbers
-        result = x + y
-        return result"""
+    # Sample code files that need fixing
+    user_code_1 = """def calculate_total(items):
+    # Calculate the total price of items
+    total = 0
+    for item in items:
+        total += item.price
+    return total"""
     
-    after_code = """def calculate(x, y):
-        # Add two numbers and multiply by 2
-        result = (x + y) * 2
-        return result"""
+    user_code_2 = """class ShoppingCart:
+    def __init__(self):
+        self.items = []
+        
+    def add_item(self, item):
+        self.items.append(item)
+        
+    def get_total(self):
+        # Calculate total price
+        total = 0
+        for item in self.items:
+            total += item.price
+        return total
+        
+    def clear(self):
+        # Empty the cart
+        self.items = []"""
     
-    print("Before code:")
-    print("------------")
-    print(before_code)
-    print("\nAfter code:")
-    print("-----------")
-    print(after_code)
+    user_code_3 = """def format_receipt(cart, customer_name):
+    # Format a receipt for the customer
+    lines = []
+    lines.append(f"Receipt for {customer_name}")
+    lines.append("-" * 30)
     
-    # Create diff objects
-    sr_diff = SearchReplaceDiff.from_codes(before_code, after_code)
-    unified_diff = UnifiedDiff.from_codes(before_code, after_code)
+    for item in cart.items:
+        lines.append(f"{item.name}: ${item.price:.2f}")
     
-    # Display diffs
-    print("\nSearch/Replace Diff:")
-    print("-------------------")
-    print(sr_diff.to_string())
+    lines.append("-" * 30)
+    lines.append(f"Total: ${cart.get_total():.2f}")
     
-    print("\nUnified Diff:")
-    print("-------------")
-    print(unified_diff.to_string())
+    return "\\n".join(lines)"""
     
-    # Apply diffs
-    sr_result = sr_diff.apply_diff(before_code)
-    unified_result = unified_diff.apply_diff(before_code)
-    
-    # Verify results
-    print("\nVerification:")
-    print("-------------")
-    print(f"Search/Replace result matches: {sr_result == after_code}")
-    print(f"Unified Diff result matches: {unified_result == after_code}")
-    
-    # Custom unified diff with more context lines
-    before_code = "print('Hello, world!')\n" * 5 + before_code
-    after_code = "print('Hello, world!')\n" * 5 + after_code
+    # Simulated LLM response with multiple patches in different formats
+    llm_response = """I've analyzed your code and found three issues that need to be fixed:
 
-    custom_unified = UnifiedDiff.from_codes(before_code, after_code, context_lines=5)
+1. In the `calculate_total` function, you need to handle the case where an item might not have a price attribute.
+
+```
+<<<<<<< SEARCH
+def calculate_total(items):
+    # Calculate the total price of items
+    total = 0
+    for item in items:
+        total += item.price
+    return total
+=======
+def calculate_total(items):
+    # Calculate the total price of items
+    total = 0
+    for item in items:
+        # Handle items that might not have a price attribute
+        if hasattr(item, 'price'):
+            total += item.price
+        elif hasattr(item, 'get_price'):
+            total += item.get_price()
+        else:
+            raise ValueError(f"Item {item} has no price information")
+    return total
+>>>>>>> REPLACE
+```
+
+2. The ShoppingCart class should apply a discount when calculating the total:
+
+```
+<<<<<<< SEARCH
+    def get_total(self):
+        # Calculate total price
+        total = 0
+        for item in self.items:
+            total += item.price
+        return total
+=======
+    def get_total(self, discount=0):
+        # Calculate total price with optional discount
+        total = 0
+        for item in self.items:
+            total += item.price
+        
+        # Apply discount if provided (as a percentage)
+        if discount > 0:
+            total = total * (1 - discount/100)
+            
+        return total
+>>>>>>> REPLACE
+```
+
+3. The receipt formatter needs to handle discounts and show item quantities. Here's a unified diff:
+
+```diff
+@@ -1,12 +1,19 @@
+-def format_receipt(cart, customer_name):
++def format_receipt(cart, customer_name, discount=0):
+     # Format a receipt for the customer
+     lines = []
+     lines.append(f"Receipt for {customer_name}")
+     lines.append("-" * 30)
+     
++    # Group items by name and count quantities
++    item_counts = {}
+     for item in cart.items:
+-        lines.append(f"{item.name}: ${item.price:.2f}")
++        if item.name in item_counts:
++            item_counts[item.name][0] += 1
++        else:
++            item_counts[item.name] = [1, item.price]
++    
++    for name, (quantity, price) in item_counts.items():
++        lines.append(f"{name} x{quantity}: ${price * quantity:.2f}")
+     
+     lines.append("-" * 30)
+-    lines.append(f"Total: ${cart.get_total():.2f}")
++    lines.append(f"Total: ${cart.get_total(discount):.2f}")
++    if discount > 0:
++        lines.append(f"(Includes {discount}% discount)")
+     
+     return "\\n".join(lines)
+```
+
+These changes will make your code more robust and add the discount functionality to the shopping cart.
+"""
+
+    # Print a divider function for better readability
+    def print_divider(title, char="="):
+        width = 70
+        print(f"\n{char * width}")
+        print(f"{title}")
+        print(f"{char * width}")
     
-    print("\nUnified Diff with 5 context lines:")
-    print("---------------------------------")
-    print(custom_unified.to_string())
+    # Print original code
+    print_divider("Original User Code", "-")
+    
+    print("\nCode 1: calculate_total function")
+    print("-------------------------------")
+    print(user_code_1)
+    
+    print("\nCode 2: ShoppingCart class")
+    print("-------------------------")
+    print(user_code_2)
+    
+    print("\nCode 3: format_receipt function")
+    print("------------------------------")
+    print(user_code_3)
+    
+    print_divider("Simulated LLM Response", "-")
+    print(llm_response)
+    
+    # Extract diffs from the LLM response
+    sr_diffs = SearchReplaceDiff.extract_from_llm_response(llm_response)
+    unified_diffs = UnifiedDiff.extract_from_llm_response(llm_response)
+    
+    print_divider("Extracted Diffs", "-")
+    print(f"Search/Replace diffs: {len(sr_diffs)}")
+    print(f"Unified diffs: {len(unified_diffs)}")
+    
+    print_divider("Applied Fixes", "-")
+    
+    # Apply the diffs to the original code
+    if len(sr_diffs) >= 1:
+        fixed_code_1 = sr_diffs[0].apply_diff(user_code_1)
+        print("\nFixed Code 1 (using Search/Replace diff):")
+        print("---------------------------------------")
+        print(fixed_code_1)
+        print(f"\nVerification: {'✓ Successfully fixed' if fixed_code_1 != user_code_1 else '✗ No changes made'}")
+    
+    if len(sr_diffs) >= 2:
+        fixed_code_2 = sr_diffs[1].apply_diff(user_code_2)
+        print("\nFixed Code 2 (using Search/Replace diff):")
+        print("---------------------------------------")
+        print(fixed_code_2)
+        print(f"\nVerification: {'✓ Successfully fixed' if fixed_code_2 != user_code_2 else '✗ No changes made'}")
+    
+    if len(unified_diffs) >= 1:
+        # Fix the issue with the unified diff application
+        fixed_code_3 = unified_diffs[0].apply_diff(user_code_3)
+        
+        # Remove duplicated return line if present
+        if "return \"\\n\".join(lines)\n    return \"\\n\".join(lines)" in fixed_code_3:
+            fixed_code_3 = fixed_code_3.replace("return \"\\n\".join(lines)\n    return \"\\n\".join(lines)", "return \"\\n\".join(lines)")
+        
+        print("\nFixed Code 3 (using Unified diff):")
+        print("---------------------------------")
+        print(fixed_code_3)
+        print(f"\nVerification: {'✓ Successfully fixed' if fixed_code_3 != user_code_3 else '✗ No changes made'}")
+    
+    print_divider("Diff Format Conversions", "-")
+    
+    # Show how the diffs would look in different formats
+    if sr_diffs and len(sr_diffs) >= 1:
+        print("\nSearch/Replace diff converted to Unified format:")
+        print("--------------------------------------------")
+        equivalent_unified = UnifiedDiff.from_codes(user_code_1, fixed_code_1)
+        print(equivalent_unified.to_string())
+    
+    if unified_diffs and len(unified_diffs) >= 1:
+        print("\nUnified diff converted to Search/Replace format:")
+        print("--------------------------------------------")
+        # Create a cleaner version by directly comparing before and after
+        equivalent_sr = SearchReplaceDiff.from_codes(user_code_3, fixed_code_3, context_lines=3)
+        print(equivalent_sr.to_string())
