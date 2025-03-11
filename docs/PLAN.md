@@ -1,6 +1,10 @@
 # Project Planning
 
 
+### Backlog
+- [ ] Look at how SWE-Bench works exactly, should we train for that behavior end2end?
+
+
 ## March 10 - March 16, 2025
 
 ### Checkpoint: Monday, March 10, 2025
@@ -10,10 +14,21 @@
   - Issues with scalability
 
 #### Tasks
-- [ ] Read MUFIN
+- [x] Fix diff.py, it is VERY sloppy
+- [ ] Fix reward.py, it sloppy
+  - Get rid of get_diff entirely
+  - Make correctness and quality rewards as separate as possible
+  - Merge strict quality with partial quality, since the latter smoothly transitions from 0-1
+  - Also add a method to diff.py to compare two diffs of the same type  
+- [ ] Check out verifiers, seems like exactly what I need, could even contribute to the repo
+  - paralell execution env where we can call dockerized tests?
+  - be the first to reply here https://github.com/willccbb/verifiers/discussions/35
 - [ ] Fix SLURM scripts (get a basic training run going)
+- [ ] Make hf cache (and uv if simple) point to my project directory instead of my home directory (on slurm)
+- [ ] Read MUFIN paper
 - [ ] Train on SWE-Bench-lite on diff matching
 - [ ] Setup Defect4J as reward signal and train on it
+- [ ] Check out lighteval, would be cool to check e.g. humaneval before and after
 
 #### Thoughts
 - Should we do have an agent scaffolding like SWE-Agent / OpenHands / Agentless
