@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 class RunConfig:
     wandb_project: str = "TTC"
     train_mode: str = "lora"  # "full" or "lora"
-    task: str = "repair"  # "classification" or "repair"
+    task: str = "repair"  # "detection" or "repair"
     dataset_type: str = "primevul"  # "primevul" or "repairllama"
     diff_type: str = "search_replace"  # "search_replace" or "unified" (for repair)
     commit_hash: str = ""  # added at runtime
@@ -41,8 +41,8 @@ class RunConfig:
     def __post_init__(self):
         if self.train_mode not in ["full", "lora"]:
             raise ValueError("train_mode must be either 'full' or 'lora'")
-        if self.task not in ["classification", "repair"]:
-            raise ValueError("task must be either 'classification' or 'repair'")
+        if self.task not in ["detection", "repair"]:
+            raise ValueError("task must be either 'detection' or 'repair'")
         if self.dataset_type not in ["primevul", "repairllama"]:
             raise ValueError("dataset_type must be either 'repairllama', or 'primevul'")
         if self.diff_type not in ["search_replace", "unified"]:
@@ -125,7 +125,7 @@ def main(cfg: Config) -> None:
     model = AutoModelForCausalLM.from_pretrained(cfg.model.model_name)
     tokenizer = AutoTokenizer.from_pretrained(cfg.model.model_name)
     tokenizer.pad_token = tokenizer.eos_token
-    tokenizer.padding_side = "left"
+    tokenizer.padding_side = "left"  # by padding a batch of prompts on the left side we can generate many completions in parallel (padding tokens are masked away)
 
     if cfg.run.train_mode == "lora":
         lora_config = PEFTLoraConfig(**cfg.lora, task_type = "CAUSAL_LM")
@@ -134,18 +134,7 @@ def main(cfg: Config) -> None:
     model.print_trainable_parameters()
 
     # Get dataset based on the task
-    if cfg.run.task == "detection":
-        if cfg.run.dataset_type == "repairllama": raise ValueError("RepairLLAMA does not support detection task")
-        dataset, max_prompt_length = get_primevul_detection_dataset(
-            tokenizer, 
-            cfg.grpo.max_prompt_length
-        )
-        reward_functions = [
-            partial_reasoning_format_reward_func,
-            strict_reasoning_format_reward_func,
-            correctness_reward_func,
-        ]
-    elif cfg.run.task == "repair":
+    if cfg.run.task == "repair":
         repair_dataset = get_primevul_repair_dataset if cfg.run.dataset_type == "primevul" else get_repairllama_dataset
         dataset, max_prompt_length = repair_dataset(
             tokenizer,
@@ -157,8 +146,18 @@ def main(cfg: Config) -> None:
             partial(diff_format_reward_func, diff_type=cfg.grpo.diff_type),  # we need to know the type of diff to use to process the output    
             partial(diff_similarity_reward_func, diff_type=cfg.grpo.diff_type),
         ]
+    elif cfg.run.task == "detection":  # primevul only
+        dataset, max_prompt_length = get_primevul_detection_dataset(
+            tokenizer, 
+            cfg.grpo.max_prompt_length
+        )
+        reward_functions = [
+            partial_reasoning_format_reward_func,
+            strict_reasoning_format_reward_func,
+            correctness_reward_func,
+        ]
     else:
-        raise ValueError(f"Unknown task: {cfg.run.task}")
+        raise ValueError(f"Unknown task: {cfg.run.task}")  # can't happen but looks nice
 
     # Adjust sequence lengths if needed (ensures we are not wasting context window)
     if max_prompt_length < cfg.grpo.max_prompt_length:
