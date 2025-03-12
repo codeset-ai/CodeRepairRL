@@ -1,7 +1,9 @@
 import os
 import logging
 from typing import Optional
+from functools import partial
 from dataclasses import dataclass, field
+
 import hydra
 from omegaconf import OmegaConf
 from hydra.core.config_store import ConfigStore
@@ -32,6 +34,7 @@ class RunConfig:
     train_mode: str = "lora"  # "full" or "lora"
     task: str = "repair"  # "classification" or "repair"
     dataset_type: str = "primevul"  # "primevul" or "repairllama"
+    diff_type: str = "search_replace"  # "search_replace" or "unified" (for repair)
     commit_hash: str = ""  # added at runtime
     resume_training: bool = False
 
@@ -41,7 +44,9 @@ class RunConfig:
         if self.task not in ["classification", "repair"]:
             raise ValueError("task must be either 'classification' or 'repair'")
         if self.dataset_type not in ["primevul", "repairllama"]:
-            raise ValueError("dataset_type must be either 'repairllama', or 'custom'")
+            raise ValueError("dataset_type must be either 'repairllama', or 'primevul'")
+        if self.diff_type not in ["search_replace", "unified"]:
+            raise ValueError("diff_type must be either 'search_replace', or 'unified'")
         
 @dataclass
 class LoraConfig:  # only used if train_mode == "lora"
@@ -149,8 +154,8 @@ def main(cfg: Config) -> None:
         reward_functions = [
             partial_reasoning_format_reward_func,
             strict_reasoning_format_reward_func,
-            diff_format_reward_func,
-            diff_similarity_reward_func,
+            partial(diff_format_reward_func, diff_type=cfg.grpo.diff_type),  # we need to know the type of diff to use to process the output    
+            partial(diff_similarity_reward_func, diff_type=cfg.grpo.diff_type),
         ]
     else:
         raise ValueError(f"Unknown task: {cfg.run.task}")

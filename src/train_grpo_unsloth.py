@@ -1,5 +1,6 @@
 import os
 import logging
+from functools import partial
 
 from unsloth import FastLanguageModel, PatchFastRL
 PatchFastRL("GRPO", FastLanguageModel)  # important to call this first
@@ -63,8 +64,8 @@ def main(cfg: Config) -> None:
         reward_functions = [
             partial_reasoning_format_reward_func,
             strict_reasoning_format_reward_func,
-            diff_format_reward_func,
-            diff_similarity_reward_func,
+            partial(diff_format_reward_func, diff_type=cfg.grpo.diff_type),
+            partial(diff_similarity_reward_func, diff_type=cfg.grpo.diff_type),
         ]
     else:
         raise ValueError(f"Unknown task: {cfg.run.task}")

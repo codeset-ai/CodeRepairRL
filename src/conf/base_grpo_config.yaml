@@ -10,8 +10,9 @@ run:
   train_mode: "lora"
   task: "repair"  # "classification" or "repair"
   dataset_type: "primevul"  # "primevul" or "repairllama"
+  diff_type: "search_replace"  # "search_replace" or "unified"
+  commit_hash: ""  # will be set automatically
   resume_training: false
-  commit_hash: ${MISSING}  # will be set automatically
 
 model:
   model_name: "Qwen/Qwen2.5-Coder-1.5B-Instruct"
@@ -46,8 +47,8 @@ grpo:
   
   # Model settings
   # Automatically set based on GPU architecture
-  bf16: ${MISSING}  # will be set automatically
-  fp16: ${MISSING}  # will be set automatically
+  bf16: false  # will be set automatically
+  fp16: false  # will be set automatically
   per_device_train_batch_size: 4
   gradient_accumulation_steps: 2
   
@@ -64,5 +65,5 @@ grpo:
   
   # Logging settings
   report_to: "wandb"
-  run_name: "${model.model_name}-GRPO-${run.dataset_name}"
+  run_name: "${model.model_name}-GRPO-${run.dataset_type}-${run.task}"
   output_dir: "outputs" 
