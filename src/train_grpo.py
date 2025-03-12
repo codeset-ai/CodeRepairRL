@@ -1,19 +1,25 @@
 import os
 import logging
 from typing import Optional
-from dataclasses import dataclass, field, MISSING
-
-import wandb
+from dataclasses import dataclass, field
 import hydra
 from omegaconf import OmegaConf
 from hydra.core.config_store import ConfigStore
 from peft import LoraConfig as PEFTLoraConfig, get_peft_model
 from transformers import AutoModelForCausalLM, AutoTokenizer
-from trl import GRPOConfig as HFGRPOConfig, GRPOTrainer
+from trl import GRPOConfig as HFGRPOConfig, GRPOTrainer as HFGRPOTrainer
 
-from utils.logging import build_html_table
-from utils.rewards import xmlcount_reward_func, strict_format_reward_func, correctness_reward_func as correctness_reward_func_original, extract_xml_answer
-from utils.resolvers import resolve_bf16, resolve_fp16, resolve_git_commit_hash
+from src.utils.rewards import (
+    # reasoning rewards
+    partial_reasoning_format_reward_func,
+    strict_reasoning_format_reward_func,
+    # detection rewards
+    correctness_reward_func,
+    # repair rewards
+    diff_format_reward_func,
+    diff_similarity_reward_func,
+)
+from src.utils.resolvers import resolve_bf16, resolve_fp16, resolve_git_commit_hash
 from src.data.repairllama import get_repairllama_dataset
 from src.data.primevul import get_primevul_repair_dataset, get_primevul_detection_dataset
 
@@ -26,7 +32,7 @@ class RunConfig:
     train_mode: str = "lora" # "full" or "lora"
     task: str = "repair"  # "classification" or "repair"
     dataset_type: str = "primevul"  # "primevul" or "repairllama"
-    commit_hash: str = MISSING
+    commit_hash: str = ""  # added at runtime
     resume_training: bool = False
 
     def __post_init__(self):
@@ -68,8 +74,8 @@ class GRPOConfig:
     
     # Model settings - these will be automatically determined based on GPU architecture
     # when using the custom resolvers in the YAML config
-    bf16: bool = MISSING
-    fp16: bool = MISSING
+    bf16: bool = False
+    fp16: bool = False 
     per_device_train_batch_size: int = 4
     gradient_accumulation_steps: int = 1
     
@@ -102,49 +108,6 @@ OmegaConf.register_resolver("resolve_bf16", resolve_bf16)
 OmegaConf.register_resolver("resolve_fp16", resolve_fp16)
 OmegaConf.register_resolver("resolve_git_commit_hash", resolve_git_commit_hash)
 
-# GRPOTrainer offers no other way to create callbacks with the completions
-# quick and dirty solution
-def correctness_reward_func(prompts, completions, answer, **kwargs):
-    responses = [completion[0]['content'] for completion in completions]
-    extracted_responses = [extract_xml_answer(r) for r in responses]
-    # For each sample, add a row to our HTML table.
-    html_rows = []
-    for prompt_item, response, ext, ans in zip(prompts, responses, extracted_responses, answer):
-         prompt_text = prompt_item[-1]['content'] if prompt_item else ""
-         html_rows.append((prompt_text, response, ext, ans))
-    # Rebuild and log the HTML table.
-    html_table = build_html_table(html_rows)
-    wandb.log({"eval_table": wandb.Html(html_table)})
-
-    return correctness_reward_func_original(prompts, completions, answer, **kwargs)
-
-# Reward function for diff-based tasks (repair)
-def diff_reward_func(prompts, completions, answer, **kwargs):
-    from utils.rewards import diff_similarity_reward_func
-    responses = [completion[0]['content'] for completion in completions]
-    
-    # Extract answers (the diffs) from completions if using XML format
-    extracted_responses = [extract_xml_answer(r) for r in responses]
-    use_extracted = any(r != "N/A" for r in extracted_responses)
-    
-    # Add sample to wandb for visualization
-    html_rows = []
-    for prompt_item, response, ext, ans in zip(prompts, responses, extracted_responses, answer):
-        prompt_text = prompt_item[-1]['content'] if prompt_item else ""
-        html_rows.append((prompt_text, response, ext if use_extracted else response, ans))
-    
-    html_table = build_html_table(html_rows)
-    wandb.log({"repair_samples": wandb.Html(html_table)})
-    
-    # Use extracted responses if they exist, otherwise use full responses
-    final_responses = extracted_responses if use_extracted else responses
-    
-    # Use diff similarity reward function
-    return diff_similarity_reward_func(
-        [{"content": response} for response in final_responses], 
-        answer, 
-        **kwargs
-    )
 
 @hydra.main(version_base="1.1", config_path="conf", config_name="base_grpo_config")
 def main(cfg: Config) -> None:
@@ -173,8 +136,8 @@ def main(cfg: Config) -> None:
             cfg.grpo.max_prompt_length
         )
         reward_functions = [
-            xmlcount_reward_func,
-            strict_format_reward_func,
+            partial_reasoning_format_reward_func,
+            strict_reasoning_format_reward_func,
             correctness_reward_func,
         ]
     elif cfg.run.task == "repair":
@@ -184,9 +147,10 @@ def main(cfg: Config) -> None:
             cfg.grpo.max_prompt_length
         )
         reward_functions = [
-            xmlcount_reward_func,
-            strict_format_reward_func,
-            diff_reward_func,
+            partial_reasoning_format_reward_func,
+            strict_reasoning_format_reward_func,
+            diff_format_reward_func,
+            diff_similarity_reward_func,
         ]
     else:
         raise ValueError(f"Unknown task: {cfg.run.task}")
@@ -201,7 +165,7 @@ def main(cfg: Config) -> None:
     training_args = HFGRPOConfig(**cfg.grpo)
 
     # Initialize trainer with task-specific reward functions
-    trainer = GRPOTrainer(
+    trainer = HFGRPOTrainer(
         model=model,
         processing_class=tokenizer,
         reward_funcs=reward_functions,

@@ -516,35 +516,6 @@ class TestSearchReplaceDiff(unittest.TestCase):
         self.assertIn("    x = 1", diff.blocks[0][1])
         self.assertIn("    \n    y = 2", diff.blocks[0][1])
 
-    def test_from_codes_with_whitespace_changes(self):
-        """Test generating a diff from code with whitespace changes."""
-        before_code = (
-            "def calculate(x, y):\n"
-            "    result = x + y\n"
-            "    return result"
-        )
-        
-        after_code = (
-            "def calculate(x, y):\n"
-            "    result = x + y\n"
-            "    return result  "  # Added two spaces at the end
-        )
-        
-        diff = SearchReplaceDiff.from_codes(before_code, after_code)
-        
-        # The diff should have one block
-        self.assertEqual(len(diff.blocks), 1)
-        
-        # The search content should be the original line
-        self.assertEqual(diff.blocks[0][0], "    return result")
-        
-        # The replace content should be the line with added whitespace
-        self.assertEqual(diff.blocks[0][1], "    return result  ")
-        
-        # Applying the diff should produce the after_code
-        result = diff.apply_diff(before_code)
-        self.assertEqual(result, after_code)
-
     def test_parse_search_replace_block(self):
         """Test parsing a single search/replace block."""
         block = (
@@ -1230,6 +1201,121 @@ class TestSearchReplaceDiff(unittest.TestCase):
         
         # The result should match after_code
         self.assertEqual(result, after_code)
+
+    def test_similarity_with_identical_diffs(self):
+        """Test similarity comparison with identical diffs."""
+        diff1 = SearchReplaceDiff.from_string(
+            "<<<<<<< SEARCH\n"
+            "def hello():\n"
+            "    print('hello')\n"
+            "=======\n"
+            "def hello():\n"
+            "    print('hello world')\n"
+            ">>>>>>> REPLACE"
+        )
+        
+        diff2 = SearchReplaceDiff.from_string(
+            "<<<<<<< SEARCH\n"
+            "def hello():\n"
+            "    print('hello')\n"
+            "=======\n"
+            "def hello():\n"
+            "    print('hello world')\n"
+            ">>>>>>> REPLACE"
+        )
+        
+        similarity = diff1.similarity(diff2)
+        self.assertEqual(similarity, 1.0)
+
+    def test_similarity_with_similar_diffs(self):
+        """Test similarity comparison with similar but not identical diffs."""
+        diff1 = SearchReplaceDiff.from_string(
+            "<<<<<<< SEARCH\n"
+            "def hello():\n"
+            "    print('hello')\n"
+            "=======\n"
+            "def hello():\n"
+            "    print('hello world')\n"
+            ">>>>>>> REPLACE"
+        )
+        
+        diff2 = SearchReplaceDiff.from_string(
+            "<<<<<<< SEARCH\n"
+            "def hello():\n"
+            "    print('hello')\n"
+            "=======\n"
+            "def hello():\n"
+            "    print('hello, world')\n"
+            ">>>>>>> REPLACE"
+        )
+        
+        similarity = diff1.similarity(diff2)
+        self.assertGreater(similarity, 0.7)
+        self.assertLess(similarity, 1.0)
+
+    def test_similarity_with_different_diffs(self):
+        """Test similarity comparison with substantially different diffs."""
+        diff1 = SearchReplaceDiff.from_string(
+            "<<<<<<< SEARCH\n"
+            "def hello():\n"
+            "    print('hello')\n"
+            "=======\n"
+            "def hello():\n"
+            "    print('hello world')\n"
+            ">>>>>>> REPLACE"
+        )
+        
+        diff2 = SearchReplaceDiff.from_string(
+            "<<<<<<< SEARCH\n"
+            "def goodbye():\n"
+            "    print('goodbye')\n"
+            "=======\n"
+            "def goodbye():\n"
+            "    print('goodbye world')\n"
+            ">>>>>>> REPLACE"
+        )
+        
+        similarity = diff1.similarity(diff2)
+        self.assertLess(similarity, 0.5)
+
+    def test_similarity_with_different_block_counts(self):
+        """Test similarity comparison with different numbers of blocks."""
+        diff1 = SearchReplaceDiff([
+            ("def hello():\n    print('hello')", "def hello():\n    print('hello world')"),
+            ("def goodbye():\n    print('goodbye')", "def goodbye():\n    print('goodbye world')")
+        ])
+        
+        diff2 = SearchReplaceDiff([
+            ("def hello():\n    print('hello')", "def hello():\n    print('hello world')")
+        ])
+        
+        similarity = diff1.similarity(diff2)
+        self.assertGreater(similarity, 0.0)
+        self.assertLess(similarity, 0.8)  # Should be penalized for different block count
+
+    def test_similarity_with_empty_diff(self):
+        """Test similarity comparison with an empty diff."""
+        diff1 = SearchReplaceDiff([
+            ("def hello():\n    print('hello')", "def hello():\n    print('hello world')")
+        ])
+        
+        empty_diff = SearchReplaceDiff([])
+        
+        similarity = diff1.similarity(empty_diff)
+        self.assertEqual(similarity, 0.0)
+        
+        # Symmetry check
+        similarity = empty_diff.similarity(diff1)
+        self.assertEqual(similarity, 0.0)
+
+    def test_similarity_with_self(self):
+        """Test similarity comparison with itself."""
+        diff = SearchReplaceDiff([
+            ("def hello():\n    print('hello')", "def hello():\n    print('hello world')")
+        ])
+        
+        similarity = diff.similarity(diff)
+        self.assertEqual(similarity, 1.0)
 
 
 if __name__ == '__main__':

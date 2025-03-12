@@ -15,7 +15,7 @@
 
 #### Tasks
 - [x] Fix diff.py, it is VERY sloppy
-- [ ] Fix reward.py, it sloppy
+- [x] Fix reward.py, it sloppy
   - Get rid of get_diff entirely
   - Make correctness and quality rewards as separate as possible
   - Merge strict quality with partial quality, since the latter smoothly transitions from 0-1

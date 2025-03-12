@@ -5,10 +5,19 @@ from unsloth import FastLanguageModel, PatchFastRL
 PatchFastRL("GRPO", FastLanguageModel)  # important to call this first
 
 import hydra
-from trl import GRPOConfig as HFGRPOConfig, GRPOTrainer
+from trl import GRPOConfig as HFGRPOConfig, GRPOTrainer as HFGRPOTrainer
 
-from utils.rewards import xmlcount_reward_func, strict_format_reward_func
-from train_grpo import Config, correctness_reward_func, diff_reward_func
+from src.utils.rewards import (
+    # reasoning rewards
+    partial_reasoning_format_reward_func,
+    strict_reasoning_format_reward_func,
+    # detection rewards
+    correctness_reward_func,
+    # repair rewards
+    diff_format_reward_func,
+    diff_similarity_reward_func,
+)
+from src.train_grpo import Config
 from src.data.repairllama import get_repairllama_dataset
 from src.data.primevul import get_primevul_repair_dataset, get_primevul_detection_dataset
 
@@ -41,8 +50,8 @@ def main(cfg: Config) -> None:
             cfg.grpo.max_prompt_length
         )
         reward_functions = [
-            xmlcount_reward_func,
-            strict_format_reward_func,
+            partial_reasoning_format_reward_func,
+            strict_reasoning_format_reward_func,
             correctness_reward_func,
         ]
     elif cfg.run.task == "repair":
@@ -52,9 +61,10 @@ def main(cfg: Config) -> None:
             cfg.grpo.max_prompt_length
         )
         reward_functions = [
-            xmlcount_reward_func,
-            strict_format_reward_func,
-            diff_reward_func,
+            partial_reasoning_format_reward_func,
+            strict_reasoning_format_reward_func,
+            diff_format_reward_func,
+            diff_similarity_reward_func,
         ]
     else:
         raise ValueError(f"Unknown task: {cfg.run.task}")
@@ -69,7 +79,7 @@ def main(cfg: Config) -> None:
     training_args = HFGRPOConfig(**cfg.grpo)
 
     # Initialize trainer with task-specific reward functions
-    trainer = GRPOTrainer(
+    trainer = HFGRPOTrainer(
         model=model,
         processing_class=tokenizer,
         reward_funcs=reward_functions,

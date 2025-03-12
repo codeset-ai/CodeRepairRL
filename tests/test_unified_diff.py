@@ -827,6 +827,150 @@ class TestUnifiedDiff(unittest.TestCase):
         # The hunk should include context lines around the change
         self.assertGreater(len(diff3.hunks[0]['lines']), 3)
 
+    def test_similarity_with_identical_diffs(self):
+        """Test similarity comparison with identical diffs."""
+        diff1 = UnifiedDiff.from_string(
+            "@@ -1,3 +1,3 @@\n"
+            " def hello():\n"
+            "-    print('hello')\n"
+            "+    print('hello world')\n"
+            " return None"
+        )
+        
+        diff2 = UnifiedDiff.from_string(
+            "@@ -1,3 +1,3 @@\n"
+            " def hello():\n"
+            "-    print('hello')\n"
+            "+    print('hello world')\n"
+            " return None"
+        )
+        
+        similarity = diff1.similarity(diff2)
+        self.assertEqual(similarity, 1.0)
+
+    def test_similarity_with_similar_diffs(self):
+        """Test similarity comparison with similar but not identical diffs."""
+        diff1 = UnifiedDiff.from_string(
+            "@@ -1,3 +1,3 @@\n"
+            " def hello():\n"
+            "-    print('hello')\n"
+            "+    print('hello world')\n"
+            " return None"
+        )
+        
+        diff2 = UnifiedDiff.from_string(
+            "@@ -1,3 +1,3 @@\n"
+            " def hello():\n"
+            "-    print('hello')\n"
+            "+    print('hello, world')\n"
+            " return None"
+        )
+        
+        similarity = diff1.similarity(diff2)
+        self.assertGreater(similarity, 0.7)
+        self.assertLess(similarity, 1.0)
+
+    def test_similarity_with_different_diffs(self):
+        """Test similarity comparison with substantially different diffs."""
+        diff1 = UnifiedDiff.from_string(
+            "@@ -1,3 +1,3 @@\n"
+            " def hello():\n"
+            "-    print('hello')\n"
+            "+    print('hello world')\n"
+            " return None"
+        )
+        
+        diff2 = UnifiedDiff.from_string(
+            "@@ -1,3 +1,3 @@\n"
+            " def goodbye():\n"
+            "-    print('goodbye')\n"
+            "+    print('goodbye world')\n"
+            " return None"
+        )
+        
+        similarity = diff1.similarity(diff2)
+        self.assertLess(similarity, 0.5)
+
+    def test_similarity_with_different_hunk_counts(self):
+        """Test similarity comparison with different numbers of hunks."""
+        diff1 = UnifiedDiff.from_string(
+            "@@ -1,3 +1,3 @@\n"
+            " def hello():\n"
+            "-    print('hello')\n"
+            "+    print('hello world')\n"
+            " return None\n"
+            "@@ -10,3 +10,3 @@\n"
+            " def goodbye():\n"
+            "-    print('goodbye')\n"
+            "+    print('goodbye world')\n"
+            " return None"
+        )
+        
+        diff2 = UnifiedDiff.from_string(
+            "@@ -1,3 +1,3 @@\n"
+            " def hello():\n"
+            "-    print('hello')\n"
+            "+    print('hello world')\n"
+            " return None"
+        )
+        
+        similarity = diff1.similarity(diff2)
+        self.assertGreater(similarity, 0.0)
+        self.assertLess(similarity, 0.8)  # Should be penalized for different hunk count
+
+    def test_similarity_with_empty_diff(self):
+        """Test similarity comparison with an empty diff."""
+        diff1 = UnifiedDiff.from_string(
+            "@@ -1,3 +1,3 @@\n"
+            " def hello():\n"
+            "-    print('hello')\n"
+            "+    print('hello world')\n"
+            " return None"
+        )
+        
+        empty_diff = UnifiedDiff([])
+        
+        similarity = diff1.similarity(empty_diff)
+        self.assertEqual(similarity, 0.0)
+        
+        # Symmetry check
+        similarity = empty_diff.similarity(diff1)
+        self.assertEqual(similarity, 0.0)
+
+    def test_similarity_with_self(self):
+        """Test similarity comparison with itself."""
+        diff = UnifiedDiff.from_string(
+            "@@ -1,3 +1,3 @@\n"
+            " def hello():\n"
+            "-    print('hello')\n"
+            "+    print('hello world')\n"
+            " return None"
+        )
+        
+        similarity = diff.similarity(diff)
+        self.assertEqual(similarity, 1.0)
+
+    def test_similarity_with_different_line_numbers(self):
+        """Test similarity comparison with different line numbers but same content."""
+        diff1 = UnifiedDiff.from_string(
+            "@@ -1,3 +1,3 @@\n"
+            " def hello():\n"
+            "-    print('hello')\n"
+            "+    print('hello world')\n"
+            " return None"
+        )
+        
+        diff2 = UnifiedDiff.from_string(
+            "@@ -5,3 +5,3 @@\n"
+            " def hello():\n"
+            "-    print('hello')\n"
+            "+    print('hello world')\n"
+            " return None"
+        )
+        
+        similarity = diff1.similarity(diff2)
+        self.assertGreater(similarity, 0.9)  # Line numbers shouldn't affect content similarity much
+
 
 if __name__ == '__main__':
     unittest.main() 

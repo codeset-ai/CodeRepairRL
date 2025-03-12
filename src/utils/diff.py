@@ -1,7 +1,7 @@
 import re
 import difflib
-from typing import List, Tuple, Dict, Any
 from abc import ABC, abstractmethod
+from typing import List, Tuple, Dict, Any
 
 
 class Diff(ABC):
@@ -49,6 +49,19 @@ class Diff(ABC):
     @abstractmethod
     def to_string(self) -> str:
         """Convert this diff object to its string representation."""
+        pass
+
+    @abstractmethod
+    def similarity(self, other: 'Diff') -> float:
+        """
+        Calculate the similarity between this diff and another diff.
+        
+        Args:
+            other: Another diff object to compare with
+            
+        Returns:
+            A similarity score between 0.0 and 1.0, where 1.0 means identical
+        """
         pass
 
     def is_valid_format(self, strict: bool = True) -> bool:
@@ -296,9 +309,9 @@ class SearchReplaceDiff(Diff):
         if not after_code:
             return cls([(before_code, "")])
         
-        # Split code into lines
-        before_lines = before_code.splitlines()
-        after_lines = after_code.splitlines()
+        # Split code into lines, removes trailing whitespaces for simplicity
+        before_lines = [line.rstrip() if line.strip() else line for line in before_code.splitlines()]
+        after_lines = [line.rstrip() if line.strip() else line for line in after_code.splitlines()]
         
         # Use SequenceMatcher to find differences
         matcher = difflib.SequenceMatcher(None, before_lines, after_lines)
@@ -306,14 +319,6 @@ class SearchReplaceDiff(Diff):
         
         # Context lines to include before and after changes
         context_lines = kwargs.get('context_lines', 2)
-        
-        # For whitespace-only changes, we need a special approach
-        if before_code.replace(" ", "").replace("\t", "") == after_code.replace(" ", "").replace("\t", ""):
-            # Find the exact lines with whitespace differences
-            for i, (bline, aline) in enumerate(zip(before_lines, after_lines)):
-                if bline != aline:
-                    blocks.append((bline, aline))
-            return cls(blocks)
         
         for tag, i1, i2, j1, j2 in matcher.get_opcodes():
             if tag == 'equal':
@@ -389,19 +394,21 @@ class SearchReplaceDiff(Diff):
     
     def validate_quality(self) -> float:
         """
-        Assess the quality of this diff format on a scale from 0.0 to 1.0.
+        Assess the quality of each block in the diff format on a scale from 0.0 to 1.0.
         
         Returns:
-            A score between 0.0 and 1.0 indicating the quality of the diff
+           The average score of the blocks, between 0.0 and 1.0.
         """
         if not self.blocks:
             return 0.0
         
         # Start with a perfect score
-        score = 1.0
+        scores = []
         
         # Check each block for quality issues
         for search_content, replace_content in self.blocks:
+            score = 1.0
+
             # Both parts should exist (though search can be empty for new files)
             if replace_content is None:
                 score -= 0.3
@@ -422,19 +429,11 @@ class SearchReplaceDiff(Diff):
             # Penalize very small blocks slightly (they might be too granular)
             if search_content and len(search_content) < 3 and search_content not in ["", " ", "\n"]:
                 score -= 0.1
+            
+            scores.append(score)
         
-        # Check for a completely malformed diff that looks like a text description
-        if len(self.blocks) == 1:
-            search, replace = self.blocks[0]
-            text_description_indicators = [
-                "Here's a diff", "should be changed to", "I would change", 
-                "The fix is", "You need to replace", "Here's the solution"
-            ]
-            if any(indicator in search for indicator in text_description_indicators):
-                score = max(0.1, score - 0.8)  # Poor but still slightly recoverable
-        
-        # Normalize score to 0.0-1.0 range
-        return min(1.0, max(0.0, score))
+        # Calculate the average score and ensure it's between 0.0 and 1.0
+        return min(1.0, max(0.0, sum(scores) / len(scores)))
     
     def to_string(self) -> str:
         """
@@ -457,6 +456,51 @@ class SearchReplaceDiff(Diff):
         
         # Join the blocks with double newlines
         return "\n\n".join(search_replace_blocks)
+
+    def similarity(self, other: 'SearchReplaceDiff') -> float:
+        """
+        Calculate the similarity between this diff and another diff.
+        
+        Compares the content of each block, accounting for:
+        - Different number of blocks
+        - Content similarity within blocks
+        - Quality of both diffs
+        
+        Args:
+            other: Another diff object to compare with
+            
+        Returns:
+            A similarity score between 0.0 and 1.0, where 1.0 means identical
+        """
+        # Handle empty diffs
+        if not self.blocks and not other.blocks:
+            return 1.0
+        if not self.blocks or not other.blocks:
+            return 0.0
+        
+        # make lengths match by padding with empty blocks,
+        a_blocks = self.blocks + [("", "")] * (len(other.blocks) - len(self.blocks))
+        b_blocks = other.blocks + [("", "")] * (len(self.blocks) - len(other.blocks))
+        
+        # Calculate similarities between corresponding blocks
+        block_similarities = []
+        for a, b in zip(a_blocks, b_blocks):
+            self_search, self_replace = a
+            other_search, other_replace = b
+            
+            # Compare search parts
+            search_matcher = difflib.SequenceMatcher(None, self_search.splitlines(), other_search.splitlines())
+            search_similarity = search_matcher.ratio()
+            
+            # Compare replace parts
+            replace_matcher = difflib.SequenceMatcher(None, self_replace.splitlines(), other_replace.splitlines())
+            replace_similarity = replace_matcher.ratio()
+            
+            # Average of search and replace similarities
+            block_similarity = (search_similarity + replace_similarity) / 2
+            block_similarities.append(block_similarity)
+        
+        return sum(block_similarities) / (len(block_similarities) or 1)
 
 
 class UnifiedDiff(Diff):
@@ -951,6 +995,47 @@ class UnifiedDiff(Diff):
         # Join the lines with newlines
         return '\n'.join(lines)
 
+    def similarity(self, other: 'UnifiedDiff') -> float:
+        """
+        Calculate the similarity between this diff and another diff.
+        
+        Compares the content of each hunk, accounting for:
+        - Different number of hunks
+        - Content similarity within hunks
+        - Quality of both diffs
+        
+        Args:
+            other: Another diff object to compare with
+            
+        Returns:
+            A similarity score between 0.0 and 1.0, where 1.0 means identical
+        """
+        # Handle empty diffs
+        if not self.hunks and not other.hunks:
+            return 1.0
+        if not self.hunks or not other.hunks:
+            return 0.0
+        
+        a_hunks = self.hunks + [{"lines": []}] * (len(other.hunks) - len(self.hunks))
+        b_hunks = other.hunks + [{"lines": []}] * (len(self.hunks) - len(other.hunks))
+        
+        # Calculate similarities between corresponding hunks
+        hunk_similarities = []
+        for a, b in zip(a_hunks, b_hunks):
+            self_lines = a['lines']
+            other_lines = b['lines']
+            
+            # Compare lines, ignoring line numbers in hunk headers
+            filtered_self_lines = [line for line in self_lines if not line.startswith("@@")]
+            filtered_other_lines = [line for line in other_lines if not line.startswith("@@")]
+            
+            # Use SequenceMatcher to compare line content
+            matcher = difflib.SequenceMatcher(None, filtered_self_lines, filtered_other_lines)
+            similarity = matcher.ratio()
+            hunk_similarities.append(similarity)
+        
+        return sum(hunk_similarities) / (len(hunk_similarities) or 1)
+
 
 if __name__ == "__main__":
     """Example script demonstrating the use of different diff implementations with a simulated LLM response."""
@@ -1087,14 +1172,13 @@ These changes will make your code more robust and add the discount functionality
 """
 
     # Print a divider function for better readability
-    def print_divider(title, char="="):
-        width = 70
+    def print_divider(title, char="-", width=70):
         print(f"\n{char * width}")
         print(f"{title}")
         print(f"{char * width}")
     
     # Print original code
-    print_divider("Original User Code", "-")
+    print_divider("Original User Code")
     
     print("\nCode 1: calculate_total function")
     print("-------------------------------")
@@ -1108,59 +1192,55 @@ These changes will make your code more robust and add the discount functionality
     print("------------------------------")
     print(user_code_3)
     
-    print_divider("Simulated LLM Response", "-")
+    print_divider("Simulated LLM Response")
     print(llm_response)
     
     # Extract diffs from the LLM response
     sr_diffs = SearchReplaceDiff.extract_from_llm_response(llm_response)
     unified_diffs = UnifiedDiff.extract_from_llm_response(llm_response)
     
-    print_divider("Extracted Diffs", "-")
+    print_divider("Extracted Diffs")
     print(f"Search/Replace diffs: {len(sr_diffs)}")
     print(f"Unified diffs: {len(unified_diffs)}")
     
-    print_divider("Applied Fixes", "-")
+    print_divider("Applied Fixes")
     
     # Apply the diffs to the original code
-    if len(sr_diffs) >= 1:
-        fixed_code_1 = sr_diffs[0].apply_diff(user_code_1)
-        print("\nFixed Code 1 (using Search/Replace diff):")
-        print("---------------------------------------")
-        print(fixed_code_1)
-        print(f"\nVerification: {'✓ Successfully fixed' if fixed_code_1 != user_code_1 else '✗ No changes made'}")
+    fixed_code_1 = sr_diffs[0].apply_diff(user_code_1)
+    print("\nFixed Code 1 (using Search/Replace diff):")
+    print("---------------------------------------")
+    print(fixed_code_1)
+    print(f"\nVerification: {'✓ Successfully fixed' if fixed_code_1 != user_code_1 else '✗ No changes made'}")
     
-    if len(sr_diffs) >= 2:
-        fixed_code_2 = sr_diffs[1].apply_diff(user_code_2)
-        print("\nFixed Code 2 (using Search/Replace diff):")
-        print("---------------------------------------")
-        print(fixed_code_2)
-        print(f"\nVerification: {'✓ Successfully fixed' if fixed_code_2 != user_code_2 else '✗ No changes made'}")
+
+    fixed_code_2 = sr_diffs[1].apply_diff(user_code_2)
+    print("\nFixed Code 2 (using Search/Replace diff):")
+    print("---------------------------------------")
+    print(fixed_code_2)
+    print(f"\nVerification: {'✓ Successfully fixed' if fixed_code_2 != user_code_2 else '✗ No changes made'}")
+
+
+    # Fix the issue with the unified diff application
+    fixed_code_3 = unified_diffs[0].apply_diff(user_code_3)
     
-    if len(unified_diffs) >= 1:
-        # Fix the issue with the unified diff application
-        fixed_code_3 = unified_diffs[0].apply_diff(user_code_3)
-        
-        # Remove duplicated return line if present
-        if "return \"\\n\".join(lines)\n    return \"\\n\".join(lines)" in fixed_code_3:
-            fixed_code_3 = fixed_code_3.replace("return \"\\n\".join(lines)\n    return \"\\n\".join(lines)", "return \"\\n\".join(lines)")
-        
-        print("\nFixed Code 3 (using Unified diff):")
-        print("---------------------------------")
-        print(fixed_code_3)
-        print(f"\nVerification: {'✓ Successfully fixed' if fixed_code_3 != user_code_3 else '✗ No changes made'}")
+    
+    print("\nFixed Code 3 (using Unified diff):")
+    print("---------------------------------")
+    print(fixed_code_3)
+    print(f"\nVerification: {'✓ Successfully fixed' if fixed_code_3 != user_code_3 else '✗ No changes made'}")
     
     print_divider("Diff Format Conversions", "-")
     
     # Show how the diffs would look in different formats
-    if sr_diffs and len(sr_diffs) >= 1:
-        print("\nSearch/Replace diff converted to Unified format:")
-        print("--------------------------------------------")
-        equivalent_unified = UnifiedDiff.from_codes(user_code_1, fixed_code_1)
-        print(equivalent_unified.to_string())
-    
-    if unified_diffs and len(unified_diffs) >= 1:
-        print("\nUnified diff converted to Search/Replace format:")
-        print("--------------------------------------------")
-        # Create a cleaner version by directly comparing before and after
-        equivalent_sr = SearchReplaceDiff.from_codes(user_code_3, fixed_code_3, context_lines=3)
-        print(equivalent_sr.to_string())
+
+    print("\nSearch/Replace diff converted to Unified format:")
+    print("--------------------------------------------")
+    equivalent_unified = UnifiedDiff.from_codes(user_code_1, fixed_code_1)
+    print(equivalent_unified.to_string())
+
+
+    print("\nUnified diff converted to Search/Replace format:")
+    print("--------------------------------------------")
+    # Create a cleaner version by directly comparing before and after
+    equivalent_sr = SearchReplaceDiff.from_codes(user_code_1, fixed_code_1, context_lines=3)
+    print(equivalent_sr.to_string())
