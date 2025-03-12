@@ -7,7 +7,6 @@
 
 ## March 10 - March 16, 2025
 
-### Checkpoint: Monday, March 10, 2025
 
 #### Supervisor Updates
 - Using test cases as rewards may require alot of SWE to run each test case on Kubernetes
@@ -41,8 +40,6 @@
 
 
 ## March 3 - March 9, 2025
-
-### Checkpoint: Monday, March 3, 2025
 
 #### Supervisor Updates
 - Notes from meeting:

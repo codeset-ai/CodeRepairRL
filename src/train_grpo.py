@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class RunConfig:
     wandb_project: str = "TTC"
-    train_mode: str = "lora" # "full" or "lora"
+    train_mode: str = "lora"  # "full" or "lora"
     task: str = "repair"  # "classification" or "repair"
     dataset_type: str = "primevul"  # "primevul" or "repairllama"
     commit_hash: str = ""  # added at runtime
