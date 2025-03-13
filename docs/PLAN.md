@@ -18,16 +18,31 @@
   - Get rid of get_diff entirely
   - Make correctness and quality rewards as separate as possible
   - Merge strict quality with partial quality, since the latter smoothly transitions from 0-1
-  - Also add a method to diff.py to compare two diffs of the same type  
-- [ ] Check out verifiers, seems like exactly what I need, could even contribute to the repo
+  - Also add a method to diff.py to compare two diffs of the same type 
+- [x] Side quest: Fast QwQ-32B inference on 1 of KTH's H100
+- [x] Check out verifiers, seems like exactly what I need, could even contribute to the repo
   - paralell execution env where we can call dockerized tests?
-  - be the first to reply here https://github.com/willccbb/verifiers/discussions/35
-- [ ] Fix SLURM scripts (get a basic training run going)
 - [ ] Make hf cache (and uv if simple) point to my project directory instead of my home directory (on slurm)
-- [ ] Read MUFIN paper
+  - Relatively easy to just do export TRANSFORMERS_CACHE=/proj/berzileus-2024-336/x_bjabj/huggingface
+  - And do that both in my .zshrc and the apptainer environment
+- [ ] Fix apptainer and test_job.sh
+  - I know it works to cp ttc.sif to my project directory then do apptainer exec ttc.sif uv run ...
+  - Maybe some discrepancy between that and what test_job.sh is doing
+  - Or some complexity I'm not aware about in srun
+- [ ] Get train_job.sh working
+  - Don't really have a task worth training on right now but it would be very nice to cross this off the list
+- [ ] Update DATASETS.md with everything
+  - From overleaf
+  - From emails
+  - From docs (both mine and minutes)
 - [ ] Train on SWE-Bench-lite on diff matching
+- [ ] Read MUFIN paper
 - [ ] Setup Defect4J as reward signal and train on it
 - [ ] Check out lighteval, would be cool to check e.g. humaneval before and after
+- [ ] Reply here, community discussion on verifiers
+  - https://github.com/willccbb/verifiers/discussions/35
+- [ ] Info dump on the nano-R1 discussion
+  - https://github.com/nano-R1/resources/discussions/1
 
 #### Thoughts
 - Should we do have an agent scaffolding like SWE-Agent / OpenHands / Agentless

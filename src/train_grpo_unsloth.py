@@ -64,7 +64,7 @@ def main(cfg: Config) -> None:
         reward_functions = [
             partial_reasoning_format_reward_func,
             strict_reasoning_format_reward_func,
-            partial(diff_format_reward_func, diff_type=cfg.grpo.diff_type),
+            partial(diff_format_reward_func, diff_type=cfg.grpo.diff_type),  # we need to know the type of diff to use to process the output
             partial(diff_similarity_reward_func, diff_type=cfg.grpo.diff_type),
         ]
     else:
