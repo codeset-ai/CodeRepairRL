@@ -43,6 +43,9 @@ if [ ! -f "$CONTAINER_IMAGE" ]; then
     exit 1
 fi
 
+# Think we need to do this
+module load buildenv-gcccuda/12.1.1-gcc12.3.0
+
 # Print Python and CUDA information
 echo "Python version:"
 # The double dash (--) separates uv options from the command to be executed in the uv environment

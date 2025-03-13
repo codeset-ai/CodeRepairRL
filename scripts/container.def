@@ -23,4 +23,4 @@ From: python:3.11-slim
 
 %environment
     # Ensure uv is in the PATH at runtime
-    export PATH="/root/.local/bin:$PATH"
+    export PATH="/home/x_bjabj/.local/bin:$PATH"
