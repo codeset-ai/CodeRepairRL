@@ -1,6 +1,17 @@
 Bootstrap: docker
 From: python:3.11-slim
 
+%runscript
+    # Pass all runtime arguments to uv.
+    exec uv "$@"
+
+%environment
+    # Ensure uv is in the PATH at runtime
+    # export PATH="/home/x_bjabj/.local/bin:$PATH"
+    export PATH="/root/.local/bin:$PATH"
+    echo "Checking uv"
+    uv --version
+
 %files
     # Copy project files into the container
     pyproject.toml /opt/ttc/pyproject.toml
@@ -20,7 +31,3 @@ From: python:3.11-slim
     # Install dependencies using uv
     cd /opt/ttc
     /root/.local/bin/uv sync
-
-%environment
-    # Ensure uv is in the PATH at runtime
-    export PATH="/home/x_bjabj/.local/bin:$PATH"
