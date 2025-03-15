@@ -1,33 +1,8 @@
 Bootstrap: docker
 From: python:3.11-slim
 
-%runscript
-    # Pass all runtime arguments to uv.
-    exec uv "$@"
-
-%environment
-    # Ensure uv is in the PATH at runtime
-    # export PATH="/home/x_bjabj/.local/bin:$PATH"
-    export PATH="/root/.local/bin:$PATH"
-    echo "Checking uv"
-    uv --version
-
 %files
-    # Copy project files into the container
-    pyproject.toml /opt/ttc/pyproject.toml
-    uv.lock /opt/ttc/uv.lock
-    .python-version /opt/ttc/.python-version
+    ./pyproject.toml
 
 %post
-    # Install system dependencies
-    apt-get update && apt-get install -y build-essential curl git && rm -rf /var/lib/apt/lists/*
-    
-    # Install uv
-    curl -LsSf https://astral.sh/uv/install.sh | sh
-    
-    # Verify uv installation (this check only affects the build-time shell)
-    which uv || echo "uv not found in PATH"
-    
-    # Install dependencies using uv
-    cd /opt/ttc
-    /root/.local/bin/uv sync
+    pip3 install .
