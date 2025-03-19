@@ -1,5 +1,8 @@
 # Research Papers
 
+## S∗: Test Time Scaling for Code Generation
+**Link:** https://arxiv.org/pdf/2502.14382
+
 ## All Roads Lead to Likelihood: The Value of Reinforcement Learning in Fine-Tuning
 **Link:** https://arxiv.org/pdf/2503.01067
 

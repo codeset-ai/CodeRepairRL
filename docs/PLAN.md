@@ -3,10 +3,43 @@
 
 ### Backlog
 - [ ] Look at how SWE-Bench works exactly, should we train for that behavior end2end?
+- [ ] Update DATASETS.md with everything
+  - From overleaf
+  - From emails
+  - From docs (both mine and minutes)
+- [ ] Make hf cache (and uv if simple) point to my project directory instead of my home directory (on slurm)
+  - Relatively easy to just do export TRANSFORMERS_CACHE=/proj/berzileus-2024-336/x_bjabj/huggingface
+  - And do that both in my .zshrc and the apptainer environment
+- [ ] Reply here, community discussion on verifiers
+  - https://github.com/willccbb/verifiers/discussions/35
+- [ ] Info dump on the nano-R1 discussion
+  - https://github.com/nano-R1/resources/discussions/1
+
+
+## March 17 - March 23, 2025
+Was a bit sick during the weekened which is when I am normally the most productive
+
+#### Tasks
+- [ ] Fix apptainer and test_job.sh
+  - I know it works to cp ttc.sif to my project directory then do apptainer exec ttc.sif uv run ...
+  - Maybe some discrepancy between that and what test_job.sh is doing
+  - Or some complexity I'm not aware about in srun
+- [ ] Get train_job.sh working
+  - Don't really have a task worth training on right now but it would be very nice to cross this off the list
+- [ ] Train on SWE-Bench-lite on diff matching
+  - Find out how they normally put the codebase into the context window
+  - Otherwise we could just run repomix
+- [ ] Read MUFIN paper
+- [ ] Read S∗: Test Time Scaling for Code Generation: https://arxiv.org/pdf/2502.14382
+- [ ] Setup Defect4J as reward signal and train on it
+
+#### Ideas
+- What if we use AST to extract docstrings of python code on the Stack.
+  - Sufficiently detailed docstrings can be mutated (via LLM) into a detailed description of the desired functionality of a function or class
+  - We then remove said function/class but provide the rest of the code as context
 
 
 ## March 10 - March 16, 2025
-
 
 #### Supervisor Updates
 - Using test cases as rewards may require alot of SWE to run each test case on Kubernetes
@@ -22,27 +55,9 @@
 - [x] Side quest: Fast QwQ-32B inference on 1 of KTH's H100
 - [x] Check out verifiers, seems like exactly what I need, could even contribute to the repo
   - paralell execution env where we can call dockerized tests?
-- [ ] Make hf cache (and uv if simple) point to my project directory instead of my home directory (on slurm)
-  - Relatively easy to just do export TRANSFORMERS_CACHE=/proj/berzileus-2024-336/x_bjabj/huggingface
-  - And do that both in my .zshrc and the apptainer environment
-- [ ] Fix apptainer and test_job.sh
-  - I know it works to cp ttc.sif to my project directory then do apptainer exec ttc.sif uv run ...
-  - Maybe some discrepancy between that and what test_job.sh is doing
-  - Or some complexity I'm not aware about in srun
-- [ ] Get train_job.sh working
-  - Don't really have a task worth training on right now but it would be very nice to cross this off the list
-- [ ] Update DATASETS.md with everything
-  - From overleaf
-  - From emails
-  - From docs (both mine and minutes)
-- [ ] Train on SWE-Bench-lite on diff matching
-- [ ] Read MUFIN paper
-- [ ] Setup Defect4J as reward signal and train on it
-- [ ] Check out lighteval, would be cool to check e.g. humaneval before and after
-- [ ] Reply here, community discussion on verifiers
-  - https://github.com/willccbb/verifiers/discussions/35
-- [ ] Info dump on the nano-R1 discussion
-  - https://github.com/nano-R1/resources/discussions/1
+- [x] Check out lighteval, would be cool to check e.g. humaneval before and after
+  - looks good, much better than deepeval which I was using before
+
 
 #### Thoughts
 - Should we do have an agent scaffolding like SWE-Agent / OpenHands / Agentless
