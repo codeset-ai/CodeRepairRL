@@ -1,10 +1,9 @@
 #!/bin/bash
-#SBATCH -A Berzelius-2024-336
 #SBATCH --job-name=ttc-test
 #SBATCH --output=logs/slurm_%j.out
 #SBATCH --error=logs/slurm_%j.err
 #SBATCH --gpus 2
-#SBATCH --time=0:10:00
+#SBATCH --time=0:02:00
 #SBATCH -C "thin"
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user bhbj@kth.se
@@ -19,20 +18,18 @@ echo "Start time: $(date)"
 echo "Directory: $(pwd)"
 
 
-module load buildenv-gcccuda/12.1.1-gcc12.3.0
-
 echo "Python version:"
 # The double dash (--) separates uv options from the command to be executed in the uv environment
-apptainer exec --nv $CONTAINER_IMAGE python --version
+apptainer exec --nv ttc.sif python --version
 
 echo "CUDA availability:"
-apptainer exec --nv $CONTAINER_IMAGE python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
-apptainer exec --nv $CONTAINER_IMAGE python -c "import torch; print(f'CUDA device count: {torch.cuda.device_count()}')"
-apptainer exec --nv $CONTAINER_IMAGE python -c "import torch; print(f'CUDA device name: {torch.cuda.get_device_name(0)}')"
+apptainer exec --nv ttc.sif python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
+apptainer exec --nv ttc.sif python -c "import torch; print(f'CUDA device count: {torch.cuda.device_count()}')"
+apptainer exec --nv ttc.sif python -c "import torch; print(f'CUDA device name: {torch.cuda.get_device_name(0)}')"
 
 # Test importing key libraries
 echo "Testing imports..."
-apptainer exec --nv $CONTAINER_IMAGE python -c "
+apptainer exec --nv ttc.sif python -c "
 import torch
 import transformers
 import trl

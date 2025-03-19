@@ -14,9 +14,9 @@ wheels/
 
 logs/
 wandb/
-/data/
+data/
 
-
+blob/
 models/
 outputs/
 unsloth_compiled_cache/
