@@ -59,13 +59,14 @@ def main(cfg: Config) -> None:
         repair_dataset = get_primevul_repair_dataset if cfg.run.dataset_type == "primevul" else get_repairllama_dataset
         dataset, max_prompt_length = repair_dataset(
             tokenizer,
-            cfg.grpo.max_prompt_length
+            cfg.grpo.max_prompt_length,
+            diff_type=cfg.run.diff_type
         )
         reward_functions = [
             partial_reasoning_format_reward_func,
             strict_reasoning_format_reward_func,
-            partial(diff_format_reward_func, diff_type=cfg.grpo.diff_type),  # we need to know the type of diff to use to process the output
-            partial(diff_similarity_reward_func, diff_type=cfg.grpo.diff_type),
+            partial(diff_format_reward_func, diff_type=cfg.run.diff_type),
+            partial(diff_similarity_reward_func, diff_type=cfg.run.diff_type),
         ]
     else:
         raise ValueError(f"Unknown task: {cfg.run.task}")

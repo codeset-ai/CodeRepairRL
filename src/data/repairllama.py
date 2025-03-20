@@ -12,9 +12,10 @@ logger = logging.getLogger(__name__)
 
 def get_repairllama_dataset(    
     tokenizer: PreTrainedTokenizer,
-    split: str = "ir1xor1",
     max_prompt_length: int = 512,
-    system_prompt: Optional[str] = None
+    split: str = "ir1xor1",
+    system_prompt: Optional[str] = None,
+    diff_type: str = "search_replace"
 ) -> Tuple[Dataset, int]:
     """
     Get the RepairLLaMA dataset for code repair.
@@ -24,6 +25,7 @@ def get_repairllama_dataset(
         max_prompt_length: Maximum prompt length for filtering (default: 512)
         split: Dataset split to use
         system_prompt: Optional system prompt to override the one in code_repair.py
+        diff_type: Type of diff to use (search_replace or unified)
         
     Returns:
         Tuple of (processed dataset, maximum token length)
@@ -51,5 +53,6 @@ def get_repairllama_dataset(
         descriptions=descriptions,
         tokenizer=tokenizer,
         max_prompt_length=max_prompt_length,
-        system_prompt=system_prompt
+        system_prompt=system_prompt,
+        diff_type=diff_type
     ) 
