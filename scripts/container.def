@@ -5,6 +5,10 @@ From: python:3.11.5-bullseye
     ./pyproject.toml
 
 %post
+    # ugly hack, would use uv but it halts indefinitely when running 'install . --system'
+    # this means that the versions poetry picks are not guaranteed to be the same as the ones in our uv.lock file
+    # but we will cross that bridge if we get to it
+
     curl -sSL https://install.python-poetry.org | python3 -
     /root/.local/bin/poetry config virtualenvs.create false
     /root/.local/bin/poetry install --no-root

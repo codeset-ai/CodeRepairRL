@@ -28,4 +28,6 @@ grpo_trainer_lora_model/
 
 results.json
 repomix-output.txt
-ttc.sif  # singularity image for ttc
+
+# singularity image for ttc
+ttc.sif

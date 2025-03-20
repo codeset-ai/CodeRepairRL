@@ -17,7 +17,7 @@ echo "Node: $SLURMD_NODENAME"
 echo "Start time: $(date)"
 echo "Directory: $(pwd)"
 
-apptainer exec --nv ttc.sif python src/train_grpo.py --config-name="grpo_config_large" grpo.run_name="deepseek/Qwen2.5-Coder-7B-Vuln-Classification-2"
+apptainer exec --nv --bind "$(pwd):/app" ttc.sif python /app/src/train_grpo.py grpo.run_name="deepseek/Qwen2.5-Coder-1.5B-Vuln-Classification-2"
 
 # Print end time
 echo "End time: $(date)" 
