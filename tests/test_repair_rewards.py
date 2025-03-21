@@ -1,8 +1,7 @@
 import sys
 import unittest
 from pathlib import Path
-from unittest.mock import patch, MagicMock
-from functools import partial
+from unittest.mock import patch
 
 # Add the src directory to the Python path
 sys.path.append(str(Path(__file__).parent.parent))
