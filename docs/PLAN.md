@@ -24,7 +24,7 @@ Was a bit sick during the weekened which is when I am normally the most producti
   - I know it works to cp ttc.sif to my project directory then do apptainer exec ttc.sif uv run ...
   - Maybe some discrepancy between that and what test_job.sh is doing
   - Or some complexity I'm not aware about in srun
-- [ ] Fix some refactor mismatches
+- [x] Fix some refactor mismatches
 - [ ] Get train_job.sh working
   - Don't really have a task worth training on right now but it would be very nice to cross this off the list
 - [ ] Train on SWE-Bench-lite on diff matching
