@@ -14,7 +14,6 @@ logger = logging.getLogger(__name__)
 def get_primevul_repair_dataset(
     tokenizer: PreTrainedTokenizer,
     max_prompt_length: int = 512,
-    dataset_name: str = "ASSERT-KTH/PrimeVul",
     split: str = "train_paired",
     system_prompt: Optional[str] = None,
     diff_type: str = "search_replace"
@@ -36,7 +35,7 @@ def get_primevul_repair_dataset(
     assert split.endswith("_paired"), "Only paired dataset is supported for repair tasks"
 
     # Load the dataset
-    data = load_dataset(dataset_name, split=split)
+    data = load_dataset("ASSERT-KTH/PrimeVul", split=split).shuffle(seed=42)
     data = data.filter(lambda x: "Other" not in x["cwe"])  # as we do not have a description for "Other"
     
     # Group by hash to find pairs (vulnerable and fixed versions)
