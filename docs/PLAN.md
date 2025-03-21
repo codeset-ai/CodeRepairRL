@@ -30,6 +30,7 @@ Was a bit sick during the weekened which is when I am normally the most producti
 - [ ] Train on SWE-Bench-lite on diff matching
   - Find out how they normally put the codebase into the context window
   - Otherwise we could just run repomix
+- [ ] Read LLM Post-Training: A Deep Dive into Reasoning Large Language Models: https://arxiv.org/pdf/2502.21321
 - [ ] Read MUFIN paper
 - [ ] Read S∗: Test Time Scaling for Code Generation: https://arxiv.org/pdf/2502.14382
 - [ ] Setup Defect4J as reward signal and train on it
