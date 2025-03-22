@@ -23,6 +23,67 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
+def get_stack_repair_dataset(
+    tokenizer: PreTrainedTokenizer,
+    max_prompt_length: int = 512,
+    max_samples: int = 100,
+    system_prompt: Optional[str] = None,
+    diff_type: str = "search_replace"
+) -> Tuple[Dataset, int]:
+    """
+    Create a dataset for code repair tasks from The Stack dataset docstrings.
+    
+    Args:
+        tokenizer: Tokenizer for tokenizing prompts
+        max_prompt_length: Maximum prompt length for filtering (default: 512)
+        max_samples: Maximum number of samples to process from the dataset
+        system_prompt: Optional system prompt to use
+        diff_type: Type of diff to use (search_replace or unified)
+        
+    Returns:
+        Tuple of (processed dataset, maximum token length)
+    """
+    # stack.py thinks it is a module, and can therefore not import from src when run directly (creating the ds)
+    from src.data.code_repair import create_repair_dataset
+    
+    # Load the cached dataset
+    ds = load_dataset("ASSERT-KTH/stack-smol-docstrings")["train"].select(range(max_samples))
+    
+    logger.info(f"Successfully loaded {len(ds)} tasks from cached dataset")
+    
+    # Prepare data for repair dataset creation
+    before_codes = []  # Masked code (with function removed)
+    after_codes = []   # Original code (with function implementation)
+    descriptions = []  # Function docstrings as descriptions
+    
+    for item in ds:
+        # The masked code (with function replaced by comment) is the "before" code
+        before_codes.append(item["masked_code"])
+        
+        # The original file is the "after" code, the diff now replacing the placeholder comment with the function implementation
+        after_codes.append(item["file_content"])
+        
+        # Create a descriptive prompt that explains the task:
+        descriptions.append(
+            f"Task: Implement the function '{item['function_name']}' by replacing the comment line:\n"
+            f"# MASKED: {item['function_name']} function (lines {item['start_line']}-{item['end_line']})\n\n"
+            f"Your implementation should match this docstring:\n{item['docstring']}"
+        )
+    
+    # Create the repair dataset using the generalized function
+    return create_repair_dataset(
+        before_codes=before_codes,
+        after_codes=after_codes,
+        descriptions=descriptions,
+        tokenizer=tokenizer,
+        max_prompt_length=max_prompt_length,
+        system_prompt=system_prompt,
+        diff_type=diff_type
+    )
+
+# Below is the original code for creating the HF dataset
+
 # Tracking statistics for quality filtering
 quality_stats = {
     "total_files": 0,
@@ -308,6 +369,8 @@ def create_docstring_tasks(max_samples: int = 100, min_docstring_length: int = 5
     
     return tasks
 
+# Utility functions for displaying tasks and stats
+
 def display_task_sample(task: DocstringTask):
     """Display a task in a readable format."""
     print("\n" + "="*80)
@@ -358,64 +421,6 @@ def display_task_stats(tasks: List[DocstringTask]):
     print(f"  Skipped due to SQL: {quality_stats['skipped_sql']}")
     print(f"  Skipped due to too many variables: {quality_stats['skipped_too_many_vars']}")
     print(f"  Skipped due to being too simple: {quality_stats['skipped_too_simple']}")
-
-def get_stack_repair_dataset(
-    tokenizer: PreTrainedTokenizer,
-    max_prompt_length: int = 512,
-    max_samples: int = 100,
-    system_prompt: Optional[str] = None,
-    diff_type: str = "search_replace"
-) -> Tuple[Dataset, int]:
-    """
-    Create a dataset for code repair tasks from The Stack dataset docstrings.
-    
-    Args:
-        tokenizer: Tokenizer for tokenizing prompts
-        max_prompt_length: Maximum prompt length for filtering (default: 512)
-        max_samples: Maximum number of samples to process from the dataset
-        system_prompt: Optional system prompt to use
-        diff_type: Type of diff to use (search_replace or unified)
-        
-    Returns:
-        Tuple of (processed dataset, maximum token length)
-    """
-    # stack.py thinks it is a module, and can therefore not import from src when run directly (creating the ds)
-    from src.data.code_repair import create_repair_dataset
-    
-    # Load the cached dataset
-    ds = load_dataset("ASSERT-KTH/stack-smol-docstrings")["train"].select(range(max_samples))
-    
-    logger.info(f"Successfully loaded {len(ds)} tasks from cached dataset")
-    
-    # Prepare data for repair dataset creation
-    before_codes = []  # Masked code (with function removed)
-    after_codes = []   # Original code (with function implementation)
-    descriptions = []  # Function docstrings as descriptions
-    
-    for item in ds:
-        # The masked code (with function replaced by comment) is the "before" code
-        before_codes.append(item["masked_code"])
-        
-        # The original file is the "after" code, the diff now replacing the placeholder comment with the function implementation
-        after_codes.append(item["file_content"])
-        
-        # Create a descriptive prompt that explains the task:
-        descriptions.append(
-            f"Task: Implement the function '{item['function_name']}' by replacing the comment line:\n"
-            f"# MASKED: {item['function_name']} function (lines {item['start_line']}-{item['end_line']})\n\n"
-            f"Your implementation should match this docstring:\n{item['docstring']}"
-        )
-    
-    # Create the repair dataset using the generalized function
-    return create_repair_dataset(
-        before_codes=before_codes,
-        after_codes=after_codes,
-        descriptions=descriptions,
-        tokenizer=tokenizer,
-        max_prompt_length=max_prompt_length,
-        system_prompt=system_prompt,
-        diff_type=diff_type
-    )
 
 
 if __name__ == "__main__":

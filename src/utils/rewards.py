@@ -77,14 +77,17 @@ def correctness_reward_func(prompts, completions, answer, **kwargs) -> list[floa
 def diff_format_reward_func(prompts, completions, diff_type="search_replace", **kwargs) -> list[float]:
     """Reward function that checks the quality of the extracted diff format between 0.0 and 1.0."""
     contents = [completion[0]["content"] for completion in completions]
+
     diff_cls = SearchReplaceDiff if diff_type == "search_replace" else UnifiedDiff
     diffs = [diff_cls.extract_from_llm_response(c) for c in contents]  # attempts to extract diffs
+    
     return [diff.validate_quality() for diff in diffs] 
 
 def diff_similarity_reward_func(prompts, completions, reference, diff_type="search_replace", **kwargs) -> list[float]:
     """Reward function that sequence matches the reference and generated diffs."""
     contents = [completion[0]["content"] for completion in completions]
     answers = [extract_xml_answer(c) for c in contents]
+
     diff_cls = SearchReplaceDiff if diff_type == "search_replace" else UnifiedDiff 
     generated_diffs = [diff_cls.extract_from_llm_response(a) for a in answers]
     reference_diffs = [diff_cls.from_string(ref) for ref in reference]  # TODO: support having multiple reference diffs

@@ -19,8 +19,7 @@ from src.utils.rewards import (
     diff_similarity_reward_func,
 )
 from src.train_grpo import Config
-from src.data.repairllama import get_repairllama_dataset
-from src.data.primevul import get_primevul_repair_dataset, get_primevul_detection_dataset
+from src.data import get_stack_repair_dataset, get_primevul_repair_dataset, get_primevul_detection_dataset
 
 logger = logging.getLogger(__name__)
 
@@ -44,19 +43,8 @@ def main(cfg: Config) -> None:
     model.print_trainable_parameters()
 
     # Get dataset based on the task
-    if cfg.run.task == "detection":
-        if cfg.run.dataset_type == "repairllama": raise ValueError("RepairLLAMA does not support detection task")
-        dataset, max_prompt_length = get_primevul_detection_dataset(
-            tokenizer, 
-            cfg.grpo.max_prompt_length
-        )
-        reward_functions = [
-            partial_reasoning_format_reward_func,
-            strict_reasoning_format_reward_func,
-            correctness_reward_func,
-        ]
-    elif cfg.run.task == "repair":
-        repair_dataset = get_primevul_repair_dataset if cfg.run.dataset_type == "primevul" else get_repairllama_dataset
+    if cfg.run.task == "repair":
+        repair_dataset = get_primevul_repair_dataset if cfg.run.dataset_type == "primevul" else get_stack_repair_dataset
         dataset, max_prompt_length = repair_dataset(
             tokenizer,
             cfg.grpo.max_prompt_length,
@@ -67,6 +55,17 @@ def main(cfg: Config) -> None:
             strict_reasoning_format_reward_func,
             partial(diff_format_reward_func, diff_type=cfg.run.diff_type),
             partial(diff_similarity_reward_func, diff_type=cfg.run.diff_type),
+        ]
+    elif cfg.run.task == "detection":
+        if cfg.run.dataset_type == "stack": raise ValueError("Stack does not support detection task")
+        dataset, max_prompt_length = get_primevul_detection_dataset(
+            tokenizer, 
+            cfg.grpo.max_prompt_length
+        )
+        reward_functions = [
+            partial_reasoning_format_reward_func,
+            strict_reasoning_format_reward_func,
+            correctness_reward_func,
         ]
     else:
         raise ValueError(f"Unknown task: {cfg.run.task}")

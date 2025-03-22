@@ -22,8 +22,7 @@ from src.utils.rewards import (
     diff_similarity_reward_func,
 )
 from src.utils.resolvers import resolve_bf16, resolve_fp16, resolve_git_commit_hash
-from src.data.repairllama import get_repairllama_dataset
-from src.data.primevul import get_primevul_repair_dataset, get_primevul_detection_dataset
+from src.data import get_stack_repair_dataset, get_primevul_repair_dataset, get_primevul_detection_dataset
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +32,7 @@ class RunConfig:
     wandb_project: str = "TTC"
     train_mode: str = "lora"  # "full" or "lora"
     task: str = "repair"  # "detection" or "repair"
-    dataset_type: str = "primevul"  # "primevul" or "repairllama"
+    dataset_type: str = "stack"  # "primevul" or "stack"
     diff_type: str = "search_replace"  # "search_replace" or "unified" (for repair)
     commit_hash: str = ""  # added at runtime
     resume_training: bool = False
@@ -43,8 +42,8 @@ class RunConfig:
             raise ValueError("train_mode must be either 'full' or 'lora'")
         if self.task not in ["detection", "repair"]:
             raise ValueError("task must be either 'detection' or 'repair'")
-        if self.dataset_type not in ["primevul", "repairllama"]:
-            raise ValueError("dataset_type must be either 'repairllama', or 'primevul'")
+        if self.dataset_type not in ["primevul", "stack"]:
+            raise ValueError("dataset_type must be either 'stack', or 'primevul'")
         if self.diff_type not in ["search_replace", "unified"]:
             raise ValueError("diff_type must be either 'search_replace', or 'unified'")
         
@@ -135,7 +134,7 @@ def main(cfg: Config) -> None:
 
     # Get dataset based on the task
     if cfg.run.task == "repair":
-        repair_dataset = get_primevul_repair_dataset if cfg.run.dataset_type == "primevul" else get_repairllama_dataset
+        repair_dataset = get_stack_repair_dataset if cfg.run.dataset_type == "stack" else get_primevul_repair_dataset
         dataset, max_prompt_length = repair_dataset(
             tokenizer,
             cfg.grpo.max_prompt_length,
@@ -148,6 +147,7 @@ def main(cfg: Config) -> None:
             partial(diff_similarity_reward_func, diff_type=cfg.run.diff_type),
         ]
     elif cfg.run.task == "detection":  # primevul only
+        if cfg.run.dataset_type == "stack": raise ValueError("Stack does not support detection task")
         dataset, max_prompt_length = get_primevul_detection_dataset(
             tokenizer, 
             cfg.grpo.max_prompt_length

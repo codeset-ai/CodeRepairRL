@@ -9,7 +9,7 @@ run:
   wandb_project: "TTC"
   train_mode: "lora"
   task: "repair"  # "detection" or "repair"
-  dataset_type: "primevul"  # "primevul" or "repairllama"
+  dataset_type: "stack"  # "primevul" or "stack"
   diff_type: "search_replace"  # "search_replace" or "unified"
   commit_hash: ""  # will be set automatically
   resume_training: false
