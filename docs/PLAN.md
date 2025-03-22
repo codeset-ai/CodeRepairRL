@@ -25,10 +25,14 @@ Was a bit sick during the weekened which is when I am normally the most producti
   - Maybe some discrepancy between that and what test_job.sh is doing
   - Or some complexity I'm not aware about in srun
 - [x] Fix some refactor mismatches
-- [ ] Get train_job.sh working
-  - Don't really have a task worth training on right now but it would be very nice to cross this off the list
-- [ ] Train on SWE-Bench-lite on diff matching
+- [x] Stack implementation dataset
+  - It's not exactly the type of dataset we are looking for but its pretty good
+- [ ] Stack "repair" on KTH DGX-100
+- [ ] Stack "repair" on SLURM 
+- [ ] Create SWE-Bench dataset
+- [ ] Replicate the "agentic workflow" of SWE-agent and similar 
   - Find out how they normally put the codebase into the context window
+  - How they do function calling
   - Otherwise we could just run repomix
 - [ ] Read LLM Post-Training: A Deep Dive into Reasoning Large Language Models: https://arxiv.org/pdf/2502.21321
 - [ ] Read MUFIN paper

@@ -21,7 +21,7 @@ from src.utils.rewards import (
     diff_format_reward_func,
     diff_similarity_reward_func,
 )
-from src.utils.resolvers import resolve_bf16, resolve_fp16, resolve_git_commit_hash
+from src.utils.resolvers import resolve_git_commit_hash
 from src.data import get_stack_repair_dataset, get_primevul_repair_dataset, get_primevul_detection_dataset
 
 logger = logging.getLogger(__name__)
@@ -51,7 +51,7 @@ class RunConfig:
 class LoraConfig:  # only used if train_mode == "lora"
     r: int = 32
     lora_alpha: int = 64
-    target_modules: list[str] = field(default_factory=lambda: ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"])
+    target_modules: tuple[str] = ("q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj")
 
 @dataclass
 class ModelConfig:  # mostly unsloth-specific settings
@@ -78,7 +78,7 @@ class GRPOConfig:
     
     # Model settings - these will be automatically determined based on GPU architecture
     # when using the custom resolvers in the YAML config
-    bf16: bool = False
+    bf16: bool = True
     fp16: bool = False 
     per_device_train_batch_size: int = 4
     gradient_accumulation_steps: int = 1
@@ -108,8 +108,6 @@ class Config:
 # Register the config schema
 cs = ConfigStore.instance()
 cs.store(name="base_grpo_config", node=Config, group="")
-OmegaConf.register_resolver("resolve_bf16", resolve_bf16)
-OmegaConf.register_resolver("resolve_fp16", resolve_fp16)
 OmegaConf.register_resolver("resolve_git_commit_hash", resolve_git_commit_hash)
 
 
@@ -144,7 +142,7 @@ def main(cfg: Config) -> None:
             partial_reasoning_format_reward_func,
             strict_reasoning_format_reward_func,
             partial(diff_format_reward_func, diff_type=cfg.run.diff_type),  # we need to know the type of diff to use to process the output    
-            partial(diff_similarity_reward_func, diff_type=cfg.run.diff_type),
+            # partial(diff_similarity_reward_func, diff_type=cfg.run.diff_type),
         ]
     elif cfg.run.task == "detection":  # primevul only
         if cfg.run.dataset_type == "stack": raise ValueError("Stack does not support detection task")
