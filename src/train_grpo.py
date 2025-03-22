@@ -136,8 +136,8 @@ def main(cfg: Config) -> None:
     if cfg.run.task == "repair":
         repair_dataset = get_stack_repair_dataset if cfg.run.dataset_type == "stack" else get_primevul_repair_dataset
         dataset, max_prompt_length = repair_dataset(
-            tokenizer,
-            cfg.grpo.max_prompt_length,
+            tokenizer=tokenizer,
+            max_prompt_length=cfg.grpo.max_prompt_length,
             diff_type=cfg.run.diff_type  # Pass the diff type from config
         )
         reward_functions = [
@@ -149,8 +149,8 @@ def main(cfg: Config) -> None:
     elif cfg.run.task == "detection":  # primevul only
         if cfg.run.dataset_type == "stack": raise ValueError("Stack does not support detection task")
         dataset, max_prompt_length = get_primevul_detection_dataset(
-            tokenizer, 
-            cfg.grpo.max_prompt_length
+            tokenizer=tokenizer, 
+            max_prompt_length=cfg.grpo.max_prompt_length
         )
         reward_functions = [
             partial_reasoning_format_reward_func,

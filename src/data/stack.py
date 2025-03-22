@@ -27,7 +27,6 @@ logger = logging.getLogger(__name__)
 def get_stack_repair_dataset(
     tokenizer: PreTrainedTokenizer,
     max_prompt_length: int = 512,
-    max_samples: int = 100,
     system_prompt: Optional[str] = None,
     diff_type: str = "search_replace"
 ) -> Tuple[Dataset, int]:
@@ -37,7 +36,6 @@ def get_stack_repair_dataset(
     Args:
         tokenizer: Tokenizer for tokenizing prompts
         max_prompt_length: Maximum prompt length for filtering (default: 512)
-        max_samples: Maximum number of samples to process from the dataset
         system_prompt: Optional system prompt to use
         diff_type: Type of diff to use (search_replace or unified)
         
@@ -48,7 +46,7 @@ def get_stack_repair_dataset(
     from src.data.code_repair import create_repair_dataset
     
     # Load the cached dataset
-    ds = load_dataset("ASSERT-KTH/stack-smol-docstrings")["train"].select(range(max_samples))
+    ds = load_dataset("ASSERT-KTH/stack-smol-docstrings")["train"]
     
     logger.info(f"Successfully loaded {len(ds)} tasks from cached dataset")
     

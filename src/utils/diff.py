@@ -484,10 +484,7 @@ class SearchReplaceDiff(Diff):
         
         # Calculate similarities between corresponding blocks
         block_similarities = []
-        for a, b in zip(a_blocks, b_blocks):
-            self_search, self_replace = a
-            other_search, other_replace = b
-            
+        for (self_search, self_replace), (other_search, other_replace) in zip(a_blocks, b_blocks):            
             # Compare search parts
             search_matcher = difflib.SequenceMatcher(None, self_search.splitlines(), other_search.splitlines())
             search_similarity = search_matcher.ratio()

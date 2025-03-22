@@ -44,23 +44,23 @@ def main(cfg: Config) -> None:
 
     # Get dataset based on the task
     if cfg.run.task == "repair":
-        repair_dataset = get_primevul_repair_dataset if cfg.run.dataset_type == "primevul" else get_stack_repair_dataset
+        repair_dataset = get_stack_repair_dataset if cfg.run.dataset_type == "stack" else get_primevul_repair_dataset
         dataset, max_prompt_length = repair_dataset(
-            tokenizer,
-            cfg.grpo.max_prompt_length,
-            diff_type=cfg.run.diff_type
+            tokenizer=tokenizer,
+            max_prompt_length=cfg.grpo.max_prompt_length,
+            diff_type=cfg.run.diff_type  # Pass the diff type from config
         )
         reward_functions = [
             partial_reasoning_format_reward_func,
             strict_reasoning_format_reward_func,
-            partial(diff_format_reward_func, diff_type=cfg.run.diff_type),
+            partial(diff_format_reward_func, diff_type=cfg.run.diff_type),  # we need to know the type of diff to use to process the output    
             partial(diff_similarity_reward_func, diff_type=cfg.run.diff_type),
         ]
-    elif cfg.run.task == "detection":
+    elif cfg.run.task == "detection":  # primevul only
         if cfg.run.dataset_type == "stack": raise ValueError("Stack does not support detection task")
         dataset, max_prompt_length = get_primevul_detection_dataset(
-            tokenizer, 
-            cfg.grpo.max_prompt_length
+            tokenizer=tokenizer, 
+            max_prompt_length=cfg.grpo.max_prompt_length
         )
         reward_functions = [
             partial_reasoning_format_reward_func,
