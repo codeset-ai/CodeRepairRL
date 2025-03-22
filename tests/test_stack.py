@@ -1,14 +1,14 @@
+import os
+import sys
+
 import unittest
 from unittest.mock import patch, MagicMock
-import sys
-import os
 import ast
-from typing import Dict, List
 
 # Add the src directory to the path to import modules
 sys.path.append(os.path.join(os.path.dirname(__file__), '../src'))
 
-from data.stack import extract_functions_with_docstrings, DocstringTask, create_docstring_tasks, is_quality_docstring, is_quality_code
+from src.data.stack import extract_functions_with_docstrings, DocstringTask, create_docstring_tasks, is_quality_docstring, is_quality_code
 
 
 class TestQualityHeuristics(unittest.TestCase):
@@ -438,15 +438,15 @@ class TestExtractFunctions(unittest.TestCase):
 
 
 class TestCreateDocstringTasks(unittest.TestCase):
-    @patch('data.stack.datasets')
-    @patch('data.stack.is_quality_code')
+    @patch('src.data.stack.load_dataset')
+    @patch('src.data.stack.is_quality_code')
     def test_create_docstring_tasks(self, mock_is_quality_code, mock_datasets):
         # Mock the code quality check to always pass
         mock_is_quality_code.return_value = (True, "Passed quality checks")
         
         # Mock the dataset response
         mock_dataset = MagicMock()
-        mock_datasets.load_dataset.return_value = mock_dataset
+        mock_datasets.return_value = mock_dataset
         
         # Create sample data with a complex function that will pass quality checks
         sample1 = {"content": (
@@ -499,7 +499,7 @@ class TestCreateDocstringTasks(unittest.TestCase):
         self.assertNotIn("return z", tasks[0].masked_code)
         
         # Check that the function was called with correct parameters
-        mock_datasets.load_dataset.assert_called_once_with(
+        mock_datasets.assert_called_once_with(
             "bigcode/the-stack-smol", 
             data_dir="data/python", 
             split="train[:2]"
