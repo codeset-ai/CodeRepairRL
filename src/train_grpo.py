@@ -51,7 +51,7 @@ class RunConfig:
 class LoraConfig:  # only used if train_mode == "lora"
     r: int = 32
     lora_alpha: int = 64
-    target_modules: tuple[str] = ("q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj")
+    target_modules: list[str] = field(default_factory=lambda: ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"])
 
 @dataclass
 class ModelConfig:  # mostly unsloth-specific settings
@@ -108,9 +108,9 @@ class Config:
 # Register the config schema
 cs = ConfigStore.instance()
 cs.store(name="base_grpo_config", node=Config, group="")
-OmegaConf.register_resolver("resolve_bf16", resolve_bf16)
-OmegaConf.register_resolver("resolve_fp16", resolve_fp16)
-OmegaConf.register_resolver("resolve_git_commit_hash", resolve_git_commit_hash)
+OmegaConf.register_resolver("resolve_bf16", resolve_bf16, replace=True)
+OmegaConf.register_resolver("resolve_fp16", resolve_fp16, replace=True)
+OmegaConf.register_resolver("resolve_git_commit_hash", resolve_git_commit_hash, replace=True)
 
 
 @hydra.main(version_base="1.1", config_path="conf", config_name="base_grpo_config")
