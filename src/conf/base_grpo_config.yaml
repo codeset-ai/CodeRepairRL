@@ -47,8 +47,8 @@ grpo:
   
   # Model settings
   # Automatically set based on GPU architecture
-  bf16: false  # will be set automatically
-  fp16: false  # will be set automatically
+  bf16: MISSING  # will be set automatically
+  fp16: MISSING  # will be set automatically
   per_device_train_batch_size: 4
   gradient_accumulation_steps: 2
   

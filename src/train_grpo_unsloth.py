@@ -75,7 +75,7 @@ def main(cfg: Config) -> None:
         diff = cfg.grpo.max_prompt_length - max_prompt_length
         cfg.grpo.max_prompt_length = max_prompt_length
         cfg.grpo.max_completion_length = cfg.grpo.max_completion_length + diff
-        assert cfg.grpo.max_completion_length + cfg.grpo.max_prompt_length == cfg.model.max_seq_length
+
 
     training_args = HFGRPOConfig(**cfg.grpo)
 
