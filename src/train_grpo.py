@@ -54,13 +54,8 @@ class LoraConfig:  # only used if train_mode == "lora"
     target_modules: tuple[str] = ("q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj")
 
 @dataclass
-class ModelConfig:  # mostly unsloth-specific settings
+class ModelConfig:
     model_name: str = "Qwen/Qwen2.5-Coder-1.5B-Instruct"
-    load_in_4bit: bool = True
-    fast_inference: bool = True # Enable vLLM fast inference
-    max_seq_length: Optional[int] = 512
-    max_lora_rank: Optional[int] = 128
-    gpu_memory_utilization: float = 0.6 # Reduce if out of memory
 
 @dataclass
 class GRPOConfig:
@@ -142,7 +137,7 @@ def main(cfg: Config) -> None:
             partial_reasoning_format_reward_func,
             strict_reasoning_format_reward_func,
             partial(diff_format_reward_func, diff_type=cfg.run.diff_type),  # we need to know the type of diff to use to process the output    
-            # partial(diff_similarity_reward_func, diff_type=cfg.run.diff_type),
+            partial(diff_similarity_reward_func, diff_type=cfg.run.diff_type),
         ]
     elif cfg.run.task == "detection":  # primevul only
         if cfg.run.dataset_type == "stack": raise ValueError("Stack does not support detection task")

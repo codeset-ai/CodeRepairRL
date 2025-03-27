@@ -7,8 +7,6 @@ requires-python = ">=3.11,<4"
 dependencies = [
     "transformers",
     "huggingface-hub",
-    "unsloth",
-    "unsloth-zoo",
     "trl @ git+https://github.com/huggingface/trl.git",
     "wandb>=0.19.6",
     "matplotlib>=3.10.0",

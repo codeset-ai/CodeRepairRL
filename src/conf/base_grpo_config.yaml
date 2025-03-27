@@ -16,10 +16,6 @@ run:
 
 model:
   model_name: "Qwen/Qwen2.5-Coder-1.5B-Instruct"
-  load_in_4bit: true  # unsloth only
-  fast_inference: true  # unsloth only
-  gpu_memory_utilization: 0.8  # unsloth only
-  max_lora_rank: 128  # unsloth only, only used if run.train_mode == "lora"
 
 lora:
   r: 32
@@ -50,6 +46,9 @@ grpo:
   fp16: false
   per_device_train_batch_size: 4
   gradient_accumulation_steps: 2
+
+  # Reward settings
+  scale_reward: false  # from Dr. GRPO, reward scaling introduces question-level difficulty bias
   
   # Generation settings
   num_generations: 4
@@ -63,6 +62,7 @@ grpo:
   max_grad_norm: 0.1
   
   # Logging settings
+  log_completions: true
   report_to: "wandb"
   run_name: "${model.model_name}-GRPO-${run.dataset_type}-${run.task}"
   output_dir: "outputs" 
