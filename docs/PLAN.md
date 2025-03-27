@@ -3,6 +3,8 @@
 
 ### Backlog
 - [ ] Look at how SWE-Bench works exactly, should we train for that behavior end2end?
+- [ ] Read S∗: Test Time Scaling for Code Generation: https://arxiv.org/pdf/2502.14382
+- [ ] Read MUFIN **paper**
 - [ ] Update DATASETS.md with everything
   - From overleaf
   - From emails
@@ -16,6 +18,26 @@
   - https://github.com/nano-R1/resources/discussions/1
 
 
+## March 24 - March 30, 2024
+
+#### Tasks
+- [ ] Support newest trl version
+  - Something changed in the last few weeks in trl
+  - Need to run vllm serve myself, makes sense
+  - Or, revert back to a working .lock file
+- [ ] Remove unsloth for now, that library is a nightmare to work with
+  - Simplifies the config by a lot
+- [ ] Stack "repair" on KTH DGX-100
+- [ ] Stack "repair" on SLURM 
+- [ ] Create SWE-Bench "repair" dataset
+- [ ] Replicate the "agentic workflow" of SWE-agent and similar 
+  - Find out how they normally put the codebase into the context window
+  - How they do function calling
+  - Otherwise we could just run repomix
+- [ ] Setup Defect4J as reward signal and train on it
+
+
+
 ## March 17 - March 23, 2025
 Was a bit sick during the weekened which is when I am normally the most productive
 
@@ -27,17 +49,7 @@ Was a bit sick during the weekened which is when I am normally the most producti
 - [x] Fix some refactor mismatches
 - [x] Stack implementation dataset
   - It's not exactly the type of dataset we are looking for but its pretty good
-- [ ] Stack "repair" on KTH DGX-100
-- [ ] Stack "repair" on SLURM 
-- [ ] Create SWE-Bench dataset
-- [ ] Replicate the "agentic workflow" of SWE-agent and similar 
-  - Find out how they normally put the codebase into the context window
-  - How they do function calling
-  - Otherwise we could just run repomix
-- [ ] Read LLM Post-Training: A Deep Dive into Reasoning Large Language Models: https://arxiv.org/pdf/2502.21321
-- [ ] Read MUFIN paper
-- [ ] Read S∗: Test Time Scaling for Code Generation: https://arxiv.org/pdf/2502.14382
-- [ ] Setup Defect4J as reward signal and train on it
+- [x] Read LLM Post-Training: A Deep Dive into Reasoning Large Language Models: https://arxiv.org/pdf/2502.21321
 
 #### Ideas
 - What if we use AST to extract docstrings of python code on the Stack.
