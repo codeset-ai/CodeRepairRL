@@ -1,8 +1,5 @@
 import re
 
-import wandb
-
-from src.utils.logging import build_html_table
 from src.utils.diff import SearchReplaceDiff, UnifiedDiff
 
 
@@ -59,16 +56,6 @@ def correctness_reward_func(prompts, completions, answer, **kwargs) -> list[floa
     """Reward function that checks if the extracter answer matches the ground truth answer."""
     responses = [completion[0]['content'] for completion in completions]
     extracted_responses = [extract_xml_answer(r) for r in responses]
-    
-    #########################################################
-    # Nasty hack, GRPOTrainer offers no other way to create callbacks with the completions
-    html_rows = []
-    for prompt_item, response, ext, ans in zip(prompts, responses, extracted_responses, answer):
-         prompt_text = prompt_item[-1]['content'] if prompt_item else ""
-         html_rows.append((prompt_text, response, ext, ans))
-    html_table = build_html_table(html_rows)
-    wandb.log({"eval_table": wandb.Html(html_table)})
-    #########################################################
 
     return [1.0 if ext == a else 0.0 for ext, a in zip(extracted_responses, answer)]
 
@@ -96,18 +83,6 @@ def diff_similarity_reward_func(prompts, completions, diffs, diff_type, **kwargs
     contents = [extract_xml_answer(completion[0]["content"]) for completion in completions] # extract contents of <answer> tags
     generated_diffs_batch = [diff_cls.extract_all(diff_str) for diff_str in contents]
     reference_diffs_batch = [diff_cls.extract_all(diff_str) for diff_str in diffs]  # TODO: support having multiple reference diffs
-
-    #########################################################
-    # Nasty hack, GRPOTrainer offers no other way to create callbacks with the completions
-    html_rows = []
-    for prompt_item, response, ext, ans in zip(prompts, contents, generated_diffs_batch, reference_diffs_batch):
-        prompt_text = prompt_item[-1]['content'] if prompt_item else ""
-        gen_diff_str = "\n\n".join([diff.to_string() for diff in ext])
-        ref_diff_str = "\n\n".join([diff.to_string() for diff in ans])
-        html_rows.append((prompt_text, response, gen_diff_str, ref_diff_str))
-    html_table = build_html_table(html_rows)
-    wandb.log({"eval_table": wandb.Html(html_table)})
-    #########################################################
     
     # TODO: ugly, support multi file diffs better
     rewards = []
