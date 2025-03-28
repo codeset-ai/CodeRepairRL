@@ -81,9 +81,8 @@ def diff_format_reward_func(completions, diff_type, **kwargs) -> list[float]:
     """Reward function that checks the quality of the extracted diff format between 0.0 and 1.0."""
     diff_cls = SearchReplaceDiff if diff_type == "search_replace" else UnifiedDiff
     
-    contents = [completion[0]["content"] for completion in completions]
-    answers = [extract_xml_answer(c) for c in contents]  # extract contents of <answer> tags
-    diffs_batch = [diff_cls.extract_all(diff_str) for diff_str in answers]  # batch of a list of diffs (for potentially multiple files)
+    contents = [extract_xml_answer(completion[0]["content"]) for completion in completions] # extract contents of <answer> tags
+    diffs_batch = [diff_cls.extract_all(diff_str) for diff_str in contents]  # batch of a list of diffs (for potentially multiple files)
     
     return [
         sum(diff.validate_quality() for diff in diffs)/(len(diffs) or 1)
@@ -94,9 +93,8 @@ def diff_similarity_reward_func(prompts, completions, diffs, diff_type, **kwargs
     """Reward function that sequence matches the reference and generated diffs."""
     diff_cls = SearchReplaceDiff if diff_type == "search_replace" else UnifiedDiff 
     
-    contents = [completion[0]["content"] for completion in completions]
-    answers = [extract_xml_answer(c) for c in contents]  # extract contents of <answer> tags
-    generated_diffs_batch = [diff_cls.extract_all(diff_str) for diff_str in answers]
+    contents = [extract_xml_answer(completion[0]["content"]) for completion in completions] # extract contents of <answer> tags
+    generated_diffs_batch = [diff_cls.extract_all(diff_str) for diff_str in contents]
     reference_diffs_batch = [diff_cls.extract_all(diff_str) for diff_str in diffs]  # TODO: support having multiple reference diffs
 
     #########################################################

@@ -204,7 +204,7 @@ def create_repair_dataset(
     data_items = []
     for before, after, desc in zip(before_codes, after_codes, descriptions):
         # Generate diff using the appropriate diff class
-        diffs = [diff_cls.from_codes(before, after).to_string()]  # TODO: support multiple diffs
+        diffs = diff_cls.from_codes(before, after).to_string()  # TODO: support multiple diffs
         
         # Generate user prompt
         user_prompt = repair_single_file_prompt(before, desc, diff_type)
