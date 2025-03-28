@@ -58,9 +58,6 @@ grpo:
   max_prompt_length: 512  # will be decreased if the longest sequence in the dataset is shorter
   max_completion_length: 256  # will be increased by the complement of the above (max of model)
   
-  # Advanced GRPO settings
-  bootstrap: false  # Enable bootstrapping for GRPO
-  
   # Training loop settings
   logging_steps: 1
   max_steps: -1

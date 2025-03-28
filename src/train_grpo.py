@@ -87,9 +87,6 @@ class GRPOConfig:
     max_prompt_length: int = 256
     max_completion_length: int = 256
     
-    # Advanced GRPO settings
-    bootstrap: bool = False  # Enable bootstrapping for GRPO
-    
     # Training loop settings
     logging_steps: int = 1
     max_steps: int = 250
@@ -168,7 +165,7 @@ def main(cfg: Config) -> None:
         cfg.grpo.max_prompt_length = max_prompt_length
         cfg.grpo.max_completion_length = cfg.grpo.max_completion_length + diff
 
-    training_args = HFGRPOConfig(**cfg.grpo.__dict__)
+    training_args = HFGRPOConfig(**cfg.grpo)
 
     # Initialize trainer with task-specific reward functions
     trainer = HFGRPOTrainer(
