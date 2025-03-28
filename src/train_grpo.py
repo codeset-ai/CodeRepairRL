@@ -10,7 +10,7 @@ from peft import LoraConfig as PEFTLoraConfig, get_peft_model
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from trl import GRPOConfig as HFGRPOConfig, GRPOTrainer as HFGRPOTrainer
 
-from src.utils.rewards import (
+from .utils.rewards import (
     # reasoning rewards
     partial_reasoning_format_reward_func,
     strict_reasoning_format_reward_func,
@@ -20,8 +20,8 @@ from src.utils.rewards import (
     diff_format_reward_func,
     diff_similarity_reward_func,
 )
-from src.utils.resolvers import resolve_git_commit_hash
-from src.data import get_stack_repair_dataset, get_primevul_repair_dataset, get_primevul_detection_dataset
+from .utils.resolvers import resolve_git_commit_hash
+from .data import get_stack_repair_dataset, get_primevul_repair_dataset, get_primevul_detection_dataset
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +78,9 @@ class GRPOConfig:
     fp16: bool = False 
     per_device_train_batch_size: int = 4
     gradient_accumulation_steps: int = 1
+
+    # Reward settings
+    scale_rewards: bool = False  # from Dr. GRPO, reward scaling introduces question-level difficulty bias
     
     # Generation settings
     num_generations: int = 4

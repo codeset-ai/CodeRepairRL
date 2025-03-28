@@ -51,7 +51,7 @@ grpo:
   gradient_accumulation_steps: 2
 
   # Reward settings
-  scale_reward: false  # from Dr. GRPO, reward scaling introduces question-level difficulty bias
+  scale_rewards: false  # from Dr. GRPO, reward scaling introduces question-level difficulty bias
   
   # Generation settings
   num_generations: 4
