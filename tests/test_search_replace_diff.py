@@ -148,7 +148,7 @@ class TestSearchReplaceDiff(unittest.TestCase):
             "```"
         )
         
-        diffs = SearchReplaceDiff.extract_from_llm_response(llm_response)
+        diffs = SearchReplaceDiff.extract_all(llm_response)
         self.assertEqual(len(diffs), 2)
         
         # Check first diff
@@ -197,7 +197,7 @@ class TestSearchReplaceDiff(unittest.TestCase):
             "</answer>"
         )
         
-        diffs = SearchReplaceDiff.extract_from_llm_response(llm_response)
+        diffs = SearchReplaceDiff.extract_all(llm_response)
         self.assertEqual(len(diffs), 2)
         
         # Check first diff
@@ -224,7 +224,7 @@ class TestSearchReplaceDiff(unittest.TestCase):
             ">>>>>>> REPLACE\n"
         )
         
-        diffs = SearchReplaceDiff.extract_from_llm_response(llm_response)
+        diffs = SearchReplaceDiff.extract_all(llm_response)
         self.assertEqual(len(diffs), 1)
         self.assertEqual(len(diffs[0].blocks), 1)
         self.assertEqual(diffs[0].blocks[0][0], "def hello():\n    print('hello')")

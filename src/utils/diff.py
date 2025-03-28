@@ -15,8 +15,8 @@ class Diff(ABC):
 
     @staticmethod
     @abstractmethod
-    def extract_from_llm_response(response: str) -> List['Diff']:
-        """Extract diff blocks from an LLM response and return a list of Diff objects."""
+    def extract_all(response: str) -> List['Diff']:
+        """Extract many diffs (accross multiple 'files') from an LLM response and return a list of Diff objects."""
         pass
     
     @classmethod
@@ -346,9 +346,9 @@ class SearchReplaceDiff(Diff):
         return cls(blocks)
     
     @staticmethod
-    def extract_from_llm_response(response: str) -> List['SearchReplaceDiff']:
+    def extract_all(response: str) -> List['SearchReplaceDiff']:
         """
-        Extract search/replace blocks from an LLM response and return a list of SearchReplaceDiff objects.
+        Robustly extract search/replace blocks from an LLM response and return a list of SearchReplaceDiff objects.
         
         Args:
             response: The full response from an LLM
@@ -725,7 +725,7 @@ class UnifiedDiff(Diff):
         return cls(hunks, context_lines)
     
     @staticmethod
-    def extract_from_llm_response(response: str) -> List['UnifiedDiff']:
+    def extract_all(response: str) -> List['UnifiedDiff']:
         """
         Extract unified diff blocks from an LLM response and return a list of UnifiedDiff objects.
         
@@ -740,20 +740,9 @@ class UnifiedDiff(Diff):
         
         # If no blocks found with code fences, try to extract directly
         if not code_blocks:
-            # Look for @@ markers which indicate unified diff hunks
-            if "@@ " in response and " @@" in response:
-                code_blocks = [response]
-            else:
-                return []
+            code_blocks = [response]
         
-        # Create a list of UnifiedDiff objects
-        result = []
-        for block in code_blocks:
-            diff = UnifiedDiff.from_string(block)
-            if diff.hunks:  # Only add non-empty diffs
-                result.append(diff)
-                
-        return result
+        return [UnifiedDiff.from_string(block) for block in code_blocks]
     
     def _validate_hunk(self, hunk: Dict[str, Any]) -> bool:
         """
@@ -1193,8 +1182,8 @@ These changes will make your code more robust and add the discount functionality
     print(llm_response)
     
     # Extract diffs from the LLM response
-    sr_diffs = SearchReplaceDiff.extract_from_llm_response(llm_response)
-    unified_diffs = UnifiedDiff.extract_from_llm_response(llm_response)
+    sr_diffs = SearchReplaceDiff.extract_all(llm_response)
+    unified_diffs = UnifiedDiff.extract_all(llm_response)
     
     print_divider("Extracted Diffs")
     print(f"Search/Replace diffs: {len(sr_diffs)}")

@@ -109,7 +109,7 @@ class Config:
 # Register the config schema
 cs = ConfigStore.instance()
 cs.store(name="base_grpo_config", node=Config, group="")
-OmegaConf.register_resolver("resolve_git_commit_hash", resolve_git_commit_hash)
+OmegaConf.register_new_resolver("resolve_git_commit_hash", resolve_git_commit_hash)
 
 
 @hydra.main(version_base="1.1", config_path="conf", config_name="base_grpo_config")

@@ -82,9 +82,9 @@ def diff_format_reward_func(completions, diff_type, **kwargs) -> list[float]:
     contents = [completion[0]["content"] for completion in completions]
 
     diff_cls = SearchReplaceDiff if diff_type == "search_replace" else UnifiedDiff
-    diffs = [diff_cls.extract_from_llm_response(c) for c in contents]  # attempts to extract diffs
+    hunks = [diff_cls.extract_all(c) for c in contents]  # attempts to extract diffs
     
-    return [diff.validate_quality() for diff in diffs] 
+    return [sum(diff.validate_quality() for diff in hunk)/len(hunk) for hunk in hunks] 
 
 def diff_similarity_reward_func(prompts, completions, diff, diff_type, **kwargs) -> list[float]:
     """Reward function that sequence matches the reference and generated diffs."""
@@ -92,8 +92,8 @@ def diff_similarity_reward_func(prompts, completions, diff, diff_type, **kwargs)
     answers = [extract_xml_answer(c) for c in contents]
 
     diff_cls = SearchReplaceDiff if diff_type == "search_replace" else UnifiedDiff 
-    generated_diffs = [diff_cls.extract_from_llm_response(a) for a in answers]
-    reference_diffs = [diff_cls.from_string(ref) for ref in diff]  # TODO: support having multiple reference diffs
+    generated_diffs = [diff_cls.extract_all(a) for a in answers]
+    reference_diffs = [diff_cls.extract_all(ref) for ref in diff]  # TODO: support having multiple reference diffs
 
     #########################################################
     # Nasty hack, GRPOTrainer offers no other way to create callbacks with the completions

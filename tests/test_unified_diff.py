@@ -97,7 +97,7 @@ class TestUnifiedDiff(unittest.TestCase):
             "```"
         )
         
-        diffs = UnifiedDiff.extract_from_llm_response(llm_response)
+        diffs = UnifiedDiff.extract_all(llm_response)
         self.assertEqual(len(diffs), 2)
         
         # Check first diff
@@ -140,7 +140,7 @@ class TestUnifiedDiff(unittest.TestCase):
             "</answer>"
         )
         
-        diffs = UnifiedDiff.extract_from_llm_response(llm_response)
+        diffs = UnifiedDiff.extract_all(llm_response)
         self.assertEqual(len(diffs), 2)
         
         # Check first diff
@@ -169,7 +169,7 @@ class TestUnifiedDiff(unittest.TestCase):
             " return None\n"
         )
         
-        diffs = UnifiedDiff.extract_from_llm_response(llm_response)
+        diffs = UnifiedDiff.extract_all(llm_response)
         self.assertEqual(len(diffs), 1)
         self.assertEqual(len(diffs[0].hunks), 1)
         self.assertEqual(diffs[0].hunks[0]['start1'], 1)
