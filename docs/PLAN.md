@@ -21,12 +21,13 @@
 ## March 24 - March 30, 2024
 
 #### Tasks
+- [x] Remove unsloth for now, that library is a nightmare to work with
+  - Simplifies the config by a lot
+- [x] Reward callbacks only receive prompt and completion as args, rest is kwargs
 - [ ] Support newest trl version
   - Something changed in the last few weeks in trl
   - Need to run vllm serve myself, makes sense
   - Or, revert back to a working .lock file
-- [ ] Remove unsloth for now, that library is a nightmare to work with
-  - Simplifies the config by a lot
 - [ ] Stack "repair" on KTH DGX-100
 - [ ] Stack "repair" on SLURM 
 - [ ] Create SWE-Bench "repair" dataset

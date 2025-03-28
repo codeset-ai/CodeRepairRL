@@ -1,7 +1,6 @@
 import os
 import logging
 from typing import Optional
-from functools import partial
 from dataclasses import dataclass, field
 
 import hydra
@@ -59,9 +58,11 @@ class ModelConfig:
 
 @dataclass
 class GRPOConfig:
+    # vLLM generation settings
     use_vllm: bool = True
     vllm_gpu_memory_utilization: float = 0.7
-
+    vllm_dtype: Optional[str] = None  # dtype for vLLM (e.g., "float16", "bfloat16")
+    
     # Optimizer settings
     learning_rate: float = 5e-6
     adam_beta1: float = 0.9
@@ -82,7 +83,10 @@ class GRPOConfig:
     num_generations: int = 4
     max_prompt_length: int = 256
     max_completion_length: int = 256
-
+    
+    # Advanced GRPO settings
+    bootstrap: bool = False  # Enable bootstrapping for GRPO
+    
     # Training loop settings
     logging_steps: int = 1
     max_steps: int = 250
@@ -93,11 +97,13 @@ class GRPOConfig:
     report_to: str = "wandb"
     run_name: Optional[str] = None
     output_dir: str = "outputs"
+    log_completions: bool = True
 
 @dataclass
 class Config:
     run: RunConfig = field(default_factory=RunConfig)
     model: ModelConfig = field(default_factory=ModelConfig)
+    lora: LoraConfig = field(default_factory=LoraConfig)
     grpo: GRPOConfig = field(default_factory=GRPOConfig)
 
 # Register the config schema
@@ -136,8 +142,8 @@ def main(cfg: Config) -> None:
         reward_functions = [
             partial_reasoning_format_reward_func,
             strict_reasoning_format_reward_func,
-            partial(diff_format_reward_func, diff_type=cfg.run.diff_type),  # we need to know the type of diff to use to process the output    
-            partial(diff_similarity_reward_func, diff_type=cfg.run.diff_type),
+            diff_format_reward_func,
+            diff_similarity_reward_func, 
         ]
     elif cfg.run.task == "detection":  # primevul only
         if cfg.run.dataset_type == "stack": raise ValueError("Stack does not support detection task")
@@ -159,7 +165,7 @@ def main(cfg: Config) -> None:
         cfg.grpo.max_prompt_length = max_prompt_length
         cfg.grpo.max_completion_length = cfg.grpo.max_completion_length + diff
 
-    training_args = HFGRPOConfig(**cfg.grpo)
+    training_args = HFGRPOConfig(**cfg.grpo.__dict__)
 
     # Initialize trainer with task-specific reward functions
     trainer = HFGRPOTrainer(

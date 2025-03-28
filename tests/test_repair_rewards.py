@@ -74,14 +74,14 @@ class TestRepairRewards(unittest.TestCase):
         ]
         
         # Test for search_replace diff type
-        sr_rewards = mock_diff_format(None, completions, diff_type="search_replace")
+        sr_rewards = mock_diff_format(completions, diff_type="search_replace")
         self.assertEqual(len(sr_rewards), 3)
         self.assertGreater(sr_rewards[0], 0.5)  # Should have high quality for search/replace format
         self.assertEqual(sr_rewards[1], 0.0)    # Unified diff format should get 0 for search/replace
         self.assertEqual(sr_rewards[2], 0.0)    # No diff should get 0
         
         # Test for unified diff type
-        unified_rewards = mock_diff_format(None, completions, diff_type="unified")
+        unified_rewards = mock_diff_format(completions, diff_type="unified")
         self.assertEqual(len(unified_rewards), 3)
         self.assertEqual(unified_rewards[0], 0.0)      # Search/replace format should get 0 for unified
         self.assertGreater(unified_rewards[1], 0.5)    # Should have high quality for unified format
@@ -89,8 +89,8 @@ class TestRepairRewards(unittest.TestCase):
         
         # Verify the mock was called with the right arguments
         self.assertEqual(mock_diff_format.call_count, 2)
-        mock_diff_format.assert_any_call(None, completions, diff_type="search_replace")
-        mock_diff_format.assert_any_call(None, completions, diff_type="unified")
+        mock_diff_format.assert_any_call(completions, diff_type="search_replace")
+        mock_diff_format.assert_any_call(completions, diff_type="unified")
     
     @patch('wandb.log')  # Mock wandb.log to avoid actual logging during tests
     @patch('src.utils.rewards.build_html_table')  # Mock the HTML table builder
@@ -145,7 +145,7 @@ class TestRepairRewards(unittest.TestCase):
         ]
         
         # Reference diffs that we'll compare against
-        reference = [
+        diff_data = [
             (
                 "<<<<<<< SEARCH\n"
                 "def hello():\n"
@@ -170,13 +170,13 @@ class TestRepairRewards(unittest.TestCase):
         ]
         
         # Test for search_replace diff type
-        sr_rewards = mock_diff_similarity(prompts, completions, reference, diff_type="search_replace")
+        sr_rewards = mock_diff_similarity(prompts, completions, diff=diff_data, diff_type="search_replace")
         self.assertEqual(len(sr_rewards), 2)
         self.assertGreater(sr_rewards[0], 0.5)  # First should have high similarity
         self.assertLess(sr_rewards[1], 0.5)     # Second should have low similarity
         
         # Test for unified diff type with different reference
-        unified_reference = [
+        unified_diff_data = [
             (
                 "@@ -1,3 +1,3 @@\n"
                 "-def hello():\n"
@@ -192,15 +192,15 @@ class TestRepairRewards(unittest.TestCase):
         ]
         
         # Test for unified diff type
-        unified_rewards = mock_diff_similarity(prompts, completions, unified_reference, diff_type="unified")
+        unified_rewards = mock_diff_similarity(prompts, completions, diff=unified_diff_data, diff_type="unified")
         self.assertEqual(len(unified_rewards), 2)
         self.assertLess(unified_rewards[0], 0.5)     # First should have low similarity
         self.assertGreater(unified_rewards[1], 0.5)  # Second should have high similarity
         
         # Verify the mock was called with the right arguments
         self.assertEqual(mock_diff_similarity.call_count, 2)
-        mock_diff_similarity.assert_any_call(prompts, completions, reference, diff_type="search_replace")
-        mock_diff_similarity.assert_any_call(prompts, completions, unified_reference, diff_type="unified")
+        mock_diff_similarity.assert_any_call(prompts, completions, diff=diff_data, diff_type="search_replace")
+        mock_diff_similarity.assert_any_call(prompts, completions, diff=unified_diff_data, diff_type="unified")
     
     @patch('wandb.log')  # Mock wandb.log to avoid actual logging during tests
     @patch('src.utils.rewards.build_html_table')  # Mock the HTML table builder
@@ -211,10 +211,10 @@ class TestRepairRewards(unittest.TestCase):
         
         empty_completions = []
         empty_prompts = []
-        empty_reference = []
+        empty_diff = []
         
-        self.assertEqual(diff_format_reward_func(None, empty_completions, diff_type="search_replace"), [])
-        self.assertEqual(diff_similarity_reward_func(empty_prompts, empty_completions, empty_reference, diff_type="search_replace"), [])
+        self.assertEqual(diff_format_reward_func(empty_completions, diff_type="search_replace"), [])
+        self.assertEqual(diff_similarity_reward_func(empty_prompts, empty_completions, diff=empty_diff, diff_type="search_replace"), [])
 
 
 if __name__ == "__main__":

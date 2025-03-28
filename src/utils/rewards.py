@@ -11,9 +11,12 @@ def extract_xml_answer(text:str) -> str:
         return text.split("<answer>", 1)[1].split("</answer>", 1)[0].strip()
     return "N/A"
 
-#########################################################
+
+# FYI: rewards are calculated as callbacks which receive the keywords prompts, completions and all the columns of your dataset as kwargs
+
+##################################################################################################################  
 # Reasoning style response reward functions
-#########################################################
+##################################################################################################################
 
 def count_xml(text:str)->float:
     count = 0.0
@@ -29,12 +32,12 @@ def count_xml(text:str)->float:
         count -= (len(text.split("\n</answer>")[-1]))*0.001  # penalize slightly for answering after "answer"
     return max(count, 0.0)
 
-def partial_reasoning_format_reward_func(prompts, completions, **kwargs) -> list[float]:
+def partial_reasoning_format_reward_func(completions, **kwargs) -> list[float]:
     """Reward function to guide models to use a specific format for reasoning. Does not account for ordering and placement of tags."""
     contents = [completion[0]["content"] for completion in completions]
     return [count_xml(c) for c in contents]
 
-def strict_reasoning_format_reward_func(prompts, completions, **kwargs) -> list[float]:
+def strict_reasoning_format_reward_func(completions, **kwargs) -> list[float]:
     """Reward function for strict adherence to our specific reasoning format."""
     pattern = (
         r"^<think>\n"
@@ -48,9 +51,9 @@ def strict_reasoning_format_reward_func(prompts, completions, **kwargs) -> list[
     matches = [re.match(pattern, r) for r in responses]
     return [0.5 if match else 0.0 for match in matches]
 
-#########################################################
+##################################################################################################################
 # Detection specific reward functions
-#########################################################
+##################################################################################################################
 
 def correctness_reward_func(prompts, completions, answer, **kwargs) -> list[float]:
     """Reward function that checks if the extracter answer matches the ground truth answer."""
@@ -69,12 +72,12 @@ def correctness_reward_func(prompts, completions, answer, **kwargs) -> list[floa
 
     return [1.0 if ext == a else 0.0 for ext, a in zip(extracted_responses, answer)]
 
-#########################################################
+##################################################################################################################
 # Repair specific reward functions
-# call them with functool.partial to set the diff_type
-#########################################################
+# when create_repair_dataset is called, the diff_type becomes a column and is therefore present in the kwargs
+##################################################################################################################
 
-def diff_format_reward_func(prompts, completions, diff_type="search_replace", **kwargs) -> list[float]:
+def diff_format_reward_func(completions, diff_type, **kwargs) -> list[float]:
     """Reward function that checks the quality of the extracted diff format between 0.0 and 1.0."""
     contents = [completion[0]["content"] for completion in completions]
 
@@ -83,14 +86,14 @@ def diff_format_reward_func(prompts, completions, diff_type="search_replace", **
     
     return [diff.validate_quality() for diff in diffs] 
 
-def diff_similarity_reward_func(prompts, completions, reference, diff_type="search_replace", **kwargs) -> list[float]:
+def diff_similarity_reward_func(prompts, completions, diff, diff_type, **kwargs) -> list[float]:
     """Reward function that sequence matches the reference and generated diffs."""
     contents = [completion[0]["content"] for completion in completions]
     answers = [extract_xml_answer(c) for c in contents]
 
     diff_cls = SearchReplaceDiff if diff_type == "search_replace" else UnifiedDiff 
     generated_diffs = [diff_cls.extract_from_llm_response(a) for a in answers]
-    reference_diffs = [diff_cls.from_string(ref) for ref in reference]  # TODO: support having multiple reference diffs
+    reference_diffs = [diff_cls.from_string(ref) for ref in diff]  # TODO: support having multiple reference diffs
 
     #########################################################
     # Nasty hack, GRPOTrainer offers no other way to create callbacks with the completions

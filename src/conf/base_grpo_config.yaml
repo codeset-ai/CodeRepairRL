@@ -30,8 +30,11 @@ lora:
     - "down_proj"
 
 grpo:
+  # vLLM generation settings
   use_vllm: true
   vllm_gpu_memory_utilization: 0.7
+  vllm_dtype: null  # Can be set to "float16", "bfloat16", etc.
+  
   # Optimizer settings
   learning_rate: 5e-6
   adam_beta1: 0.9
@@ -54,6 +57,9 @@ grpo:
   num_generations: 4
   max_prompt_length: 512  # will be decreased if the longest sequence in the dataset is shorter
   max_completion_length: 256  # will be increased by the complement of the above (max of model)
+  
+  # Advanced GRPO settings
+  bootstrap: false  # Enable bootstrapping for GRPO
   
   # Training loop settings
   logging_steps: 1
