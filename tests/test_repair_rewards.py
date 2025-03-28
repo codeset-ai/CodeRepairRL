@@ -170,7 +170,7 @@ class TestRepairRewards(unittest.TestCase):
         ]
         
         # Test for search_replace diff type
-        sr_rewards = mock_diff_similarity(prompts, completions, diff=diff_data, diff_type="search_replace")
+        sr_rewards = mock_diff_similarity(prompts, completions, diffs=diff_data, diff_type="search_replace")
         self.assertEqual(len(sr_rewards), 2)
         self.assertGreater(sr_rewards[0], 0.5)  # First should have high similarity
         self.assertLess(sr_rewards[1], 0.5)     # Second should have low similarity
@@ -192,15 +192,15 @@ class TestRepairRewards(unittest.TestCase):
         ]
         
         # Test for unified diff type
-        unified_rewards = mock_diff_similarity(prompts, completions, diff=unified_diff_data, diff_type="unified")
+        unified_rewards = mock_diff_similarity(prompts, completions, diffs=unified_diff_data, diff_type="unified")
         self.assertEqual(len(unified_rewards), 2)
         self.assertLess(unified_rewards[0], 0.5)     # First should have low similarity
         self.assertGreater(unified_rewards[1], 0.5)  # Second should have high similarity
         
         # Verify the mock was called with the right arguments
         self.assertEqual(mock_diff_similarity.call_count, 2)
-        mock_diff_similarity.assert_any_call(prompts, completions, diff=diff_data, diff_type="search_replace")
-        mock_diff_similarity.assert_any_call(prompts, completions, diff=unified_diff_data, diff_type="unified")
+        mock_diff_similarity.assert_any_call(prompts, completions, diffs=diff_data, diff_type="search_replace")
+        mock_diff_similarity.assert_any_call(prompts, completions, diffs=unified_diff_data, diff_type="unified")
     
     @patch('wandb.log')  # Mock wandb.log to avoid actual logging during tests
     @patch('src.utils.rewards.build_html_table')  # Mock the HTML table builder
@@ -214,7 +214,7 @@ class TestRepairRewards(unittest.TestCase):
         empty_diff = []
         
         self.assertEqual(diff_format_reward_func(empty_completions, diff_type="search_replace"), [])
-        self.assertEqual(diff_similarity_reward_func(empty_prompts, empty_completions, diff=empty_diff, diff_type="search_replace"), [])
+        self.assertEqual(diff_similarity_reward_func(empty_prompts, empty_completions, diffs=empty_diff, diff_type="search_replace"), [])
 
 
 if __name__ == "__main__":

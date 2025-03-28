@@ -204,7 +204,7 @@ def create_repair_dataset(
     data_items = []
     for before, after, desc in zip(before_codes, after_codes, descriptions):
         # Generate diff using the appropriate diff class
-        diff = diff_cls.from_codes(before, after).to_string()
+        diffs = [diff_cls.from_codes(before, after).to_string()]  # TODO: support multiple diffs
         
         # Generate user prompt
         user_prompt = repair_single_file_prompt(before, desc, diff_type)
@@ -214,7 +214,7 @@ def create_repair_dataset(
             "before_code": before,
             "after_code": after,
             "description": desc,
-            "diff": diff,
+            "diffs": diffs,
             "user_prompt": user_prompt,
             "diff_type": diff_type  # Store the diff type for reference during training
         }
@@ -232,7 +232,7 @@ def create_repair_dataset(
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": x["user_prompt"]}
         ],
-        "answer": x["diff"]
+        "answer": x["diffs"]
     })
     
     # Shuffle dataset
