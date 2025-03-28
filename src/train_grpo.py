@@ -33,6 +33,7 @@ class RunConfig:
     task: str = "repair"  # "detection" or "repair"
     dataset_type: str = "stack"  # "primevul" or "stack"
     diff_type: str = "search_replace"  # "search_replace" or "unified" (for repair)
+    context_lines: int = 0  # number of context lines to include in diffs
     commit_hash: str = ""  # added at runtime
     resume_training: bool = False
 
@@ -139,7 +140,8 @@ def main(cfg: Config) -> None:
         dataset, max_prompt_length = repair_dataset(
             tokenizer=tokenizer,
             max_prompt_length=cfg.grpo.max_prompt_length,
-            diff_type=cfg.run.diff_type  # Pass the diff type from config
+            diff_type=cfg.run.diff_type,  # Pass the diff type from config
+            context_lines=cfg.run.context_lines
         )
         reward_functions = [
             partial_reasoning_format_reward_func,

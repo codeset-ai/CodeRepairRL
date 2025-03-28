@@ -27,7 +27,7 @@ class Diff(ABC):
 
     @classmethod
     @abstractmethod
-    def from_codes(cls, before_code: str, after_code: str, **kwargs):
+    def from_codes(cls, before_code: str, after_code: str):
         """Generate a Diff object representing the changes between two code snippets."""
         pass
     
@@ -287,7 +287,7 @@ class SearchReplaceDiff(Diff):
         return cls(result)
     
     @classmethod
-    def from_codes(cls, before_code: str, after_code: str, **kwargs) -> 'SearchReplaceDiff':
+    def from_codes(cls, before_code: str, after_code: str, context_lines: int = 2) -> 'SearchReplaceDiff':
         """
         Generate a SearchReplaceDiff object representing the changes between before and after code versions.
         
@@ -296,7 +296,8 @@ class SearchReplaceDiff(Diff):
         Args:
             before_code: The original code snippet
             after_code: The fixed/modified code snippet
-            
+            context_lines: Number of context lines to include in diffs (default: 2)
+
         Returns:
             A SearchReplaceDiff object representing the changes
         """
@@ -317,8 +318,6 @@ class SearchReplaceDiff(Diff):
         matcher = difflib.SequenceMatcher(None, before_lines, after_lines)
         blocks = []
         
-        # Context lines to include before and after changes
-        context_lines = kwargs.get('context_lines', 2)
         
         for tag, i1, i2, j1, j2 in matcher.get_opcodes():
             if tag == 'equal':
@@ -649,7 +648,7 @@ class UnifiedDiff(Diff):
         return cls(hunks, context_lines)
     
     @classmethod
-    def from_codes(cls, before_code: str, after_code: str, **kwargs) -> 'UnifiedDiff':
+    def from_codes(cls, before_code: str, after_code: str, context_lines: int = 0) -> 'UnifiedDiff':
         """
         Generate a UnifiedDiff object representing the changes between before and after code versions.
         
@@ -658,16 +657,13 @@ class UnifiedDiff(Diff):
         Args:
             before_code: The original code snippet
             after_code: The fixed/modified code snippet
-            context_lines: Optional number of context lines (default: 3)
+            context_lines: Optional number of context lines (default: 0)
             
         Returns:
             A UnifiedDiff object representing the changes
         """
         if before_code == after_code:
             return cls([], 3)
-        
-        # Get context lines from kwargs or use default
-        context_lines = kwargs.get('context_lines', 3)
         
         # Split code into lines
         before_lines = before_code.splitlines()

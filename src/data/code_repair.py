@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 # System prompt for code repair
-CODE_REPAIR_SYSTEM_PROMPT = """
+SEARCH_REPLACE_SYSTEM_PROMPT = """
 You are a code repair expert tasked with fixing issues in code. You will be provided with:
 1. Information about the specific issue (if available)
 2. The code segment that needs to be fixed
@@ -45,7 +45,7 @@ Wrap each *SEARCH/REPLACE* edit in a code block as shown in the example above.
 
 Your response format must follow the template below:
 <think>
-Work through the problem here..
+Work through the problem here...
 </think>
 <answer>
 The *SEARCH/REPLACE* edits to fix the code in a code block.
@@ -63,17 +63,20 @@ Your task is to analyze the issue and generate unified diff edits that fix the p
 
 Every unified diff edit must use this format:
 1. The hunk header showing line numbers: @@ -<original_start>,<original_count> +<new_start>,<new_count> @@
-2. Lines starting with '-' to indicate removal
-3. Lines starting with '+' to indicate addition 
-4. Lines starting with ' ' (space) to indicate context (unchanged lines)
+3. Lines starting with ' ' (space) to indicate context (unchanged lines), always include some context lines in the beginning. 
+4. Lines starting with '-' to indicate removal
+5. Lines starting with '+' to indicate addition 
 
 Here is an example:
 
 ```
 @@ -10,3 +10,3 @@
+# a couple of context lines before the first edit
+int main() {
 -    printf("hello\n");
 +    printf("Hello world!\n");
      return 0;
+}
 ```
 
 Please note:
@@ -84,7 +87,7 @@ Please note:
 
 Your response format must follow the template below:
 <think>
-Work through the problem here..
+Work through the problem here...
 </think>
 <answer>
 The unified diff to fix the code in a code block.
@@ -112,9 +115,9 @@ def repair_single_file_prompt(code: str, description: Optional[str] = None, diff
     if description:
         prompt += f"--- BEGIN ISSUE DESCRIPTION ---\n{description}\n--- END ISSUE DESCRIPTION ---\n\n"
     
-    # Add code (with line numbers for unified diff to help the model)
     if diff_type == "unified":
-        numbered_code = "\n".join([f"{i+1:4d} | {line}" for i, line in enumerate(code.splitlines())])
+        # add line numbers to aid the model in generating the correct diff
+        numbered_code = "\n".join([f"{i+1} {line}" for i, line in enumerate(code.splitlines())])
         prompt += f"--- BEGIN CODE ---\n```\n{numbered_code}\n```\n--- END CODE ---\n\n"
         prompt += "Please analyze the code and provide unified diff edits that fix any issues while preserving the code's intended functionality."
 
@@ -169,7 +172,8 @@ def create_repair_dataset(
     descriptions: Optional[List[str]] = None,
     max_prompt_length: int = 512,
     system_prompt: Optional[str] = None,
-    diff_type: str = "search_replace"
+    diff_type: str = "search_replace",
+    context_lines: int = 0
 ) -> Tuple[Dataset, int]:
     """
     Create a dataset for code repair tasks from paired before/after code samples.
@@ -182,6 +186,7 @@ def create_repair_dataset(
         max_prompt_length: Maximum prompt length for filtering (default: 512)
         system_prompt: Optional system prompt to use (defaults based on diff_type)
         diff_type: Type of diff to use (search_replace or unified)
+        context_lines: Number of context lines to include in diffs (default: 0)
         
     Returns:
         Tuple of (processed dataset, maximum token length)
@@ -195,7 +200,7 @@ def create_repair_dataset(
     
     # Use appropriate system prompt based on diff type if not provided
     if system_prompt is None:
-        system_prompt = CODE_REPAIR_SYSTEM_PROMPT if diff_type == "search_replace" else UNIFIED_DIFF_SYSTEM_PROMPT
+        system_prompt = SEARCH_REPLACE_SYSTEM_PROMPT if diff_type == "search_replace" else UNIFIED_DIFF_SYSTEM_PROMPT
     
     # Select the appropriate diff class based on the diff type
     diff_cls = SearchReplaceDiff if diff_type == "search_replace" else UnifiedDiff

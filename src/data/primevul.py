@@ -16,7 +16,8 @@ def get_primevul_repair_dataset(
     max_prompt_length: int = 512,
     split: str = "train_paired",
     system_prompt: Optional[str] = None,
-    diff_type: str = "search_replace"
+    diff_type: str = "search_replace",
+    context_lines: int = 0
 ) -> Tuple[Dataset, int]:
     """
     Create a dataset for code repair tasks from PrimeVul paired data.
@@ -28,7 +29,7 @@ def get_primevul_repair_dataset(
         split: Dataset split to use (must be paired)
         system_prompt: Optional system prompt to use
         diff_type: Type of diff to use (search_replace or unified)
-        
+        context_lines: Number of context lines to include in diffs (default: 0)
     Returns:
         Tuple of (processed dataset, maximum token length)
     """
@@ -68,7 +69,8 @@ def get_primevul_repair_dataset(
         tokenizer=tokenizer,
         max_prompt_length=max_prompt_length,
         system_prompt=system_prompt,
-        diff_type=diff_type
+        diff_type=diff_type,
+        context_lines=context_lines
     )
 
 
