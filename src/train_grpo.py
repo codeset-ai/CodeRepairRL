@@ -126,7 +126,9 @@ def main(cfg: Config) -> None:
     tokenizer.padding_side = "left"  # by padding a batch of prompts on the left side we can generate many completions in parallel (padding tokens are masked away)
 
     if cfg.run.train_mode == "lora":
-        lora_config = PEFTLoraConfig(**cfg.lora, task_type = "CAUSAL_LM")
+        # Convert target_modules from ListConfig
+        lora_params = OmegaConf.to_container(cfg.lora, resolve=True)
+        lora_config = PEFTLoraConfig(**lora_params, task_type="CAUSAL_LM")
         model = get_peft_model(model, lora_config)
 
     model.print_trainable_parameters()
@@ -165,7 +167,9 @@ def main(cfg: Config) -> None:
         cfg.grpo.max_prompt_length = max_prompt_length
         cfg.grpo.max_completion_length = cfg.grpo.max_completion_length + diff
 
-    training_args = HFGRPOConfig(**cfg.grpo)
+    # Convert grpo config from OmegaConf to regular Python dict to ensure JSON serialization works
+    grpo_params = OmegaConf.to_container(cfg.grpo, resolve=True)
+    training_args = HFGRPOConfig(**grpo_params)
 
     # Initialize trainer with task-specific reward functions
     trainer = HFGRPOTrainer(
