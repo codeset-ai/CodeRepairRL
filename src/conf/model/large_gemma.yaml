@@ -1,0 +1,5 @@
+model:
+  model_name: "google/gemma-3-27b-pt"  # Upgraded to 32B model
+  # only used if run.lora is true
+  r: 64
+  lora_alpha: 128

@@ -1,40 +1,7 @@
-defaults:
-  - _self_
-
-hydra:
-  job:
-    chdir: false  # Prevents Hydra from changing working directory at runtime
-
-run:
-  wandb_project: "TTC"
-  train_mode: "lora"
-  task: "repair"  # "detection" or "repair"
-  dataset_type: "stack"  # "primevul" or "stack"
-  diff_type: "search_replace"  # "search_replace" or "unified"
-  context_lines: 0  # number of context lines to include in diffs
-  commit_hash: ""  # will be set automatically
-  resume_training: false
-
-model:
-  model_name: "Qwen/Qwen2.5-Coder-1.5B-Instruct"
-
-lora:
-  r: 32
-  lora_alpha: 64  # lora paper describes 2x the r
-  target_modules:
-    - "q_proj"
-    - "k_proj"
-    - "v_proj"
-    - "o_proj"
-    - "gate_proj"
-    - "up_proj"
-    - "down_proj"
-
+# tuned for small model on 
 grpo:
   # vLLM generation settings
   use_vllm: true
-  vllm_gpu_memory_utilization: 0.7
-  vllm_dtype: null  # Can be set to "float16", "bfloat16", etc.
   
   # Optimizer settings
   learning_rate: 5e-6

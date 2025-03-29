@@ -29,8 +29,8 @@ logger = logging.getLogger(__name__)
 @dataclass
 class RunConfig:
     wandb_project: str = "TTC"
-    train_mode: str = "lora"  # "full" or "lora"
-    task: str = "repair"  # "detection" or "repair"
+    lora: bool = True
+    task_type: str = "repair"  # "detection" or "repair"
     dataset_type: str = "stack"  # "primevul" or "stack"
     diff_type: str = "search_replace"  # "search_replace" or "unified" (for repair)
     context_lines: int = 0  # number of context lines to include in diffs
@@ -38,24 +38,20 @@ class RunConfig:
     resume_training: bool = False
 
     def __post_init__(self):
-        if self.train_mode not in ["full", "lora"]:
-            raise ValueError("train_mode must be either 'full' or 'lora'")
-        if self.task not in ["detection", "repair"]:
-            raise ValueError("task must be either 'detection' or 'repair'")
+        if self.task_type not in ["detection", "repair"]:
+            raise ValueError("task_type must be either 'detection' or 'repair'")
         if self.dataset_type not in ["primevul", "stack"]:
             raise ValueError("dataset_type must be either 'stack', or 'primevul'")
         if self.diff_type not in ["search_replace", "unified"]:
             raise ValueError("diff_type must be either 'search_replace', or 'unified'")
-        
-@dataclass
-class LoraConfig:  # only used if train_mode == "lora"
-    r: int = 32
-    lora_alpha: int = 64
-    target_modules: tuple[str] = ("q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj")
 
 @dataclass
 class ModelConfig:
     model_name: str = "Qwen/Qwen2.5-Coder-1.5B-Instruct"
+     # only used if run.lora is true
+    r: int = 32
+    lora_alpha: int = 64
+    target_modules: tuple[str] = ("q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj")
 
 @dataclass
 class GRPOConfig:
@@ -104,7 +100,6 @@ class GRPOConfig:
 class Config:
     run: RunConfig = field(default_factory=RunConfig)
     model: ModelConfig = field(default_factory=ModelConfig)
-    lora: LoraConfig = field(default_factory=LoraConfig)
     grpo: GRPOConfig = field(default_factory=GRPOConfig)
 
 # Register the config schema
@@ -126,10 +121,13 @@ def main(cfg: Config) -> None:
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "left"  # by padding a batch of prompts on the left side we can generate many completions in parallel (padding tokens are masked away)
 
-    if cfg.run.train_mode == "lora":
-        # Convert target_modules from ListConfig
-        lora_params = OmegaConf.to_container(cfg.lora, resolve=True)
-        lora_config = PEFTLoraConfig(**lora_params, task_type="CAUSAL_LM")
+    if cfg.run.lora:
+        lora_config = PEFTLoraConfig(
+            r=cfg.model.r,
+            lora_alpha=cfg.model.lora_alpha,
+            target_modules=cfg.model.target_modules,
+            task_type="CAUSAL_LM"
+        )
         model = get_peft_model(model, lora_config)
 
     model.print_trainable_parameters()
