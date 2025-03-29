@@ -7,7 +7,7 @@ import hydra
 from omegaconf import OmegaConf
 from hydra.core.config_store import ConfigStore
 from peft import LoraConfig as PEFTLoraConfig, get_peft_model
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 from trl import GRPOConfig as HFGRPOConfig, GRPOTrainer as HFGRPOTrainer
 
 from src.utils.rewards import (
@@ -43,7 +43,11 @@ class RunConfig:
 
 @dataclass
 class ModelConfig:
+    # Transformers configuration
     model_name: str = "Qwen/Qwen2.5-Coder-1.5B-Instruct"
+    attn_implementation: str = "flash_attention_3"  # only on >Hopper GPUs
+    load_in_8bit: bool = True  # bitsandbytes quantization
+    # LoRA configuration
     lora: bool = True
     # only used if run.lora is true
     r: int = 32
@@ -111,7 +115,10 @@ def main(cfg: Config) -> None:
     precision_mode = "BF16" if cfg.grpo.bf16 else "FP16" if cfg.grpo.fp16 else "FP32"
     logger.info(f"Training with {precision_mode} precision based on GPU architecture")
     
-    model = AutoModelForCausalLM.from_pretrained(cfg.model.model_name)
+    model = AutoModelForCausalLM.from_pretrained(
+        cfg.model.model_name,
+        quantization_config=BitsAndBytesConfig(load_in_8bit=cfg.model.load_in_8bit) if cfg.model.load_in_8bit else None
+    )
     tokenizer = AutoTokenizer.from_pretrained(cfg.model.model_name)
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "left"  # by padding a batch of prompts on the left side we can generate many completions in parallel (padding tokens are masked away)

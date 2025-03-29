@@ -1,7 +1,7 @@
 defaults:
   - _self_
   - run: default
-  - model: default
+  - model: small_qwen
   - grpo: default
 
 hydra:

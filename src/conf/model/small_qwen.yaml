@@ -1,6 +1,8 @@
-# small_qwen
-# default model, other configs will inherit parameters from this unless overridden
+# Model configuration
 model_name: "Qwen/Qwen2.5-Coder-1.5B-Instruct"
+attn_implementation: "flash_attention_3"
+load_in_8bit: true
+# LoRA configuration
 lora: true
 # only used if run.lora is true
 r: 32

@@ -42,6 +42,14 @@
 - [ ] Multi file repair
 - [ ] Setup Defect4J as reward signal and train on it
 
+#### Ideas
+We could simply:
+1. host vLLM
+2. run Aider Coder or similar on a repo, tasked with e.g. fixing a bug
+3. it returns a diff which we score, and we weigh the entire conversation history with the rewards
+I.e. directly reinforce performance when using aider. Requires slight refactoring of trl.GRPOTrainer, but not too bad.
+This vastly simplifies performing multi file edits and stuff. Perhaps issues with batching
+
 
 
 ## March 17 - March 23, 2025
