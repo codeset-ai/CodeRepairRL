@@ -1,10 +1,10 @@
 #!/bin/bash
-#SBATCH --job-name=ttc-large
+#SBATCH --job-name=crrl-large
 #SBATCH --output=logs/large_%j.out
 #SBATCH --error=logs/large_%j.err
 #SBATCH --gpus 8
 #SBATCH --time=48:00:00
-#SBATCH -C "thin"
+#SBATCH -C "fat"
 #SBATCH --mail-type=FAIL,END
 #SBATCH --mail-user bhbj@kth.se
 
@@ -29,7 +29,7 @@ apptainer exec --nv --env CUDA_VISIBLE_DEVICES=4,5,6,7 ttc.sif \
     trl vllm-serve --model $MODEL_NAME --tensor_parallel_size $TP_SIZE &
 
 # Launch training on GPUs 0-3 with large model configuration using accelerate
-apptainer exec --nv --bind "$(pwd):/app" --env CUDA_VISIBLE_DEVICES=0,1,2,3 ttc.sif \
+apptainer exec --nv --bind "$(pwd):/app" --env CUDA_VISIBLE_DEVICES=0,1 crrl.sif \
     accelerate launch \
     --config_file scripts/deepspeed_zero3.yaml \
     --num_processes 4 \

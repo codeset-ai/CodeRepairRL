@@ -13,7 +13,7 @@ fi
 
 # Define paths
 CONTAINER_DEF="scripts/container.def"
-CONTAINER_IMAGE="ttc.sif"
+CONTAINER_IMAGE="crrl.sif"
 
 # Build the container with verbose output
 echo "Building Apptainer container..."

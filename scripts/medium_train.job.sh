@@ -1,10 +1,10 @@
 #!/bin/bash
-#SBATCH --job-name=ttc-medium
+#SBATCH --job-name=crrl-medium
 #SBATCH --output=logs/medium_%j.out
 #SBATCH --error=logs/medium_%j.err
 #SBATCH --gpus 4
 #SBATCH --time=24:00:00
-#SBATCH -C "thin"
+#SBATCH -C "fat"
 #SBATCH --mail-type=FAIL,END
 #SBATCH --mail-user bhbj@kth.se
 
@@ -25,11 +25,11 @@ echo "Directory: $(pwd)"
 echo "Using model: $MODEL_NAME"
 
 # Launch vLLM server on GPUs 2-3
-apptainer exec --nv --env CUDA_VISIBLE_DEVICES=2,3 ttc.sif \
+apptainer exec --nv --env CUDA_VISIBLE_DEVICES=2,3 crrl.sif \
     trl vllm-serve --model $MODEL_NAME --tensor_parallel_size $TP_SIZE &
 
 # Launch training on GPUs 0-1 with medium model configuration using accelerate
-apptainer exec --nv --bind "$(pwd):/app" --env CUDA_VISIBLE_DEVICES=0,1 ttc.sif \
+apptainer exec --nv --bind "$(pwd):/app" --env CUDA_VISIBLE_DEVICES=0 crrl.sif \
     accelerate launch \
     --config_file scripts/deepspeed_zero3.yaml \
     --num_processes 2 \

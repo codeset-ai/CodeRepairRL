@@ -12,11 +12,12 @@
 - [ ] Make hf cache (and uv if simple) point to my project directory instead of my home directory (on slurm)
   - Relatively easy to just do export TRANSFORMERS_CACHE=/proj/berzileus-2024-336/x_bjabj/huggingface
   - And do that both in my .zshrc and the apptainer environment
-- [ ] Reply here, community discussion on verifiers
-  - https://github.com/willccbb/verifiers/discussions/35
-- [ ] Info dump on the nano-R1 discussion
-  - https://github.com/nano-R1/resources/discussions/1
-
+#### These are conditional, this would require a LOT of SWE, maybe we can patch Aider into the loop instead of creating this
+- [ ] Replicate the "agentic workflow" of SWE-agent and similar 
+  - Find out how they normally put the codebase into the context window
+  - How they do function calling
+  - Otherwise we could just run repomix
+- [ ] Multi file repair
 
 ## March 24 - March 30, 2024
 
@@ -28,18 +29,25 @@
   - Just search/replace, refactor for possible future multi-file edits
 - [x] Simplify rewards  
   - All scaled between 0-1, reward weighting done in the script
-- [ ] Support newest trl version
+- [x] Forked trl
+  - Ideas such as integrating Aider will require it
+  - For now, the only change is better wandb logging
+- [x] Support newest trl version
   - Something changed in the last few weeks in trl
   - Need to run vllm serve myself, makes sense
   - Simply need to add trl vllm-serve to the .sh scripts
+  - Post:
+    - We kind of need multi gpu for this to work well, I get cryptic NCCL errors when trying to force it to occupy only 1 gpu
+    - For simple testing we can simply do uv run -m src.train_grpo grpo.use_vllm=false
+    - But for larger scale training we run the .sh scripts
+- [x] Deepspeed / accelerate support
+  - Post:
+    - Needs testing, should be pretty good
+    - Opted for "ZeRO-Stage 3" deepspeed, where optimizer state/gradients/model parameters are all sharded between GPUs
+    - This isn't really necessary for training LoRAs, but I'd like to move past those ultimately  
 - [x] Stack "repair" on KTH DGX-100
 - [ ] Stack "repair" on SLURM 
 - [ ] Create SWE-Bench "repair" dataset
-- [ ] Replicate the "agentic workflow" of SWE-agent and similar 
-  - Find out how they normally put the codebase into the context window
-  - How they do function calling
-  - Otherwise we could just run repomix
-- [ ] Multi file repair
 - [ ] Setup Defect4J as reward signal and train on it
 
 #### Ideas

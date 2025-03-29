@@ -1,8 +1,8 @@
 defaults:
   - _self_
-  - run: default
+  - run: base
+  - grpo: base
   - model: small_qwen
-  - grpo: small_model
 
 hydra:
   job:

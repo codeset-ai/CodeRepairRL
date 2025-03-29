@@ -1,34 +1,32 @@
-# TTC - Test Time Compute for Program Repair
+# CodeRepairRL - Reinforcement Learning for Program Repair
 
 ## Overview
 
-TTC leverages recent advancements in applying Reinforcement Learning (RL) to Large Language Models (LLMs) to train them in domain-specific reasoning. Our ultimate goal is to develop models similar to [RepairLLama](https://arxiv.org/pdf/2312.15698) and [Llama-3-SWE-RL](https://arxiv.org/pdf/2502.18449), which "punch above their weight-class" in terms of parameter count, demonstrating exceptional performance in software engineering benchmarks.
+CodeRepairRL leverages recent advancements in applying Reinforcement Learning (RL) to Large Language Models (LLMs) to fine-tune them for domain-specific tasks. Our ultimate goal is to develop models similar to [RepairLLama](https://arxiv.org/pdf/2312.15698) and [Llama-3-SWE-RL](https://arxiv.org/pdf/2502.18449), which "punch above their weight-class" in terms of parameter count, demonstrating exceptional performance in software engineering benchmarks.
 
 ## Objectives
 
+### Code Repair
+
+Our primary objective is generating accurate code patches to fix specific software issues. Initially, we reward the model based on the accuracy of the generated diffs using a search/replace approach that compares model-generated diffs against oracle solutions. This approach offers flexibility for potential future multi-file edits while maintaining simplicity. Ultimately, we aim to use software tests as the oracle for correctness, though this presents challenges due to the extensive compute requirements for running comprehensive test suites.
+
+### Code Implementation from Specification
+
+We also explore the task of implementing code from specifications using our stack.py dataset. This represents a related but distinct challenge from code repair, with fewer existing datasets in this category. The model must generate a complete implementation based on specifications, testing its understanding of requirements, adhering to contextual style and its ability to produce functional code.
+
 ### Vulnerability Classification
 
-We address a toy problem focused on classifying software vulnerabilities. This task evaluates our model's ability to reason about complex software vulnerabilities, effectively creating a test-time compute-enabled, process-verifiable classifier. Unlike traditional black-box models, our approach provides explicit reasoning paths, enhancing transparency and trustworthiness.
+As a secondary objective, we address classification of software vulnerabilities. This task evaluates our model's ability to reason about complex software vulnerabilities, effectively creating a test-time compute-enabled, process-verifiable classifier. Unlike traditional black-box models, our approach provides explicit reasoning paths, enhancing transparency and trustworthiness.
 
-### Code Patch Generation
+For detailed run results and progress on our objectives, see our [WandB project page](https://wandb.ai/assert-kth/TTC).
 
-Our more practical challenge involves generating accurate code patches to fix specific software issues. Initially, we reward the model based on the accuracy of the generated diffs (SequenceMatched diff, ranging from 0 to 1). Ultimately, we aim to use software tests as the oracle for correctness, although this remains challenging due to the extensive time required to run comprehensive test suites.
+## Post-Training Perspective
 
-For detailed run results and progress on both objectives, see our [WandB project page](https://wandb.ai/assert-kth/TTC).
-
-## Key Dataset: PrimeVul
-
-PrimeVul is a convenient dataset for our project, ideal for testing the [SWE-RL approach](https://arxiv.org/pdf/2502.18449). It includes:
-
-- Paired vulnerable and fixed code snippets.
-- Explicit vulnerability descriptions using CWE identifiers, which can be used like the Github issues in SWE-RL
-- Minimal semantic differences between vulnerable and fixed code, clearly isolating the vulnerability.
-
-However, while most examples are self-contained functions that do not require external context, some vulnerable/fixed pairs are not intuitive and require additional external context.
+Post-training of LLMs is a complex, multivariate process consisting of many specialized steps across various domains, ultimately resulting in powerful general-purpose models. While achieving a comprehensive post-training pipeline is beyond the scope of a master's thesis, our project aims to demonstrate a significant performance improvement in the specific domain of code repair. Such targeted improvements could represent one valuable step in the broader post-training stage of frontier models.
 
 ## Compute Efficiency
 
-Since LLMs are inherently large, training them can be challenging for individual researchers. To address this, we optionally include parameter-efficient LoRA training and device optimizations via Unsloth. These optimizations include training at lower precision and using optimized attention implementations, significantly enhancing compute efficiency.
+Since LLMs are inherently large, training them can be challenging for individual researchers. Our project previously included Unsloth optimizations (available in older commits), but we have since moved to a more streamlined approach using DeepSpeed and Accelerate for distributed training. We use "ZeRO-Stage 3" DeepSpeed configuration, where optimizer state, gradients, and model parameters are all sharded between GPUs.
 
 ## Definitions and Intuitions
 
@@ -37,8 +35,6 @@ In our project, we use specific terms that are crucial for understanding our app
 - **KL-divergence (Kullback-Leibler divergence)**: A fundamental metric in information theory that measures how one probability distribution differs from another. In our reinforcement learning setup, we use it to quantify how much our updated policy ($\pi_{t+1}$) diverges from our reference policy ($\pi_t$) as the training progresses. This helps ensure our model learns gradually and stably.
 
 - **Loss**: In the context of our model, 'loss' refers to the discrepancy between the reference policy and the update policy. It is a measure of how much the model's predictions deviate from the expected outcomes based on the evolving reference policy.
-
-For detailed run results and progress on both objectives, see our [WandB project page](https://wandb.ai/assert-kth/TTC).
 
 ### Conceptual Insights
 
@@ -50,19 +46,24 @@ Our approach to optimizing models in this project is guided by several foundatio
 
 - The more capable the base model, the more significant the returns from our RL training, provided the RL environment is sufficiently challenging.
 
-- It's funny that math is easier than humor, we have 1.5B parameter models that saturate math benchmarks but we need ~20T parameter GPT4.5 to get decent humor
-
+- It's funny that math is easier than humor, we have 1.5B parameter models that saturate math benchmarks but we need ~20T parameter GPT4.5 to get decent humor.
 
 ## Implementation Details
 
 ### Project Structure
 
-- `src/`: Source code for the project
+- `docs/`: Documentation files
 - `scripts/`: Scripts for building, training, and testing
   - `container.def`: Apptainer container definition
   - `build_container.sh`: Script to build the container
   - `train_job.sh`: SLURM script for training
   - `test_job.sh`: SLURM script for testing
+- `src/`: Source code for the project
+  - `diff.py`: Implements search/replace diff functionality
+  - `reward.py`: Implements reward functions (all rewards are in the 0-1 range)
+  - `stack.py`: Dataset for code implementation from specification
+  - `train_grpo.py`: Main training script
+- `tests/`: Test cases for the codebase
 
 ### Getting Started
 
@@ -74,36 +75,42 @@ To build the Apptainer container:
 ./scripts/build_container.sh
 ```
 
-This creates a `ttc.sif` file in the project root.
+This creates a `crrl.sif` file in the project root.
 
 #### Running Training Jobs
 
-Submit a training job to SLURM:
+We provide specialized SLURM scripts for different model sizes, each pre-configured with appropriate compute resource allocations. Natively supported models include Qwen (1.8B, 7B, 14B) and Gemma (2B, 7B) families:
 
 ```bash
-sbatch scripts/train_job.sh --config your_config
+# For small models (~1.5B range), defaults to Qwen2.5-Coder-1.5B-Instruct
+sbatch scripts/small_train_job.sh
+
+# For medium models (~7B range), defaults to Qwen2.5-Coder-7B-Instruct
+sbatch scripts/medium_train_job.sh
+
+# For small models (~32B range), defaults to Qwen2.5-Coder-32B-Instruct
+sbatch scripts/large_train_job.sh
 ```
 
-Options:
-- `--config CONFIG`: Specify the configuration to use
-- `--unsloth`: Use the unsloth training script
-- `--gpus N`: Specify the number of GPUs to use
-
-#### Running Test Jobs
-
-Submit a test job to SLURM:
+Each script includes pre-tuned GRPO parameters optimized for the corresponding model size category. You can further customize by adding options:
 
 ```bash
-sbatch scripts/test_job.sh
+sbatch scripts/large_train_job.sh --model google/gemma-3-27b-it
+
+# This is already a reasoning model so increasing max_completion_length might be necessary
+sbatch scripts/medium_train_job.sh --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B
 ```
+
+#### Single GPU Training
+
+For simpler testing scenarios without distributed training, you can disable vLLM:
+
+```bash
+uv run -m src.train_grpo grpo.use_vllm=false
+```
+
+This is useful for quick testing and development, though for larger scale training the distributed SLURM scripts are recommended.
 
 ### Container Details
 
 The container uses uv for dependency management and includes all necessary Python packages specified in the `pyproject.toml` file. Built on Python 3.11, it supports CUDA for GPU training.
-
-### GPU Precision Auto-Detection
-
-The training configuration automatically detects GPU architecture and sets precision:
-
-- **Ampere (SM 8.0) and newer GPUs**: BF16 precision
-- **Pascal (SM 6.0) to Turing (SM 7.5) GPUs**: FP16 precision
