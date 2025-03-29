@@ -131,7 +131,7 @@ def main(cfg: Config) -> None:
     model.print_trainable_parameters()
 
     # Get dataset based on the task
-    if cfg.run.task == "repair":
+    if cfg.run.task_type == "repair":
         repair_dataset = get_stack_repair_dataset if cfg.run.dataset_type == "stack" else get_primevul_repair_dataset
         dataset, max_prompt_length = repair_dataset(
             tokenizer=tokenizer,
@@ -145,7 +145,7 @@ def main(cfg: Config) -> None:
             diff_format_reward_func,
             diff_similarity_reward_func, 
         ]
-    elif cfg.run.task == "detection":  # primevul only
+    elif cfg.run.task_type == "detection":  # primevul only
         if cfg.run.dataset_type == "stack": raise ValueError("Stack does not support detection task")
         dataset, max_prompt_length = get_primevul_detection_dataset(
             tokenizer=tokenizer, 
@@ -157,7 +157,7 @@ def main(cfg: Config) -> None:
             correctness_reward_func,
         ]
     else:
-        raise ValueError(f"Unknown task: {cfg.run.task}")  # can't happen but looks nice
+        raise ValueError(f"Unknown task: {cfg.run.task_type}")  # can't happen but looks nice
 
     # Adjust sequence lengths if needed (ensures we are not wasting context window)
     if max_prompt_length < cfg.grpo.max_prompt_length:
@@ -181,7 +181,7 @@ def main(cfg: Config) -> None:
     trainer.train(resume_from_checkpoint=cfg.run.resume_training)
 
     # Save with task-specific name
-    model_save_path = f"grpo_{cfg.run.task}_model"
+    model_save_path = f"grpo_{cfg.run.task_type}_model"
     trainer.save_model(model_save_path)
     logger.info(f"Model saved to {model_save_path}")
 

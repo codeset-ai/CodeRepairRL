@@ -1,4 +1,5 @@
 defaults:
+  - __self__
   - model: default
   - grpo: default
 
