@@ -1,5 +1,4 @@
-model:
-  model_name: "Qwen/Qwen2.5-Coder-32B-Instruct"  # Upgraded to 32B model
-  # only used if run.lora is true
-  r: 64
-  lora_alpha: 128
+model_name: "Qwen/Qwen2.5-Coder-32B-Instruct"  # Upgraded to 32B model
+# only used if run.lora is true
+r: 64
+lora_alpha: 128

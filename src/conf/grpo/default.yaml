@@ -1,39 +1,38 @@
-# tuned for small model on 
-grpo:
-  # vLLM generation settings
-  use_vllm: true
-  
-  # Optimizer settings
-  learning_rate: 5e-6
-  adam_beta1: 0.9
-  adam_beta2: 0.99
-  weight_decay: 0.1
-  warmup_ratio: 0.1
-  lr_scheduler_type: "linear"
-  optim: "paged_adamw_8bit"
-  
-  # Model settings
-  bf16: true  # we will almost assuredly always use bf16
-  fp16: false
-  per_device_train_batch_size: 4
-  gradient_accumulation_steps: 2
 
-  # Reward settings
-  scale_rewards: false  # from Dr. GRPO, reward scaling introduces question-level difficulty bias
-  
-  # Generation settings
-  num_generations: 4
-  max_prompt_length: 512  # will be decreased if the longest sequence in the dataset is shorter
-  max_completion_length: 256  # will be increased by the complement of the above (max of model)
-  
-  # Training loop settings
-  logging_steps: 1
-  max_steps: -1
-  save_steps: 50
-  max_grad_norm: 0.1
-  
-  # Logging settings
-  log_completions: true
-  report_to: "wandb"
-  run_name: "${model.model_name}-GRPO-${run.dataset_type}-${run.task}"
-  output_dir: "outputs" 
+# vLLM generation settings
+use_vllm: true
+
+# Optimizer settings
+learning_rate: 5e-6
+adam_beta1: 0.9
+adam_beta2: 0.99
+weight_decay: 0.1
+warmup_ratio: 0.1
+lr_scheduler_type: "linear"
+optim: "paged_adamw_8bit"
+
+# Model settings
+bf16: true  # we will almost assuredly always use bf16
+fp16: false
+per_device_train_batch_size: 4
+gradient_accumulation_steps: 2
+
+# Reward settings
+scale_rewards: false  # from Dr. GRPO, reward scaling introduces question-level difficulty bias
+
+# Generation settings
+num_generations: 4
+max_prompt_length: 512  # will be decreased if the longest sequence in the dataset is shorter
+max_completion_length: 256  # will be increased by the complement of the above (max of model)
+
+# Training loop settings
+logging_steps: 1
+max_steps: -1
+save_steps: 50
+max_grad_norm: 0.1
+
+# Logging settings
+log_completions: true
+report_to: "wandb"
+run_name: "${model.model_name}-GRPO-${run.dataset_type}-${run.task}"
+output_dir: "outputs" 
