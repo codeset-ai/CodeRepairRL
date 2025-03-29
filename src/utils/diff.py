@@ -240,26 +240,6 @@ class SearchReplaceDiff:
             
         return cls(blocks)
     
-    @staticmethod
-    def extract_all(response: str) -> List['SearchReplaceDiff']:
-        """
-        Robustly extract search/replace blocks from an LLM response and return a list of SearchReplaceDiff objects.
-        
-        Args:
-            response: The full response from an LLM
-            
-        Returns:
-            A list of SearchReplaceDiff objects
-        """
-        # First try to find blocks between triple backticks
-        code_blocks = re.findall(r"```(?:.*?)\n(.*?)```", response, re.DOTALL)
-        
-        # If no blocks found with code fences, try to extract directly
-        if not code_blocks:
-            code_blocks = [response]
-            
-        return [SearchReplaceDiff.from_string(block) for block in code_blocks if block.strip()]
-    
     def apply_diff(self, code: str) -> str:
         """
         Apply this search/replace diff to code.

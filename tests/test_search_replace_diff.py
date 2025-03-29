@@ -1,3 +1,4 @@
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -7,6 +8,11 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from src.utils.diff import SearchReplaceDiff
 
+
+# Some useful tests here for future multi-file diffs, this is a placeholder for that behavior
+def extract_markdown_blocks(response: str) -> list[str]:
+    """Extract all code blocks from a markdown response."""
+    return re.findall(r"```(?:.*?)\n(.*?)```", response, re.DOTALL) or [response]
 
 class TestSearchReplaceDiff(unittest.TestCase):
     """Test cases for the refactored SearchReplaceDiff in src/utils/diff.py."""
@@ -148,7 +154,8 @@ class TestSearchReplaceDiff(unittest.TestCase):
             "```"
         )
         
-        diffs = SearchReplaceDiff.extract_all(llm_response)
+        blocks = extract_markdown_blocks(llm_response)
+        diffs = [SearchReplaceDiff.from_string(block) for block in blocks]
         self.assertEqual(len(diffs), 2)
         
         # Check first diff
@@ -197,7 +204,8 @@ class TestSearchReplaceDiff(unittest.TestCase):
             "</answer>"
         )
         
-        diffs = SearchReplaceDiff.extract_all(llm_response)
+        blocks = extract_markdown_blocks(llm_response)
+        diffs = [SearchReplaceDiff.from_string(block) for block in blocks]
         self.assertEqual(len(diffs), 2)
         
         # Check first diff
@@ -224,11 +232,10 @@ class TestSearchReplaceDiff(unittest.TestCase):
             ">>>>>>> REPLACE\n"
         )
         
-        diffs = SearchReplaceDiff.extract_all(llm_response)
-        self.assertEqual(len(diffs), 1)
-        self.assertEqual(len(diffs[0].blocks), 1)
-        self.assertEqual(diffs[0].blocks[0][0], "def hello():\n    print('hello')")
-        self.assertEqual(diffs[0].blocks[0][1], "def hello():\n    print('hello world')")
+        diffs = SearchReplaceDiff.from_string(llm_response)
+        self.assertEqual(len(diffs.blocks), 1)
+        self.assertEqual(diffs.blocks[0][0], "def hello():\n    print('hello')")
+        self.assertEqual(diffs.blocks[0][1], "def hello():\n    print('hello world')")
 
     def test_from_codes(self):
         """Test generating a diff from before/after code."""

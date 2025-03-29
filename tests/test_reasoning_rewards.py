@@ -38,16 +38,16 @@ class TestReasoningRewards(unittest.TestCase):
         """Test the count_xml function."""
         # Perfect format
         perfect_format = "<think>\nThinking process\n</think>\n<answer>\nCWE-79\n</answer>"
-        self.assertAlmostEqual(count_xml(perfect_format), 0.5, places=2)
+        self.assertAlmostEqual(count_xml(perfect_format), 1.0, places=2)
         
         # Missing think tag
         missing_think = "Thinking process\n<answer>\nCWE-79\n</answer>"
-        self.assertLess(count_xml(missing_think), 0.5)
+        self.assertAlmostEqual(count_xml(missing_think), 0.5, places=1)
         
         # Missing answer tag
         missing_answer = "<think>\nThinking process\n</think>\nCWE-79"
-        self.assertLess(count_xml(missing_answer), 0.5)
-        
+        self.assertAlmostEqual(count_xml(missing_answer), 0.5, places=1)
+
         # No tags
         no_tags = "Just some text without any tags"
         self.assertEqual(count_xml(no_tags), 0.0)
@@ -59,7 +59,7 @@ class TestReasoningRewards(unittest.TestCase):
             [{"content": "<think>\nThinking process\n</think>\n<answer>\nCWE-79\n</answer>"}]
         ]
         rewards = strict_reasoning_format_reward_func(valid_completion)
-        self.assertEqual(rewards, [0.5])
+        self.assertEqual(rewards, [1.0])
         
         # Invalid format - missing think tag
         invalid_completion1 = [
@@ -82,7 +82,7 @@ class TestReasoningRewards(unittest.TestCase):
             [{"content": "<think>\nThinking process\n</think>\nCWE-79"}]
         ]
         rewards = strict_reasoning_format_reward_func(completions)
-        self.assertEqual(rewards, [0.5, 0.0, 0.0])
+        self.assertEqual(rewards, [1.0, 0.0, 0.0])
 
     def test_partial_reasoning_format_reward_func(self):
         """Test the partial reasoning format reward function."""
@@ -93,9 +93,9 @@ class TestReasoningRewards(unittest.TestCase):
         ]
         
         rewards = partial_reasoning_format_reward_func(completions)
-        self.assertAlmostEqual(rewards[0], 0.5, places=2)
+        self.assertAlmostEqual(rewards[0], 1.0, places=2)
         self.assertEqual(rewards[1], 0.0)
-        self.assertLess(rewards[2], 0.5)
+        self.assertLess(rewards[2], 1.0)
     
     def test_reward_function_empty_completions(self):
         """Test reward functions with empty completions list."""

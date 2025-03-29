@@ -17,7 +17,7 @@ class TestRepairRewards(unittest.TestCase):
     def test_diff_format_reward_func(self):
         """Test the diff format reward function using a direct mock of the reward function."""
         # Create test completions with realistic LLM responses
-        search_replace_completion = [{
+        search_replace_completion = {
             "content": (
                 "<think>\n"
                 "I need to fix the function name from 'hello' to 'hello_world'.\n"
@@ -34,10 +34,10 @@ class TestRepairRewards(unittest.TestCase):
                 "```\n"
                 "</answer>\n"
             )
-        }]
+        }
         
         
-        no_diff_completion = [{
+        no_diff_completion = {
             "content": (
                 "<think>\n"
                 "I don't see any issues with the code.\n"
@@ -46,28 +46,21 @@ class TestRepairRewards(unittest.TestCase):
                 "The code looks fine, no changes needed.\n"
                 "</answer>\n"
             )
-        }]
-        
+        }
+    
         completions = [
-            [search_replace_completion[0]],
-            [no_diff_completion[0]]
+            [search_replace_completion],
+            [no_diff_completion]
         ]
         
         # Test for search_replace diff type
-        sr_rewards = diff_format_reward_func(None, completions)
-        self.assertEqual(len(sr_rewards), 3)
+        sr_rewards = diff_format_reward_func(completions=completions)
+        self.assertEqual(len(sr_rewards), 2)
         self.assertGreater(sr_rewards[0], 0.5)  # Should have high quality for search/replace format
-        self.assertEqual(sr_rewards[1], 0.0)    # Unified diff format should get 0 for search/replace
-        self.assertEqual(sr_rewards[2], 0.0)    # No diff should get 0
+        self.assertEqual(sr_rewards[1], 0.0)    # No diff should get 0
         
 
     def test_diff_similarity_reward_func(self):
-        # Create test data with realistic LLM responses
-        prompts = [
-            [{"content": "Fix the function name from 'hello' to 'hello_world'"}],
-            [{"content": "Add a new line and remove an old one"}]
-        ]
-        
         # First completion matches reference exactly
         exact_match_completion = [{
             "content": (
@@ -131,7 +124,7 @@ class TestRepairRewards(unittest.TestCase):
         
         
         # Test for search_replace diff type
-        sr_rewards = diff_similarity_reward_func(prompts, completions, diffs=diff_data)
+        sr_rewards = diff_similarity_reward_func(completions=completions, diffs=diff_data)
         self.assertEqual(len(sr_rewards), 2)
         self.assertGreater(sr_rewards[0], 0.5)  # First should have high similarity
         self.assertLess(sr_rewards[1], 0.5)     # Second should have low similarity
@@ -140,11 +133,10 @@ class TestRepairRewards(unittest.TestCase):
         """Test reward functions with empty completions list."""
         
         empty_completions = []
-        empty_prompts = []
         empty_diff = []
         
-        self.assertEqual(diff_format_reward_func(empty_prompts, empty_completions), [])
-        self.assertEqual(diff_similarity_reward_func(empty_prompts, empty_completions, empty_diff), [])
+        self.assertEqual(diff_format_reward_func(completions=empty_completions), [])
+        self.assertEqual(diff_similarity_reward_func(completions=empty_completions, diffs=empty_diff), [])
 
 
 if __name__ == "__main__":

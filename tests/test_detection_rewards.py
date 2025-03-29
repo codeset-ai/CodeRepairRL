@@ -34,8 +34,6 @@ class TestDetectionRewards(unittest.TestCase):
 
     def test_correctness_reward_func(self):
         """Test the correctness reward function."""
-        # Setup test data
-        prompts = [[{"content": "prompt1"}], [{"content": "prompt2"}]]
         completions = [
             [{"content": "<answer>CWE-79</answer>"}],
             [{"content": "<answer>CWE-89: SQL Injection</answer>"}]
@@ -43,7 +41,7 @@ class TestDetectionRewards(unittest.TestCase):
         answers = ["CWE-79", "CWE-89"]
         
         # Test exact matches
-        rewards = correctness_reward_func(prompts, completions, answers)
+        rewards = correctness_reward_func(completions=completions, answers=answers)
         self.assertEqual(rewards, [1.0, 0.0])  # Second one doesn't match exactly
         
         # Test partial matches
@@ -51,7 +49,7 @@ class TestDetectionRewards(unittest.TestCase):
             [{"content": "<answer>CWE-80</answer>"}],
             [{"content": "<answer>CWE-89</answer>"}]
         ]
-        rewards = correctness_reward_func(prompts, completions, answers)
+        rewards = correctness_reward_func(completions=completions, answers=answers)
         self.assertEqual(rewards, [0.0, 1.0])
         
         # Test no matches
@@ -59,12 +57,11 @@ class TestDetectionRewards(unittest.TestCase):
             [{"content": "<answer>CWE-80</answer>"}],
             [{"content": "<answer>CWE-90</answer>"}]
         ]
-        rewards = correctness_reward_func(prompts, completions, answers)
+        rewards = correctness_reward_func(completions=completions, answers=answers)
         self.assertEqual(rewards, [0.0, 0.0])
         
         # Test empty completions
-        empty_completions = []
-        self.assertEqual(correctness_reward_func([], empty_completions, []), [])
+        self.assertEqual(correctness_reward_func(completions=[], answers=[]), [])
 
 
 if __name__ == "__main__":

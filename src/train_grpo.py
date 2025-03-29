@@ -142,6 +142,7 @@ def main(cfg: Config) -> None:
             diff_format_reward_func,
             diff_similarity_reward_func, 
         ]
+        reward_weights = [0.1, 0.2, 0.3, 0.4]
     elif cfg.run.task_type == "detection":  # primevul only
         if cfg.run.dataset_type == "stack": raise ValueError("Stack does not support detection task")
         dataset, max_prompt_length = get_primevul_detection_dataset(
@@ -153,6 +154,7 @@ def main(cfg: Config) -> None:
             strict_reasoning_format_reward_func,
             correctness_reward_func,
         ]
+        reward_weights = [0.1, 0.2, 0.7]
     else:
         raise ValueError(f"Unknown task: {cfg.run.task_type}")  # can't happen but looks nice
 
@@ -164,6 +166,7 @@ def main(cfg: Config) -> None:
 
     # Convert grpo config from OmegaConf to regular Python dict to ensure JSON serialization works
     grpo_params = OmegaConf.to_container(cfg.grpo, resolve=True)
+    grpo_params["reward_weights"] = reward_weights
     training_args = HFGRPOConfig(**grpo_params)
 
     # Initialize trainer with task-specific reward functions
