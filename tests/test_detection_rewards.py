@@ -1,7 +1,6 @@
 import sys
 import unittest
 from pathlib import Path
-from unittest.mock import patch
 
 # Add the src directory to the Python path
 sys.path.append(str(Path(__file__).parent.parent))
@@ -33,13 +32,8 @@ class TestDetectionRewards(unittest.TestCase):
         nested_tags = "Text <answer>Outer <inner>Inner</inner> tag</answer>"
         self.assertEqual(extract_xml_answer(nested_tags), "Outer <inner>Inner</inner> tag")
 
-    @patch('wandb.log')  # Mock wandb.log to avoid actual logging during tests
-    @patch('src.utils.rewards.build_html_table')  # Mock the HTML table builder
-    def test_correctness_reward_func(self, mock_html_table, mock_log):
+    def test_correctness_reward_func(self):
         """Test the correctness reward function."""
-        # Setup mock for HTML table
-        mock_html_table.return_value = "<table></table>"
-        
         # Setup test data
         prompts = [[{"content": "prompt1"}], [{"content": "prompt2"}]]
         completions = [

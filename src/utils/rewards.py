@@ -1,6 +1,6 @@
 import re
 
-from src.utils.diff import SearchReplaceDiff, UnifiedDiff
+from src.utils.diff import SearchReplaceDiff
 
 
 def extract_xml_answer(text:str) -> str:
@@ -61,28 +61,25 @@ def correctness_reward_func(prompts, completions, answer, **kwargs) -> list[floa
 
 ##################################################################################################################
 # Repair specific reward functions
-# when create_repair_dataset is called, the diff_type becomes a column and is therefore present in the kwargs
 ##################################################################################################################
 
-def diff_format_reward_func(completions, diff_type, **kwargs) -> list[float]:
+def diff_format_reward_func(prompts, completions, **kwargs) -> list[float]:
     """Reward function that checks the quality of the extracted diff format between 0.0 and 1.0."""
-    diff_cls = SearchReplaceDiff if diff_type == "search_replace" else UnifiedDiff
     
     contents = [extract_xml_answer(completion[0]["content"]) for completion in completions] # extract contents of <answer> tags
-    diffs_batch = [diff_cls.extract_all(diff_str) for diff_str in contents]  # batch of a list of diffs (for potentially multiple files)
+    diffs_batch = [SearchReplaceDiff.extract_all(diff_str) for diff_str in contents]  # batch of a list of diffs (for potentially multiple files)
     
     return [
         sum(diff.validate_quality() for diff in diffs)/(len(diffs) or 1)
         for diffs in diffs_batch
     ] 
 
-def diff_similarity_reward_func(prompts, completions, diffs, diff_type, **kwargs) -> list[float]:
-    """Reward function that sequence matches the reference and generated diffs."""
-    diff_cls = SearchReplaceDiff if diff_type == "search_replace" else UnifiedDiff 
+def diff_similarity_reward_func(prompts, completions, diffs, **kwargs) -> list[float]:
+    """Reward function that checks if the sequence of search/replace diffs matches the reference diffs."""
     
     contents = [extract_xml_answer(completion[0]["content"]) for completion in completions] # extract contents of <answer> tags
-    generated_diffs_batch = [diff_cls.extract_all(diff_str) for diff_str in contents]
-    reference_diffs_batch = [diff_cls.extract_all(diff_str) for diff_str in diffs]  # TODO: support having multiple reference diffs
+    generated_diffs_batch = [SearchReplaceDiff.extract_all(diff_str) for diff_str in contents]
+    reference_diffs_batch = [SearchReplaceDiff.extract_all(diff_str) for diff_str in diffs]  # TODO: support having multiple reference diffs
     
     # TODO: ugly, support multi file diffs better
     rewards = []

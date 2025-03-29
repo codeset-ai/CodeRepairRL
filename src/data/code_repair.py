@@ -4,7 +4,7 @@ from typing import List, Tuple, Optional
 from datasets import Dataset
 from transformers import PreTrainedTokenizer
 
-from src.utils.diff import SearchReplaceDiff, UnifiedDiff
+from src.utils.diff import SearchReplaceDiff
 
 
 logger = logging.getLogger(__name__)
@@ -53,56 +53,13 @@ The *SEARCH/REPLACE* edits to fix the code in a code block.
 """.strip()
 
 
-# Unified diff system prompt alternative
-UNIFIED_DIFF_SYSTEM_PROMPT = """
-You are a code repair expert tasked with fixing issues in code. You will be provided with:
-1. Information about the specific issue (if available)
-2. The code segment that needs to be fixed
-
-Your task is to analyze the issue and generate unified diff edits that fix the problem while preserving the code's intended functionality.
-
-Every unified diff edit must use this format:
-1. The hunk header showing line numbers: @@ -<original_start>,<original_count> +<new_start>,<new_count> @@
-3. Lines starting with ' ' (space) to indicate context (unchanged lines), always include some context lines in the beginning. 
-4. Lines starting with '-' to indicate removal
-5. Lines starting with '+' to indicate addition 
-
-Here is an example:
-
-```
-@@ -10,3 +10,3 @@
-# a couple of context lines before the first edit
-int main() {
--    printf("hello\n");
-+    printf("Hello world!\n");
-     return 0;
-}
-```
-
-Please note:
-1. Make minimal necessary changes to fix the issue
-2. Ensure the fix doesn't break the code's intended functionality
-3. Provide proper context lines around your changes
-4. If multiple issues exist, provide multiple hunks in your diff
-
-Your response format must follow the template below:
-<think>
-Work through the problem here...
-</think>
-<answer>
-The unified diff to fix the code in a code block.
-</answer>
-""".strip()
-
-
-def repair_single_file_prompt(code: str, description: Optional[str] = None, diff_type: str = "search_replace") -> str:
+def repair_single_file_prompt(code: str, description: Optional[str] = None) -> str:
     """
     Generate a user prompt for code repair of a single file.
     
     Args:
         code: The code to be repaired
         description: Optional description of the issue
-        diff_type: Type of diff to use (search_replace or unified)
         
     Returns:
         A formatted user prompt for code repair
@@ -115,16 +72,8 @@ def repair_single_file_prompt(code: str, description: Optional[str] = None, diff
     if description:
         prompt += f"--- BEGIN ISSUE DESCRIPTION ---\n{description}\n--- END ISSUE DESCRIPTION ---\n\n"
     
-    if diff_type == "unified":
-        # add line numbers to aid the model in generating the correct diff
-        numbered_code = "\n".join([f"{i+1} {line}" for i, line in enumerate(code.splitlines())])
-        prompt += f"--- BEGIN CODE ---\n```\n{numbered_code}\n```\n--- END CODE ---\n\n"
-        prompt += "Please analyze the code and provide unified diff edits that fix any issues while preserving the code's intended functionality."
-
-    else:
-        prompt += f"--- BEGIN CODE ---\n```\n{code}\n```\n--- END CODE ---\n\n"
-        prompt += "Please analyze the code and provide search/replace edits that fix any issues while preserving the code's intended functionality."
-
+    prompt += f"--- BEGIN CODE ---\n```\n{code}\n```\n--- END CODE ---\n\n"
+    prompt += "Please analyze the code and provide search/replace edits that fix any issues while preserving the code's intended functionality."
     
     return prompt.strip()
 
@@ -172,7 +121,6 @@ def create_repair_dataset(
     descriptions: Optional[List[str]] = None,
     max_prompt_length: int = 512,
     system_prompt: Optional[str] = None,
-    diff_type: str = "search_replace",
     context_lines: int = 0
 ) -> Tuple[Dataset, int]:
     """
@@ -184,10 +132,9 @@ def create_repair_dataset(
         tokenizer: Tokenizer for tokenizing prompts
         descriptions: Optional list of issue descriptions
         max_prompt_length: Maximum prompt length for filtering (default: 512)
-        system_prompt: Optional system prompt to use (defaults based on diff_type)
-        diff_type: Type of diff to use (search_replace or unified)
+        system_prompt: Optional system prompt to use (defaults to SEARCH_REPLACE_SYSTEM_PROMPT)
         context_lines: Number of context lines to include in diffs (default: 0)
-        
+
     Returns:
         Tuple of (processed dataset, maximum token length)
     """
@@ -198,21 +145,17 @@ def create_repair_dataset(
     else:
         descriptions = [None] * len(before_codes)
     
-    # Use appropriate system prompt based on diff type if not provided
-    if system_prompt is None:
-        system_prompt = SEARCH_REPLACE_SYSTEM_PROMPT if diff_type == "search_replace" else UNIFIED_DIFF_SYSTEM_PROMPT
-    
-    # Select the appropriate diff class based on the diff type
-    diff_cls = SearchReplaceDiff if diff_type == "search_replace" else UnifiedDiff
+
+    system_prompt = system_prompt or SEARCH_REPLACE_SYSTEM_PROMPT
     
     # Create dataset items
     data_items = []
     for before, after, desc in zip(before_codes, after_codes, descriptions):
         # Generate diff using the appropriate diff class
-        diffs = diff_cls.from_codes(before, after).to_string()  # TODO: support multiple diffs
+        diffs = SearchReplaceDiff.from_codes(before, after, context_lines).to_string()  # TODO: support multiple diffs
         
         # Generate user prompt
-        user_prompt = repair_single_file_prompt(before, desc, diff_type)
+        user_prompt = repair_single_file_prompt(before, desc)
         
         # Create dataset item
         item = {
@@ -221,7 +164,6 @@ def create_repair_dataset(
             "description": desc,
             "diffs": diffs,
             "user_prompt": user_prompt,
-            "diff_type": diff_type  # Store the diff type for reference during training
         }
         data_items.append(item)
     

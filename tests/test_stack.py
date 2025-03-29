@@ -1,14 +1,16 @@
-import os
+import ast
 import sys
+from pathlib import Path
 
 import unittest
 from unittest.mock import patch, MagicMock
-import ast
 
-# Add the src directory to the path to import modules
-sys.path.append(os.path.join(os.path.dirname(__file__), '../src'))
 
-from src.data.stack import extract_functions_with_docstrings, DocstringTask, create_docstring_tasks, is_quality_docstring, is_quality_code
+# Add the src directory to the Python path
+sys.path.append(str(Path(__file__).parent.parent))
+
+
+from src.data.stack import extract_functions_with_docstrings, create_docstring_tasks, is_quality_docstring, is_quality_code
 
 
 class TestQualityHeuristics(unittest.TestCase):

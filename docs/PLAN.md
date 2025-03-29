@@ -28,13 +28,14 @@
   - Something changed in the last few weeks in trl
   - Need to run vllm serve myself, makes sense
   - Or, revert back to a working .lock file
-- [ ] Stack "repair" on KTH DGX-100
+- [x] Stack "repair" on KTH DGX-100
 - [ ] Stack "repair" on SLURM 
 - [ ] Create SWE-Bench "repair" dataset
 - [ ] Replicate the "agentic workflow" of SWE-agent and similar 
   - Find out how they normally put the codebase into the context window
   - How they do function calling
   - Otherwise we could just run repomix
+- [ ] Multi file repair
 - [ ] Setup Defect4J as reward signal and train on it
 
 

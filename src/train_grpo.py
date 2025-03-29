@@ -32,7 +32,6 @@ class RunConfig:
     lora: bool = True
     task_type: str = "repair"  # "detection" or "repair"
     dataset_type: str = "stack"  # "primevul" or "stack"
-    diff_type: str = "search_replace"  # "search_replace" or "unified" (for repair)
     context_lines: int = 0  # number of context lines to include in diffs
     commit_hash: str = ""  # added at runtime
     resume_training: bool = False
@@ -42,8 +41,6 @@ class RunConfig:
             raise ValueError("task_type must be either 'detection' or 'repair'")
         if self.dataset_type not in ["primevul", "stack"]:
             raise ValueError("dataset_type must be either 'stack', or 'primevul'")
-        if self.diff_type not in ["search_replace", "unified"]:
-            raise ValueError("diff_type must be either 'search_replace', or 'unified'")
 
 @dataclass
 class ModelConfig:
@@ -137,7 +134,6 @@ def main(cfg: Config) -> None:
         dataset, max_prompt_length = repair_dataset(
             tokenizer=tokenizer,
             max_prompt_length=cfg.grpo.max_prompt_length,
-            diff_type=cfg.run.diff_type,  # Pass the diff type from config
             context_lines=cfg.run.context_lines
         )
         reward_functions = [

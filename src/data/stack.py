@@ -28,7 +28,6 @@ def get_stack_repair_dataset(
     tokenizer: PreTrainedTokenizer,
     max_prompt_length: int = 512,
     system_prompt: Optional[str] = None,
-    diff_type: str = "search_replace",
     context_lines: int = 0
 ) -> Tuple[Dataset, int]:
     """
@@ -38,7 +37,6 @@ def get_stack_repair_dataset(
         tokenizer: Tokenizer for tokenizing prompts
         max_prompt_length: Maximum prompt length for filtering (default: 512)
         system_prompt: Optional system prompt to use
-        diff_type: Type of diff to use (search_replace or unified)
         context_lines: Number of context lines to include in diffs (default: 0)
     Returns:
         Tuple of (processed dataset, maximum token length)
@@ -78,7 +76,6 @@ def get_stack_repair_dataset(
         tokenizer=tokenizer,
         max_prompt_length=max_prompt_length,
         system_prompt=system_prompt,
-        diff_type=diff_type,
         context_lines=context_lines
     )
 
