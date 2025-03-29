@@ -11,7 +11,6 @@ class SearchReplaceDiff:
     - Variations in marker syntax (e.g., different numbers of < or > characters)
     - Whitespace variations around markers
     - Missing or malformed block separators
-    - Blocks without code fences in LLM responses
     """
     
     def __init__(self, blocks: List[Tuple[str, str]]):
