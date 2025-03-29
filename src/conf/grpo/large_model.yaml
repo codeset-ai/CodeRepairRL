@@ -1,0 +1,11 @@
+defaults:
+  - small_model
+
+learning_rate: 3e-6  # Slightly lower learning rate for stability
+
+# Generation and Training settings, this needs to be tuned for the devices available
+per_device_train_batch_size: 4
+gradient_accumulation_steps: 4
+num_generations: 4
+max_prompt_length: 2048    # Increased prompt length
+max_completion_length: 2048  # Increased completion length

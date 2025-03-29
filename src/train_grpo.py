@@ -72,16 +72,16 @@ class GRPOConfig:
     # when using the custom resolvers in the YAML config
     bf16: bool = True
     fp16: bool = False 
+
+    # Generation and Training settings
     per_device_train_batch_size: int = 4
     gradient_accumulation_steps: int = 1
-
-    # Reward settings
-    scale_rewards: bool = False  # from Dr. GRPO, reward scaling introduces question-level difficulty bias
-    
-    # Generation settings
     num_generations: int = 4
     max_prompt_length: int = 256
     max_completion_length: int = 256
+
+    # Reward settings
+    scale_rewards: bool = False  # from Dr. GRPO, reward scaling introduces question-level difficulty bias
     
     # Training loop settings
     logging_steps: int = 1

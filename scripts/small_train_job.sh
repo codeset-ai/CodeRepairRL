@@ -8,6 +8,12 @@
 #SBATCH --mail-type=FAIL,END
 #SBATCH --mail-user bhbj@kth.se
 
+# Configuration
+MODEL_CONFIG="small_qwen"
+MODEL_NAME=$(grep -Po 'model_name: "\K[^"]*' src/conf/model/${MODEL_CONFIG}.yaml)
+GRPO_CONFIG="short"
+TP_SIZE=1
+
 # Navigate to the project root directory
 cd "$(dirname "$0")/.."
 
@@ -16,13 +22,12 @@ echo "Job ID: $SLURM_JOB_ID"
 echo "Node: $SLURMD_NODENAME"
 echo "Start time: $(date)"
 echo "Directory: $(pwd)"
+echo "Using model: $MODEL_NAME"
+
 
 # Launch vLLM server on GPU 1
 apptainer exec --nv --env CUDA_VISIBLE_DEVICES=1 ttc.sif \
-    trl vllm-serve --model Qwen/Qwen2.5-Coder-1.5B-Instruct --tensor_parallel_size 1 &
-
-# Wait a moment for vLLM to start
-sleep 30
+    trl vllm-serve --model $MODEL_NAME --tensor_parallel_size $TP_SIZE &  # ampere's and makes it run in background 
 
 # Launch training on GPU 0 with small model configuration using accelerate
 apptainer exec --nv --bind "$(pwd):/app" --env CUDA_VISIBLE_DEVICES=0 ttc.sif \
@@ -31,8 +36,8 @@ apptainer exec --nv --bind "$(pwd):/app" --env CUDA_VISIBLE_DEVICES=0 ttc.sif \
     --num_processes 1 \
     --num_machines 1 \
     /app/src/train_grpo.py \
-    model=small_qwen \
-    grpo=medium \
+    model=$MODEL_CONFIG \
+    grpo=$GRPO_CONFIG \
     "$@"  # pass any additional arguments
     
 # Wait for both processes to finish

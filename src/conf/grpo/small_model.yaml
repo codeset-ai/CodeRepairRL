@@ -10,16 +10,16 @@ warmup_ratio: 0.1
 lr_scheduler_type: "constant_with_warmup"  # cosine is empirically bad for GRPO
 optim: "paged_adamw_8bit"
 
-# Model settings
-bf16: true  # we will almost assuredly always use bf16
-fp16: false
-per_device_train_batch_size: 4
-gradient_accumulation_steps: 2
-
 # Reward settings
 scale_rewards: false  # from Dr. GRPO, reward scaling introduces question-level difficulty bias
 
-# Generation settings
+# Model settings
+bf16: true  # we will almost assuredly always use bf16
+fp16: false
+
+# Generation and Training settings
+per_device_train_batch_size: 4
+gradient_accumulation_steps: 2
 num_generations: 4
 max_prompt_length: 512  # will be decreased if the longest sequence in the dataset is shorter
 max_completion_length: 256  # will be increased by the complement of the above (max of model)
