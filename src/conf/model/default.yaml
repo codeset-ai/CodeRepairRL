@@ -1,6 +1,7 @@
 # small_qwen
 # default model, other configs will inherit parameters from this unless overridden
 model_name: "Qwen/Qwen2.5-Coder-1.5B-Instruct"
+lora: true
 # only used if run.lora is true
 r: 32
 lora_alpha: 64  # lora paper describes 2x the r

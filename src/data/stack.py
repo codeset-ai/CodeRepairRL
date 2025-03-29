@@ -1,3 +1,9 @@
+# TODO: If this is something we want to pursue we should consider the following:
+# - Use a larger subset of the stack dataset
+# - Filter out functions with large contiguous comment blocks
+# - Filter out functions with too many comments
+# - ...
+
 """
 Task generation from The Stack dataset docstrings.
 

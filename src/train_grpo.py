@@ -29,7 +29,6 @@ logger = logging.getLogger(__name__)
 @dataclass
 class RunConfig:
     wandb_project: str = "TTC"
-    lora: bool = True
     task_type: str = "repair"  # "detection" or "repair"
     dataset_type: str = "stack"  # "primevul" or "stack"
     context_lines: int = 0  # number of context lines to include in diffs
@@ -45,7 +44,8 @@ class RunConfig:
 @dataclass
 class ModelConfig:
     model_name: str = "Qwen/Qwen2.5-Coder-1.5B-Instruct"
-     # only used if run.lora is true
+    lora: bool = True
+    # only used if run.lora is true
     r: int = 32
     lora_alpha: int = 64
     target_modules: tuple[str] = ("q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj")
@@ -116,7 +116,7 @@ def main(cfg: Config) -> None:
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "left"  # by padding a batch of prompts on the left side we can generate many completions in parallel (padding tokens are masked away)
 
-    if cfg.run.lora:
+    if cfg.model.lora:
         lora_params = OmegaConf.to_container(cfg.model, resolve=True)
         lora_config = PEFTLoraConfig(
             r=lora_params["r"],
