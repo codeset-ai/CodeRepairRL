@@ -2,6 +2,7 @@ import re
 import difflib
 from typing import List, Tuple
 
+
 class SearchReplaceDiff:
     """
     Implementation of diff utilities using search/replace blocks format.
@@ -267,48 +268,126 @@ class SearchReplaceDiff:
         
         return result
     
-    def validate_quality(self) -> float:
+    @staticmethod
+    def validate_quality(diff_text: str) -> float:
         """
-        Assess the quality of each block in the diff format on a scale from 0.0 to 1.0.
+        Assess the format quality of a diff string on a scale from 0.0 to 1.0.
+        Evaluates how many assumptions need to be made to parse the diff format correctly.
         
+        Args:
+            diff_text: A string containing one or more search/replace blocks
+            
         Returns:
-           The average score of the blocks, between 0.0 and 1.0.
+           A quality score between 0.0 and 1.0, where 1.0 means perfect format (no assumptions)
         """
-        if not self.blocks:
+        if not diff_text:
             return 0.0
         
         # Start with a perfect score
-        scores = []
+        score = 1.0
         
-        # Check each block for quality issues
-        for search_content, replace_content in self.blocks:
-            score = 1.0
-
-            # Both parts should exist (though search can be empty for new files)
-            if replace_content is None:
-                score -= 0.3
-                continue
-                
-            # Check that the replacement isn't identical to the search
-            if search_content == replace_content and search_content:
-                score -= 0.2
-                
-            # Empty blocks with no content are suspicious but not necessarily invalid
-            if not replace_content and not search_content:
-                score -= 0.8
-                
-            # Penalize very large blocks slightly (they're more error-prone)
-            if search_content and len(search_content) > 1000:
-                score -= 0.1
-                
-            # Penalize very small blocks slightly (they might be too granular)
-            if search_content and len(search_content) < 3 and search_content not in ["", " ", "\n"]:
-                score -= 0.1
+        # Check for basic format expectations
+        expected_components = {
+            "has_search_marker": "SEARCH" in diff_text,
+            "has_replace_marker": "REPLACE" in diff_text,
+            "has_divider": "=======" in diff_text or "DIVIDER" in diff_text
+        }
+        
+        # Penalize for missing core components
+        if not expected_components["has_search_marker"]:
+            score -= 0.4
+        if not expected_components["has_replace_marker"]:
+            score -= 0.4
+        if not expected_components["has_divider"]:
+            score -= 0.2
             
-            scores.append(score)
+        # If any core component is missing, quality is low
+        if score < 0.5:
+            return max(0.0, score)
+            
+        # Check for perfect format match (exact standard format)
+        perfect_format_pattern = r"<<<<<<< SEARCH\n.*?\n=======\n.*?\n>>>>>>> REPLACE"
+        if re.search(perfect_format_pattern, diff_text, re.DOTALL):
+            # Check if there are any deviations elsewhere in the text
+            if diff_text.count("SEARCH") == 1 and diff_text.count("REPLACE") == 1:
+                return 1.0
         
-        # Calculate the average score and ensure it's between 0.0 and 1.0
-        return min(1.0, max(0.0, sum(scores) / len(scores)))
+        # Check for common format deviations
+        format_issues = []
+        
+        # Inconsistent number of < or > in markers
+        if "<<<<<<< SEARCH" not in diff_text:
+            pattern = r"<<+\s*SEARCH"
+            if re.search(pattern, diff_text):
+                format_issues.append("inconsistent_search_marker")
+                score -= 0.1
+                
+        if ">>>>>>> REPLACE" not in diff_text:
+            pattern = r">>+\s*REPLACE"
+            if re.search(pattern, diff_text):
+                format_issues.append("inconsistent_replace_marker")
+                score -= 0.1
+        
+        # Extra characters after markers
+        if re.search(r"SEARCH\s+[^\n]", diff_text):
+            format_issues.append("extra_after_search")
+            score -= 0.05
+            
+        if re.search(r"REPLACE\s+[^\n]", diff_text):
+            format_issues.append("extra_after_replace")
+            score -= 0.05
+            
+        # Multiple blocks without proper separators
+        search_count = diff_text.count("SEARCH")
+        replace_count = diff_text.count("REPLACE")
+        divider_count = diff_text.count("=======")
+        
+        if search_count > 1 and search_count != divider_count:
+            format_issues.append("mismatched_search_divider")
+            score -= 0.15
+            
+        if replace_count > 1 and replace_count != divider_count:
+            format_issues.append("mismatched_replace_divider")
+            score -= 0.15
+            
+        # Check if we need special parsing rules for this format
+        if re.search(r"(?:<< SEARCH)|(?:>> REPLACE)", diff_text):
+            format_issues.append("abbreviated_markers")
+            score -= 0.1
+            
+        if re.search(r"=+\s+\n", diff_text):
+            format_issues.append("whitespace_after_divider")
+            score -= 0.05
+            
+        # Check for wrong order of markers
+        if re.search(r"REPLACE.*?SEARCH", diff_text, re.DOTALL) and not re.search(r"SEARCH.*?REPLACE", diff_text, re.DOTALL):
+            format_issues.append("wrong_marker_order")
+            score -= 0.3
+            
+        # Check for missing newlines after markers
+        if re.search(r"SEARCH[^\n]", diff_text) or re.search(r"REPLACE[^\n]", diff_text):
+            format_issues.append("missing_newlines")
+            score -= 0.1
+            
+        # Content issues
+        if expected_components["has_search_marker"] and expected_components["has_replace_marker"]:
+            try:
+                # Try parsing into blocks to see if it works
+                temp_diff = SearchReplaceDiff.from_string(diff_text)
+                if not temp_diff.blocks:
+                    format_issues.append("unparseable_blocks")
+                    score -= 0.2
+                else:
+                    # If parsing worked but required non-primary patterns
+                    primary_pattern = r"<<<+\s*SEARCH\s*>*\n(.*?)\n=+\n(.*?)\n>>>+\s*REPLACE\s*<*"
+                    if not re.search(primary_pattern, diff_text, re.DOTALL):
+                        format_issues.append("required_fallback_pattern")
+                        score -= 0.1
+            except:
+                format_issues.append("parsing_exception")
+                score -= 0.3
+        
+        return max(0.0, min(1.0, score))
     
     def to_string(self) -> str:
         """
@@ -373,44 +452,3 @@ class SearchReplaceDiff:
             block_similarities.append(block_similarity)
         
         return sum(block_similarities) / (len(block_similarities) or 1)
-    
-    def is_valid_format(self, strict: bool = True) -> bool:
-        """
-        Validate that this diff is properly formatted.
-        
-        Args:
-            strict: If True, use strict validation; if False, be more lenient
-            
-        Returns:
-            True if the diff is valid, False otherwise
-        """
-        return self.validate_quality() == 1.0 if strict else self.validate_quality() >= 0.4
-        
-    def safe_apply_diff(self, code: str) -> Tuple[str, float]:
-        """
-        Safely apply this diff to code, with quality assessment.
-        
-        Evaluates the quality of the diff format before applying it.
-        Returns both the modified code and a quality score indicating
-        how well-formed the diff was.
-        
-        Args:
-            code: The original code
-            
-        Returns:
-            A tuple of (modified_code, quality_score)
-        """
-        # First check quality
-        quality = self.validate_quality()
-        
-        # If quality is good enough, try to apply
-        if quality >= 0.4:  # Apply if at least partially recoverable
-            try:
-                result = self.apply_diff(code)
-                return result, quality
-            except Exception:
-                # If application fails, return original with low quality
-                return code, 0.1
-        
-        # If quality is too low, don't attempt to apply
-        return code, quality

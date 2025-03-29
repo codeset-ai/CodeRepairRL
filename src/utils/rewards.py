@@ -75,9 +75,9 @@ def diff_format_reward_func(completions, **kwargs) -> list[float]:
     
     answer_contents = [extract_xml_answer(completion[0]["content"]) for completion in completions] # extract contents of <answer> tags
     markdown_contents = [extract_markdown_block(answer_content) for answer_content in answer_contents]
-    diffs = [SearchReplaceDiff.from_string(diff_str) for diff_str in markdown_contents]
     
-    return [diff.validate_quality() for diff in diffs] 
+    # Use the static method directly on the markdown_contents to evaluate format quality
+    return [SearchReplaceDiff.validate_quality(diff_str) for diff_str in markdown_contents]
 
 def diff_similarity_reward_func(completions, diffs, **kwargs) -> list[float]:
     """Reward function that checks if the sequence of search/replace diffs matches the reference diffs."""
