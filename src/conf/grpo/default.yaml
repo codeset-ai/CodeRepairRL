@@ -34,5 +34,5 @@ max_grad_norm: 0.1
 # Logging settings
 log_completions: true
 report_to: "wandb"
-run_name: "${model.model_name}-GRPO-${run.dataset_type}-${run.task}"
+run_name: "${model.model_name}-GRPO-${run.dataset_type}-${run.task_type}"
 output_dir: "outputs" 
