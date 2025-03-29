@@ -108,7 +108,7 @@ cs.store(name="base_grpo_config", node=Config, group="")
 OmegaConf.register_new_resolver("resolve_git_commit_hash", resolve_git_commit_hash)
 
 
-@hydra.main(version_base="1.1", config_path="conf", config_name="base_grpo_config")
+@hydra.main(version_base="1.1", config_path="conf", config_name="config")
 def main(cfg: Config) -> None:
     os.environ["WANDB_PROJECT"] = cfg.run.wandb_project
 
