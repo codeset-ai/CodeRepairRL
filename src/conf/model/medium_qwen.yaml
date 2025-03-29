@@ -1,3 +1,6 @@
+defaults:
+  - default
+
 model_name: "Qwen/Qwen2.5-Coder-7B-Instruct"  # Upgraded to 7B model
 # only used if run.lora is true
 r: 64

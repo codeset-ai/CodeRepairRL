@@ -1,1 +1,4 @@
+defaults:
+  - default
+
 model_name: "google/gemma-3-1b-it"
