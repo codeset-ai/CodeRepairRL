@@ -7,9 +7,7 @@ adam_beta1: 0.9
 adam_beta2: 0.99
 weight_decay: 0.1
 warmup_ratio: 0.1
-
-# TODO: Move this to run config
-lr_scheduler_type: "linear"
+lr_scheduler_type: "constant_with_warmup"  # cosine is empirically bad for GRPO
 optim: "paged_adamw_8bit"
 
 # Model settings

@@ -61,7 +61,7 @@ class GRPOConfig:
     adam_beta2: float = 0.99
     weight_decay: float = 0.1
     warmup_ratio: float = 0.1
-    lr_scheduler_type: str = "linear"  # Cosine learning rates have been shown to be bad for GRPO, see discussion: https://x.com/kalomaze/status/1895549497692090573
+    lr_scheduler_type: str = "constant_with_warmup"  # or linear, cosine learning rates have been shown to be bad for GRPO, see discussion: https://x.com/kalomaze/status/1895549497692090573
     optim: str = "paged_adamw_8bit"
     
     # Model settings - these will be automatically determined based on GPU architecture
