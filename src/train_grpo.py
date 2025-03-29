@@ -120,10 +120,11 @@ def main(cfg: Config) -> None:
     tokenizer.padding_side = "left"  # by padding a batch of prompts on the left side we can generate many completions in parallel (padding tokens are masked away)
 
     if cfg.run.lora:
+        lora_params = OmegaConf.to_container(cfg.model, resolve=True)
         lora_config = PEFTLoraConfig(
-            r=cfg.model.r,
-            lora_alpha=cfg.model.lora_alpha,
-            target_modules=cfg.model.target_modules,
+            r=lora_params["r"],
+            lora_alpha=lora_params["lora_alpha"],
+            target_modules=lora_params["target_modules"],
             task_type="CAUSAL_LM"
         )
         model = get_peft_model(model, lora_config)
