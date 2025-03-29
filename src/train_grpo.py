@@ -57,8 +57,6 @@ class ModelConfig:
 class GRPOConfig:
     # vLLM generation settings
     use_vllm: bool = True
-    vllm_gpu_memory_utilization: float = 0.7
-    vllm_dtype: Optional[str] = None  # dtype for vLLM (e.g., "float16", "bfloat16")
     
     # Optimizer settings
     learning_rate: float = 5e-6
