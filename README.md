@@ -114,3 +114,44 @@ This is useful for quick testing and development, though for larger scale traini
 ### Container Details
 
 The container uses uv for dependency management and includes all necessary Python packages specified in the `pyproject.toml` file. Built on Python 3.11, it supports CUDA for GPU training.
+
+## Local Development
+
+For "local" development and testing without Apptainer containers, you can use `uv` directly.
+
+### Installing uv
+
+Install the `uv` package manager with:
+
+MacOS / Linux
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Windows (project not tested on Windows)
+```bash
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+### Setting Up Development Environment
+
+`uv` will automatically recognize the Python version specified in `.python-version` and set up a virtual environment accordingly:
+
+To run a training job on a single GPU, we disable vllm. This means that generations take place within the torch environment instead of the highly optimized vllm, making it much slower. A faster (yet unmaintainable) version exists for low resource training utilizing unsloth, that can be found on older commits.
+```bash
+# Run a script using the virtual environment
+uv run -m src.train_grpo grpo.use_vllm=false
+```
+
+Run the tests:
+
+```bash
+# run all tests
+pytest
+
+# run specific testing file
+pytest tests/test_search_replace_diff.py
+
+# run specific test
+pytest tests/test_search_replace_diff.py::test_specific_function
+```

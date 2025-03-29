@@ -25,7 +25,7 @@ echo "Directory: $(pwd)"
 echo "Using model: $MODEL_NAME"
 
 # Launch vLLM server on GPUs 4-7
-apptainer exec --nv --env CUDA_VISIBLE_DEVICES=4,5,6,7 ttc.sif \
+apptainer exec --nv --env CUDA_VISIBLE_DEVICES=4,5,6,7 crrl.sif \
     trl vllm-serve --model $MODEL_NAME --tensor_parallel_size $TP_SIZE &
 
 # Launch training on GPUs 0-3 with large model configuration using accelerate
