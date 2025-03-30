@@ -1,4 +1,4 @@
-# Project Planning
+# Project Diary and Planning
 
 
 ### Ideas
