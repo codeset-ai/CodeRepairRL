@@ -5,7 +5,7 @@ from pathlib import Path
 # Add the src directory to the Python path
 sys.path.append(str(Path(__file__).parent.parent))
 
-from src.utils.rewards import (
+from src.rewards import (
     extract_xml_answer,
     count_xml,
     partial_reasoning_format_reward_func,

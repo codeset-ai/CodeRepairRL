@@ -1,12 +1,13 @@
 import git
+import shutil
 import tempfile
 import subprocess
 
 
-def handle_to_url(repo_handle):
+def handle_to_url(repo_handle: str) -> str:
     return f"https://github.com/{repo_handle}.git"
 
-def clone_repo_at_commit(repo_url, commit_id, target_dir=None):
+def clone_repo_at_commit(repo_url: str, commit_id: str, target_dir: Optional[str] = None) -> str:
     """
     Fast clone method with no git history. Initializes an empty repo, adds the remote then fetches the specific commit and checks it out.
     
@@ -29,7 +30,12 @@ def clone_repo_at_commit(repo_url, commit_id, target_dir=None):
 
     return target_dir
 
-def resolve_git_commit_hash(git_commit_hash=None):
+def clean_repo(repo_path: str):
+    """Clean tempfolder"""
+    assert repo_path.startswith("/tmp/"), "For safety, repo_path must be a temp directory"
+    shutil.rmtree(repo_path)
+
+def resolve_git_commit_hash(git_commit_hash: Optional[str] = None) -> str:
     """To know in which commit the code was run"""
     if git_commit_hash is not None:
         return git_commit_hash

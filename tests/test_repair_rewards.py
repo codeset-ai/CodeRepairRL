@@ -5,7 +5,7 @@ from pathlib import Path
 # Add the src directory to the Python path
 sys.path.append(str(Path(__file__).parent.parent))
 
-from src.utils.rewards import (
+from src.rewards import (
     diff_format_reward_func,
     diff_similarity_reward_func
 )

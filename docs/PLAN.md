@@ -73,6 +73,9 @@
     - Opted for "ZeRO-Stage 3" deepspeed, where optimizer state/gradients/model parameters are all sharded between GPUs
     - This isn't really necessary for training LoRAs, but I'd like to move past those ultimately  
 - [x] Stack "repair" on KTH DGX-100
+- [x] Added .from_unified_diff to SearchReplace
+- [x] Added git utils for datasets which require us to clone repositories
+  - Tested a few different methods, the fastest was to create an empty repo, add the origin, then fetch only the relevant commit 
 - [ ] Stack "repair" on SLURM 
 - [ ] Create SWE-Bench "repair" dataset
 - [ ] Setup Defect4J as reward signal and train on it

@@ -1260,13 +1260,64 @@ class TestSearchReplaceDiff(unittest.TestCase):
         self.assertEqual(similarity, 0.0)
 
     def test_similarity_with_self(self):
-        """Test similarity comparison with itself."""
-        diff = SearchReplaceDiff([
-            ("def hello():\n    print('hello')", "def hello():\n    print('hello world')")
-        ])
+        """Test similarity with self should be 1.0."""
+        diff = SearchReplaceDiff.from_string(
+            "<<<<<<< SEARCH\n"
+            "def hello():\n"
+            "    print('hello')\n"
+            "=======\n"
+            "def hello():\n"
+            "    print('hello world')\n"
+            ">>>>>>> REPLACE"
+        )
         
-        similarity = diff.similarity(diff)
-        self.assertEqual(similarity, 1.0)
+        self.assertEqual(diff.similarity(diff), 1.0)
+        
+    def test_from_unified_diff(self):
+        """Test parsing a unified git diff format."""
+        diff_text = (
+            "diff --git a/pvlib/pvsystem.py b/pvlib/pvsystem.py\n"
+            "--- a/pvlib/pvsystem.py\n"
+            "+++ b/pvlib/pvsystem.py\n"
+            "@@ -101,10 +101,11 @@ class PVSystem:\n"
+            " \n"
+            "     Parameters\n"
+            "     ----------\n"
+            "-    arrays : iterable of Array, optional\n"
+            "-        List of arrays that are part of the system. If not specified\n"
+            "-        a single array is created from the other parameters (e.g.\n"
+            "-        `surface_tilt`, `surface_azimuth`). Must contain at least one Array,\n"
+            "+    arrays : Array or iterable of Array, optional\n"
+            "+        An Array or list of arrays that are part of the system. If not\n"
+            "+        specified a single array is created from the other parameters (e.g.\n"
+            "+        `surface_tilt`, `surface_azimuth`). If specified as a list, the list\n"
+            "+        must contain at least one Array;\n"
+            "         if length of arrays is 0 a ValueError is raised. If `arrays` is\n"
+            "         specified the following PVSystem parameters are ignored:\n"
+            " \n"
+            "@@ -220,6 +221,8 @@ def __init__(self,\n"
+            "                 strings_per_inverter,\n"
+            "                 array_losses_parameters,\n"
+            "             ),)\n"
+            "+        elif isinstance(arrays, Array):\n"
+            "+            self.arrays = (arrays,)\n"
+            "         elif len(arrays) == 0:\n"
+            "             raise ValueError(\"PVSystem must have at least one Array. \"\n"
+            "                              \"If you want to create a PVSystem instance \")"
+        )
+        
+        diffs = SearchReplaceDiff.from_unified_diff(diff_text)
+        
+        # Should have 2 diffs (one for each hunk)
+        self.assertEqual(len(diffs), 2)
+        
+        # First diff should replace the arrays parameter docstring
+        self.assertIn("arrays : iterable of Array, optional", diffs[0].blocks[0][0])
+        self.assertIn("arrays : Array or iterable of Array, optional", diffs[0].blocks[0][1])
+        
+        # Second diff should add the isinstance(arrays, Array) check
+        self.assertIn("            ),)", diffs[1].blocks[0][0])
+        self.assertIn("            ),)\n        elif isinstance(arrays, Array):\n            self.arrays = (arrays,)", diffs[1].blocks[0][1])
 
 
 if __name__ == '__main__':

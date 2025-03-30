@@ -151,11 +151,11 @@ Run the tests:
 
 ```bash
 # run all tests
-pytest
+uv run pytest
 
 # run specific testing file
-pytest tests/test_search_replace_diff.py
+uv run pytest tests/test_search_replace_diff.py
 
 # run specific test
-pytest tests/test_search_replace_diff.py::test_specific_function
+uv run pytest tests/test_search_replace_diff.py::test_specific_function
 ```
