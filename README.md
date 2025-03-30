@@ -48,26 +48,7 @@ Our approach to optimizing models in this project is guided by several foundatio
 
 - This approach effectively bootstraps the model onto itself, as it uses its own policy as a baseline for improvement.
 
-- The more capable the base model, the more significant the returns from our RL training, provided the RL environment is sufficiently challenging.
-
-- It's funny that math is easier than humor, we have 1.5B parameter models that saturate math benchmarks but we need ~20T parameter GPT4.5 to get decent humor.
-
-## Implementation Details
-
-### Project Structure
-
-- `docs/`: Documentation files
-- `scripts/`: Scripts for building, training, and testing
-  - `container.def`: Apptainer container definition
-  - `build_container.sh`: Script to build the container
-  - `train_job.sh`: SLURM script for training
-  - `test_job.sh`: SLURM script for testing
-- `src/`: Source code for the project
-  - `diff.py`: Implements search/replace diff functionality
-  - `reward.py`: Implements reward functions (all rewards are in the 0-1 range)
-  - `stack.py`: Dataset for code implementation from specification
-  - `train_grpo.py`: Main training script
-- `tests/`: Test cases for the codebase
+- The more capable the base model, the more significant the returns from our RL training, provided the RL environment is sufficiently challenging (and not overly so).
 
 ### Getting Started
 
@@ -114,10 +95,6 @@ uv run -m src.train_grpo grpo.use_vllm=false
 ```
 
 This is useful for quick testing and development, though for larger scale training the distributed SLURM scripts are recommended.
-
-### Container Details
-
-The container uses uv for dependency management and includes all necessary Python packages specified in the `pyproject.toml` file. Built on Python 3.11, it supports CUDA for GPU training.
 
 ## Local Development
 
