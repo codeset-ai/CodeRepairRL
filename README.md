@@ -28,31 +28,9 @@ For detailed run results and progress on our objectives, see our [WandB project 
 
 Post-training of LLMs is a complex, multivariate process consisting of many specialized steps across various domains, ultimately resulting in powerful general-purpose models. While achieving a comprehensive post-training pipeline is beyond the scope of a master's thesis, our project aims to demonstrate a significant performance improvement in the specific domain of code repair. Such targeted improvements could represent one valuable step in the broader post-training stage of frontier models.
 
-## Compute Efficiency
+## Getting Started
 
-Since LLMs are inherently large, training them can be challenging for individual researchers. Our project previously included Unsloth optimizations (available in older commits), but we have since moved to a more streamlined approach using DeepSpeed and Accelerate for distributed training. We use "ZeRO-Stage 3" DeepSpeed configuration, where optimizer state, gradients, and model parameters are all sharded between GPUs.
-
-## Definitions and Intuitions
-
-In our project, we use specific terms that are crucial for understanding our approach:
-
-- **KL-divergence (Kullback-Leibler divergence)**: A fundamental metric in information theory that measures how one probability distribution differs from another. In our reinforcement learning setup, we use it to quantify how much our updated policy ($\pi_{t+1}$) diverges from our reference policy ($\pi_t$) as the training progresses. This helps ensure our model learns gradually and stably.
-
-- **Loss**: In the context of our model, 'loss' refers to the discrepancy between the reference policy and the update policy. It is a measure of how much the model's predictions deviate from the expected outcomes based on the evolving reference policy.
-
-### Conceptual Insights
-
-Our approach to optimizing models in this project is guided by several foundational ideas:
-
-- In SFT, we optimize the model to output the exact sequence of tokens, whereas in GRPO (even if the text is identical), we optimize the parameters to produce any sequence that maximizes reward.
-
-- This approach effectively bootstraps the model onto itself, as it uses its own policy as a baseline for improvement.
-
-- The more capable the base model, the more significant the returns from our RL training, provided the RL environment is sufficiently challenging (and not overly so).
-
-### Getting Started
-
-#### Building the Container
+### Building the Container
 
 To build the Apptainer container:
 
@@ -86,16 +64,6 @@ sbatch scripts/large_train_job.sh --model google/gemma-3-27b-it
 sbatch scripts/medium_train_job.sh --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B
 ```
 
-#### Single GPU Training
-
-For simpler testing scenarios without distributed training, you can disable vLLM:
-
-```bash
-uv run -m src.train_grpo grpo.use_vllm=false
-```
-
-This is useful for quick testing and development, though for larger scale training the distributed SLURM scripts are recommended.
-
 ## Local Development
 
 For "local" development and testing without Apptainer containers, you can use `uv` directly.
@@ -123,8 +91,9 @@ To run a training job on a single GPU, we disable vllm. This means that generati
 # Run a script using the virtual environment
 uv run -m src.train_grpo grpo.use_vllm=false
 ```
+This is useful for quick testing and development, though for larger scale training the distributed SLURM scripts are recommended.
 
-Run the tests:
+### Testing
 
 ```bash
 # run all tests
@@ -136,3 +105,25 @@ uv run pytest tests/test_search_replace_diff.py
 # run specific test
 uv run pytest tests/test_search_replace_diff.py::test_specific_function
 ```
+
+## Compute Efficiency
+
+Since LLMs are inherently large, training them can be challenging for individual researchers. Our project previously included Unsloth optimizations (available in older commits), but we have since moved to a more streamlined approach using DeepSpeed and Accelerate for distributed training. We use "ZeRO-Stage 3" DeepSpeed configuration, where optimizer state, gradients, and model parameters are all sharded between GPUs.
+
+## Definitions and Intuitions
+
+In our project, we use specific terms that are crucial for understanding our approach:
+
+- **KL-divergence (Kullback-Leibler divergence)**: A fundamental metric in information theory that measures how one probability distribution differs from another. In our reinforcement learning setup, we use it to quantify how much our updated policy ($\pi_{t+1}$) diverges from our reference policy ($\pi_t$) as the training progresses. This helps ensure our model learns gradually and stably.
+
+- **Loss**: In the context of our model, 'loss' refers to the discrepancy between the reference policy and the update policy. It is a measure of how much the model's predictions deviate from the expected outcomes based on the evolving reference policy.
+
+### Conceptual Insights
+
+Our approach to optimizing models in this project is guided by several foundational ideas:
+
+- In SFT, we optimize the model to output the exact sequence of tokens, whereas in GRPO (even if the text is identical), we optimize the parameters to produce any sequence that maximizes reward.
+
+- This approach effectively bootstraps the model onto itself, as it uses its own policy as a baseline for improvement.
+
+- The more capable the base model, the more significant the returns from our RL training, provided the RL environment is sufficiently challenging (and not overly so).

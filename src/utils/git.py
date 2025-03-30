@@ -2,6 +2,7 @@ import git
 import shutil
 import tempfile
 import subprocess
+from typing import Optional
 
 
 def handle_to_url(repo_handle: str) -> str:
@@ -30,9 +31,9 @@ def clone_repo_at_commit(repo_url: str, commit_id: str, target_dir: Optional[str
 
     return target_dir
 
-def clean_repo(repo_path: str):
+def clean_repo_dir(repo_path: str):
     """Clean tempfolder"""
-    assert repo_path.startswith("/tmp/"), "For safety, repo_path must be a temp directory"
+    assert repo_path.startswith("/tmp/"), "For safety, repo_path must be a temporary directory"
     shutil.rmtree(repo_path)
 
 def resolve_git_commit_hash(git_commit_hash: Optional[str] = None) -> str:

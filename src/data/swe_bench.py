@@ -5,7 +5,7 @@ from datasets import load_dataset, Dataset
 from transformers import PreTrainedTokenizer
 
 from src.data.code_repair import create_repair_dataset
-
+from src.utils.git import clone_repo_at_commit, handle_to_url, clean_repo_dir
 
 logger = logging.getLogger(__name__)
 
@@ -22,21 +22,20 @@ def get_swe_bench_dataset(
 
 
 if __name__ == "__main__":
-    import requests
-    from datasets import DatasetDict
+    from tqdm import tqdm
+    from datasets import load_dataset
 
-    # Raw GitHub content URL template with commit ID
-    RAW_GITHUB_URL = "https://raw.githubusercontent.com/{owner}/{repo}/{commit}/{path}"
+    swe_ds = load_dataset("princeton-nlp/SWE-bench_Lite")["dev"]
 
-    swe_bench = load_dataset("princeton-nlp/SWE-bench_Lite")
+    url = handle_to_url(swe_ds[0]["repo"])
+    repo_path = clone_repo_at_commit(url, swe_ds[0]["base_commit"])
+    print(repo_path)
+    clean_repo_dir(repo_path)
 
-    for example in swe_bench:
-        ...
 
 
-    swe_bench_dict = DatasetDict({
-        "train": swe_bench["train"].select(range(100)),
-        "test": swe_bench["test"].select(range(100)),
-    })
-
-    swe_bench_dict.push_to_hub("ASSERT-KTH/SWE-bench_Lite_repoprompt")
+    # repo_paths = []
+    # for item in tqdm(swe_ds):
+    #     repo_url = handle_to_url(item["repo"])
+    #     repo_path = clone_repo_at_commit(repo_url, item["base_commit"])
+    #     repo_paths.append(repo_path)
