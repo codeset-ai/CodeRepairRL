@@ -79,7 +79,7 @@ This creates a `crrl.sif` file in the project root.
 
 #### Running Training Jobs
 
-We provide specialized SLURM scripts for different model sizes, each pre-configured with appropriate compute resource allocations. Natively supported models include Qwen (1.8B, 7B, 14B) and Gemma (2B, 7B) families:
+We provide specialized SLURM scripts for different model sizes, each pre-configured with appropriate compute resource allocations:
 
 ```bash
 # For small models (~1.5B range), defaults to Qwen2.5-Coder-1.5B-Instruct
