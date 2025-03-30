@@ -1,7 +1,30 @@
 # Project Planning
 
 
+### Ideas
+
+#### 1. Enhance trl/GRPOTrainer with Agentic Capabilities
+- Integrate `aider.Coder.chat` to replace the standard `model.generate` functionality
+- Leverage aider's built-in agentic coding tools for:
+  - Repository exploration and understanding
+  - Multi-file change management
+- Outcome-supervised reward modeling, reward the final patch generated, not the process of creating it
+- Essentially just running multiple coding agents in parallel and reinforce behaviors that lead to superior outcomes
+
+#### 2. Test-Driven Reinforcement Learning
+- Implement a reward system based on passing test cases rather than similarity to reference solutions
+- Deploy scalable Kubernetes infrastructure to parallelize test case execution across multiple model outputs
+- Benefits:
+  - Rewards functional correctness while allowing creative problem-solving approaches
+  - Provides greater flexibility compared to "golden patch" approaches
+  - Encourages models to develop diverse solution strategies that still satisfy requirements
+
+
 ### Backlog
+
+<details>
+<summary>General Research Tasks</summary>
+
 - [ ] Look at how SWE-Bench works exactly, should we train for that behavior end2end?
 - [ ] Read S∗: Test Time Scaling for Code Generation: https://arxiv.org/pdf/2502.14382
 - [ ] Read MUFIN **paper**
@@ -12,12 +35,16 @@
 - [ ] Make hf cache (and uv if simple) point to my project directory instead of my home directory (on slurm)
   - Relatively easy to just do export TRANSFORMERS_CACHE=/proj/berzileus-2024-336/x_bjabj/huggingface
   - And do that both in my .zshrc and the apptainer environment
-#### These are conditional, this would require a LOT of SWE, maybe we can patch Aider into the loop instead of creating this
+</details>
+
+<details>
+<summary>Advanced SWE Tasks (Conditional)</summary>
 - [ ] Replicate the "agentic workflow" of SWE-agent and similar 
   - Find out how they normally put the codebase into the context window
   - How they do function calling
   - Otherwise we could just run repomix
 - [ ] Multi file repair
+</details>
 
 ## March 24 - March 30, 2024
 

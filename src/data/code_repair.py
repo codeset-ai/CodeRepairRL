@@ -11,8 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 # System prompt for code repair
-SEARCH_REPLACE_SYSTEM_PROMPT = """
-You are a code repair expert tasked with fixing issues in code. You will be provided with:
+SEARCH_REPLACE_SYSTEM_PROMPT = """You are a code repair expert tasked with fixing issues in code. You will be provided with:
 1. Information about the specific issue (if available)
 2. The code segment that needs to be fixed
 
@@ -152,7 +151,7 @@ def create_repair_dataset(
     data_items = []
     for before, after, desc in zip(before_codes, after_codes, descriptions):
         # Generate diff using the appropriate diff class
-        diffs = SearchReplaceDiff.from_codes(before, after, context_lines).to_string()  # TODO: support multiple diffs
+        diffs = SearchReplaceDiff.from_codes(before, after, context_lines).to_string()
         
         # Generate user prompt
         user_prompt = repair_single_file_prompt(before, desc)

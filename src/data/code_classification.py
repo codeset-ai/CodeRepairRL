@@ -9,8 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 # Generic system prompt for code classification
-CODE_CLASSIFICATION_SYSTEM_PROMPT = """
-You are a code classification expert tasked with identifying issues in code. You will be provided with:
+CODE_CLASSIFICATION_SYSTEM_PROMPT = """You are a code classification expert tasked with identifying issues in code. You will be provided with:
 1. Information about the classification task (if available)
 2. The code segment that needs to be classified
 

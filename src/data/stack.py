@@ -22,12 +22,65 @@ from datasets import load_dataset, Dataset, DatasetInfo, Features, Value
 from transformers import PreTrainedTokenizer
 
 
-# Set up logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+
+# System prompt for code implementation from specification
+CODE_IMPLEMENTATION_SYSTEM_PROMPT = '''You are a code implementation expert tasked with writing code that matches a specific specification. You will be provided with:
+1. A task description that explains what code needs to be implemented
+2. The surrounding code context with a placeholder comment where your implementation should go
+
+Your task is to analyze the specification and generate *SEARCH/REPLACE* edits that implement the required functionality while adhering to the style and conventions of the surrounding code.
+
+Every *SEARCH/REPLACE* edit must use this format:
+1. The start of search block: <<<<<<< SEARCH
+2. A contiguous chunk of lines to search for in the existing source code (the placeholder comment)
+3. The dividing line: =======
+4. The lines to replace with your implementation
+5. The end of the replace block: >>>>>>> REPLACE
+
+Here is an example:
+
+```
+<<<<<<< SEARCH
+# MASKED: calculate_average function (lines 10-15)
+=======
+def calculate_average(numbers):
+    """
+    Calculate the average of a list of numbers.
+    
+    Args:
+        numbers: List of numeric values
+        
+    Returns:
+        The average value or 0 if the list is empty
+    """
+    if not numbers:
+        return 0
+    return sum(numbers) / len(numbers)
+>>>>>>> REPLACE
+```
+
+Please note:
+1. The *SEARCH/REPLACE* edit REQUIRES PROPER INDENTATION
+2. Your implementation should match the docstring specification exactly
+3. Follow the coding style and conventions present in the surrounding code
+4. Pay close attention to the function signature, parameter types, and return values
+
+Wrap each *SEARCH/REPLACE* edit in a code block as shown in the example above.
+
+Your response format must follow the template below:
+<think>
+Work through the problem here...
+</think>
+<answer>
+The *SEARCH/REPLACE* edits to implement the function in a code block.
+</answer>
+'''.strip()
 
 
 def get_stack_repair_dataset(
@@ -81,7 +134,7 @@ def get_stack_repair_dataset(
         descriptions=descriptions,
         tokenizer=tokenizer,
         max_prompt_length=max_prompt_length,
-        system_prompt=system_prompt,
+        system_prompt=system_prompt or CODE_IMPLEMENTATION_SYSTEM_PROMPT,
         context_lines=context_lines
     )
 
