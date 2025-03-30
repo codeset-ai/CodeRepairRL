@@ -10,18 +10,18 @@ from peft import LoraConfig as PEFTLoraConfig, get_peft_model
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 from trl import GRPOConfig as HFGRPOConfig, GRPOTrainer as HFGRPOTrainer
 
-from src.utils.rewards import (
+from src.rewards import (
     # reasoning rewards
     partial_reasoning_format_reward_func,
     strict_reasoning_format_reward_func,
     # detection rewards
-    correctness_reward_func,
+    categorical_correctness_reward_func,
     # repair rewards
     diff_format_reward_func,
     diff_similarity_reward_func,
 )
-from src.utils.resolvers import resolve_git_commit_hash
 from src.data import get_stack_repair_dataset, get_primevul_repair_dataset, get_primevul_detection_dataset
+from src.utils.git import resolve_git_commit_hash
 
 logger = logging.getLogger(__name__)
 
@@ -159,7 +159,7 @@ def main(cfg: Config) -> None:
         reward_functions = [
             partial_reasoning_format_reward_func,
             strict_reasoning_format_reward_func,
-            correctness_reward_func,
+            categorical_correctness_reward_func,
         ]
         reward_weights = [0.1, 0.2, 0.7]
     else:

@@ -451,3 +451,69 @@ class SearchReplaceDiff:
             block_similarities.append(block_similarity)
         
         return sum(block_similarities) / (len(block_similarities) or 1)
+
+    @staticmethod
+    def from_unified_diff(diff_text: str) -> List['SearchReplaceDiff']:
+        """
+        Parse a unified git diff format into a list of SearchReplaceDiff objects.
+        
+        Example:
+        ```
+        diff --git a/file.py b/file.py
+        --- a/file.py
+        +++ b/file.py
+        @@ -101,10 +101,11 @@ class Example:
+             old line 1
+             old line 2
+        -    removed line
+             common line
+        +    added line
+             common line 2
+        ```
+        
+        Args:
+            diff_text: A string containing unified git diff format
+            
+        Returns:
+            A list of SearchReplaceDiff objects
+        """
+        if not diff_text:
+            return []
+            
+        # Split the diff into hunks using regex
+        hunks = re.split(r'(?m)^(@@ .+? @@.*?)$', diff_text)
+        
+        # The first element is the header, then we have pairs of (hunk_header, hunk_content)
+        # Skip the header
+        hunks = hunks[1:]
+        
+        # Process pairs of (hunk_header, hunk_content)
+        result = []
+        for i in range(0, len(hunks), 2):
+            if i + 1 >= len(hunks):
+                break
+                
+            hunk_header = hunks[i]
+            hunk_content = hunks[i+1]
+            
+            # Skip empty content
+            if not hunk_content.strip():
+                continue
+                
+            # Process the hunk content
+            lines = hunk_content.splitlines()
+            
+            # Process each line in the hunk:
+            # - lines starting with '+' are only in the new version (additions)
+            # - lines starting with '-' are only in the old version (deletions)
+            # - lines starting with ' ' are in both versions (context)
+            search_lines = [line[1:] for line in lines if line and (line.startswith(' ') or line.startswith('-'))]
+            replace_lines = [line[1:] for line in lines if line and (line.startswith(' ') or line.startswith('+'))]
+            
+            # Create SearchReplaceDiff only if there are differences
+            if search_lines != replace_lines:
+                search_content = "\n".join(search_lines)
+                replace_content = "\n".join(replace_lines)
+                result.append(SearchReplaceDiff([(search_content, replace_content)]))
+        
+        return result
