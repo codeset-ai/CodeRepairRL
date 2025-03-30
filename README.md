@@ -4,6 +4,10 @@
 
 CodeRepairRL leverages recent advancements in applying Reinforcement Learning (RL) to Large Language Models (LLMs) to fine-tune them for domain-specific tasks. Our ultimate goal is to develop models similar to [RepairLLama](https://arxiv.org/pdf/2312.15698) and [Llama-3-SWE-RL](https://arxiv.org/pdf/2502.18449), which "punch above their weight-class" in terms of parameter count, demonstrating exceptional performance in software engineering benchmarks.
 
+## Implementation Note
+
+This project uses a [custom fork of TRL](https://github.com/BjarniHaukur/trl) (Transformer Reinforcement Learning), currently enhanced for better Weights & Biases logging. The fork will be essential for future research directions, e.g. integrating coding agents directly into the generation loop and rewarding correctness end-to-end.
+
 ## Objectives
 
 ### Code Repair
