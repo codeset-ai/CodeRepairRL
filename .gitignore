@@ -31,4 +31,4 @@ results.json
 repomix-output.txt
 
 # singularity image for ttc
-ttc.sif
+crrl.sif

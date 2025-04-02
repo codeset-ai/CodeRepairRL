@@ -2,45 +2,23 @@
 #SBATCH --job-name=crrl-medium
 #SBATCH --output=logs/medium_%j.out
 #SBATCH --error=logs/medium_%j.err
-#SBATCH --gpus 4
+#SBATCH --gpus 2
 #SBATCH --time=24:00:00
 #SBATCH -C "fat"
-#SBATCH --mail-type=FAIL,END
-#SBATCH --mail-user bhbj@kth.se
+
+# Medium train job, 2 GPUs, 1 running vLLM, 1 training
 
 # Configuration
 MODEL_CONFIG="medium_qwen"
 MODEL_NAME=$(grep -Po 'model_name: "\K[^"]*' src/conf/model/${MODEL_CONFIG}.yaml)
-GRPO_CONFIG="medium"
-TP_SIZE=2
 
-# Navigate to the project root directory
-cd "$(dirname "$0")/.."
 
-# Print job information
-echo "Job ID: $SLURM_JOB_ID"
-echo "Node: $SLURMD_NODENAME"
-echo "Start time: $(date)"
-echo "Directory: $(pwd)"
-echo "Using model: $MODEL_NAME"
+apptainer exec --nv --env CUDA_VISIBLE_DEVICES=0 crrl.sif \
+    trl vllm-serve --model $MODEL_NAME &  # & makes it run in the background
 
-# Launch vLLM server on GPUs 2-3
-apptainer exec --nv --env CUDA_VISIBLE_DEVICES=2,3 crrl.sif \
-    trl vllm-serve --model $MODEL_NAME --tensor_parallel_size $TP_SIZE &
-
-# Launch training on GPUs 0-1 with medium model configuration using accelerate
-apptainer exec --nv --bind "$(pwd):/app" --env CUDA_VISIBLE_DEVICES=0 crrl.sif \
-    accelerate launch \
-    --config_file scripts/deepspeed_zero3.yaml \
-    --num_processes 2 \
-    --num_machines 1 \
-    /app/src/train_grpo.py \
+apptainer exec --nv --env CUDA_VISIBLE_DEVICES=1 crrl.sif \
+    python -m src.train_grpo \
     model=$MODEL_CONFIG \
-    grpo=$GRPO_CONFIG \
     "$@"  # pass any additional arguments
     
-# Wait for both processes to finish
-wait
-
-# Print end time
-echo "End time: $(date)"
+wait  # wait for all background processes to finish

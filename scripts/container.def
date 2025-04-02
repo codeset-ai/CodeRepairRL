@@ -1,6 +1,10 @@
 Bootstrap: docker
 From: python:3.11.5-bullseye
 
+%environment
+    # Explicitly point to the standard CA bundle location
+    export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+
 %files
     ./pyproject.toml
 
@@ -8,6 +12,9 @@ From: python:3.11.5-bullseye
     # ugly hack, would use uv but it halts indefinitely when running 'install . --system'
     # this means that the versions poetry picks are not guaranteed to be the same as the ones in our uv.lock file
     # but we will cross that bridge if we get to it
+
+    apt-get update
+    apt-get install -y ca-certificates
 
     curl -sSL https://install.python-poetry.org | python3 -
     /root/.local/bin/poetry config virtualenvs.create false
