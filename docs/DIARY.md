@@ -1,6 +1,5 @@
 # Project Diary and Planning
 
-
 ### Ideas
 
 #### 1. Enhance trl/GRPOTrainer with Agentic Capabilities
@@ -19,6 +18,7 @@
   - Provides greater flexibility compared to "golden patch" approaches
   - Encourages models to develop diverse solution strategies that still satisfy requirements
 
+#### The stack.py, LLM generated versions of the Oracle patch
 
 ### Backlog
 
@@ -46,7 +46,23 @@
 - [ ] Multi file repair
 </details>
 
-## March 24 - March 30, 2024
+
+## April 1 - April 7, 2025
+
+#### Tasks:
+- [ ] Train Qwen-2.5-Coder-32B on stack "repair" on SLURM 
+  - Main concern is whether the two apptainers can talk to each other (the vLLM server opens a local unicorn server, I'd assume that it does)
+  - Could solve this on the python side, simplify the .sh side and use one script which detects gpu resources and launches training/inference nodes accordingly
+- [ ] Check on verifiers, is it better now?
+  - vLLM support?
+- [ ] Replace vllm_client.generate with paralellized Aider instances
+  - Main concern is just whether trl-serve launches an OpenAI compatible server or something more minimal.
+- [ ] Create SWE-Bench "repair" dataset
+  - Maybe best to just call the fast clone method I made at runtime
+- [ ] Setup Defect4J as reward signal and train on it
+- [ ] 
+
+## March 24 - March 30, 2025
 
 #### Tasks
 - [x] Remove unsloth for now, that library is a nightmare to work with
@@ -76,9 +92,6 @@
 - [x] Added .from_unified_diff to SearchReplace
 - [x] Added git utils for datasets which require us to clone repositories
   - Tested a few different methods, the fastest was to create an empty repo, add the origin, then fetch only the relevant commit 
-- [ ] Stack "repair" on SLURM 
-- [ ] Create SWE-Bench "repair" dataset
-- [ ] Setup Defect4J as reward signal and train on it
 
 #### Ideas
 We could simply:

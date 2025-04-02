@@ -37,7 +37,6 @@ apptainer exec --nv --bind "$(pwd):/app" --env CUDA_VISIBLE_DEVICES=0 crrl.sif \
     /app/src/train_grpo.py \
     model=$MODEL_CONFIG \
     # Here come model specific arguments based on the computational resources allocated
-    grpo.
     "$@"  # pass any additional arguments
     
 # Wait for both processes to finish
