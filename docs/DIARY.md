@@ -32,9 +32,6 @@
   - From overleaf
   - From emails
   - From docs (both mine and minutes)
-- [ ] Make hf cache (and uv if simple) point to my project directory instead of my home directory (on slurm)
-  - Relatively easy to just do export TRANSFORMERS_CACHE=/proj/berzileus-2024-336/x_bjabj/huggingface
-  - And do that both in my .zshrc and the apptainer environment
 </details>
 
 <details>
@@ -50,7 +47,11 @@
 ## April 1 - April 7, 2025
 
 #### Tasks:
-- [ ] Train Qwen-2.5-Coder-32B on stack "repair" on SLURM 
+- [x] Jobscripts vastly simplified
+- [x] Make hf cache (and uv if simple) point to my project directory instead of my home directory
+- [ ] Double check recommended flast-attn version for vllm
+  - Now I get "backend not found" errors
+- [ ] Train Qwen-2.5-Coder-32B on stack "repair" on SLURM
   - Main concern is whether the two apptainers can talk to each other (the vLLM server opens a local unicorn server, I'd assume that it does)
   - Could solve this on the python side, simplify the .sh side and use one script which detects gpu resources and launches training/inference nodes accordingly
 - [ ] Check on verifiers, is it better now?
@@ -60,7 +61,7 @@
 - [ ] Create SWE-Bench "repair" dataset
   - Maybe best to just call the fast clone method I made at runtime
 - [ ] Setup Defect4J as reward signal and train on it
-- [ ] 
+- [ ]
 
 ## March 24 - March 30, 2025
 

@@ -82,6 +82,25 @@ Windows (project not tested on Windows)
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
+### Optimizing Cache Locations
+
+It is recommended to move cache locations to your project directory by adding the following to your `.bashrc` or `.zshrc`:
+
+```bash
+# Define your project directory
+export PROJECT_DIR=/proj/berzelius-2024-336/users/x_bjabj/
+
+# Set Hugging Face cache locations
+export HF_HOME=$PROJECT_DIR/.hf
+export TRANSFORMERS_CACHE=$PROJECT_DIR/.cache/huggingface/transformers
+export HF_DATASETS_CACHE=$PROJECT_DIR/.cache/huggingface/datasets
+
+# Set uv cache location
+export UV_CACHE_DIR=$PROJECT_DIR/.cache/.uv
+```
+
+This ensures that large model files and datasets are stored in your project directory, which has way more storage space than your home directory.
+
 ### Setting Up Development Environment
 
 `uv` will automatically recognize the Python version specified in `.python-version` and set up a virtual environment accordingly:

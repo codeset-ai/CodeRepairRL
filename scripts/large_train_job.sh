@@ -28,6 +28,11 @@ apptainer exec --nv --bind "$(pwd):/app" --env CUDA_VISIBLE_DEVICES=4,5,6,7 crrl
     --num_machines 1 \
     /app/src/train_grpo.py \
     model=$MODEL_CONFIG \
+    grpo.per_device_train_batch_size=4 \
+    grpo.gradient_accumulation_steps=8 \
+    grpo.max_prompt_length=2048 \
+    grpo.max_completion_length=1024 \
+    grpo.num_generations=8 \
     "$@"  # pass any additional arguments
     
 # Wait for both processes to finish
