@@ -1,41 +1,45 @@
 import logging
-from typing import Tuple, Optional
+from typing import Literal
 
 from datasets import load_dataset, Dataset
-from transformers import PreTrainedTokenizer
 
-from data.code_mono_repair import create_mono_repair_dataset
-from src.utils.git import clone_repo_at_commit, handle_to_url, clean_repo_dir
+from src.data.code_repo_repair import create_repo_repair_dataset
+from src.utils.git import handle_to_url
 
 logger = logging.getLogger(__name__)
 
 
 def get_swe_bench_dataset(
-    tokenizer: PreTrainedTokenizer,
-    split: str = "train",
-    max_prompt_length: int = 512,
-    system_prompt: Optional[str] = None
-) -> Tuple[Dataset, int]:
+    split: Literal["train", "dev"] = "dev",
+    dataset_name: str = "princeton-nlp/SWE-bench_Lite",  # or any of the other SWE-bench datasets
+    **kwargs  # absorbs additional arguments required by the other get functions
+) -> Dataset:
     """
+    Load the SWE-bench dataset and convert it to a repository repair dataset.
+    
+    Args:
+        tokenizer: Tokenizer (passed for consistency with other dataset loaders)
+        split: Dataset split to use ("train" or "dev")
+        dataset_name: HuggingFace dataset name for SWE-bench
+        
+    Returns:
+        The processed dataset
     """
-    pass
+    logger.info(f"Loading SWE-bench dataset: {dataset_name}, split: {split}")
+    
+    # Load the SWE-bench dataset
+    swe_ds = load_dataset(dataset_name)[split]
+    
+    logger.info(f"Creating repository repair dataset with {len(swe_ds)} examples")
+    
+    # Create the repository repair dataset
+    return create_repo_repair_dataset(
+        repo_urls=[handle_to_url(item["repo"]) for item in swe_ds],
+        repo_commit_hashes=[item["base_commit"] for item in swe_ds],
+        patches=[item["patch"] for item in swe_ds],
+        descriptions=[item["problem_statement"] for item in swe_ds],
+    )
 
 
-if __name__ == "__main__":
-    from tqdm import tqdm
-    from datasets import load_dataset
-
-    swe_ds = load_dataset("princeton-nlp/SWE-bench_Lite")["dev"]
-
-    url = handle_to_url(swe_ds[0]["repo"])
-    repo_path = clone_repo_at_commit(url, swe_ds[0]["base_commit"])
-    print(repo_path)
-    clean_repo_dir(repo_path)
 
 
-
-    # repo_paths = []
-    # for item in tqdm(swe_ds):
-    #     repo_url = handle_to_url(item["repo"])
-    #     repo_path = clone_repo_at_commit(repo_url, item["base_commit"])
-    #     repo_paths.append(repo_path)

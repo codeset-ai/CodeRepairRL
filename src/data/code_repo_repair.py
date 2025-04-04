@@ -1,20 +1,46 @@
-# Prepares a dataset of entire code repositories
-
-# (OR we provide it with a list of git handles and commit ids, and it will clone the repos etc.)
-# Required data to be a repo repair dataset:
-# - repo_folder: a path to the folder containing the repo (we have cloned it to that location and e.g. initialized the Aider cache by instantiating the agent)
-# - issue_description: a description of the issue
-#   - could be e.g. a PR issue statement, or a list of failing tests if available
-# - golden_patch: a patch that fixes the issue
-
-# Would be nice to have in the case of actually executing the tests, but for now we focus on the golden patch and diff matching
-# - Optional[fail_to_pass]: a list of tests which are failing
-# - Optional[pass_to_pass]: other tests which were working before and also need to work after the patch
-
-# Doesn't need a SYSTEM_PROMPT, since that is offloaded to our chosen coding agent.
+import logging
+from typing import List, Optional
 
 from datasets import Dataset
 
-# Move the rs
-def create_repo_repair_dataset() -> Dataset:
-    ...
+logger = logging.getLogger(__name__)
+
+
+def create_repo_repair_dataset(
+    repo_urls: List[str],
+    repo_commit_hashes: List[str],
+    patches: List[str],
+    descriptions: Optional[List[str]] = None,
+) -> Dataset:
+    """
+    Create a dataset for entire repository repair tasks.
+    
+    Args:
+        repo_urls: List of repository URLs
+        repo_commit_hashes: List of commit hashes at which the issues occurred
+        patches: List of patches that fix the issues
+        descriptions: Optional list of issue descriptions
+        
+    Returns:
+        The processed dataset
+    """
+    assert len(repo_urls) == len(repo_commit_hashes) == len(patches) == len(descriptions), "repo_urls, repo_commit_hashes, patches, and descriptions must have the same length"
+    
+    # Create dataset items
+    data_items = []
+    for repo_url, commit_hash, patch, desc in zip(repo_urls, repo_commit_hashes, patches, descriptions):
+        # Create dataset item
+        item = {
+            "repo_url": repo_url,
+            "repo_commit_hash": commit_hash,
+            "patch": patch,
+            "description": desc,
+        }
+        data_items.append(item)
+        
+    
+    repair_data = Dataset.from_list(data_items)   
+     
+    repair_data = repair_data.shuffle(seed=42)
+    
+    return repair_data

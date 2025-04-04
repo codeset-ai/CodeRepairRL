@@ -1,5 +1,5 @@
 import logging
-from typing import List, Tuple, Optional
+from typing import List, Optional
 
 from datasets import Dataset
 from transformers import PreTrainedTokenizer
@@ -94,7 +94,7 @@ def create_classification_dataset(
     descriptions: Optional[List[str]] = None,
     max_prompt_length: int = 512,
     system_prompt: Optional[str] = None
-) -> Tuple[Dataset, int]:
+) -> Dataset:
     """
     Create a dataset for code classification tasks.
     
@@ -107,7 +107,7 @@ def create_classification_dataset(
         system_prompt: Optional system prompt to use (defaults to CODE_CLASSIFICATION_SYSTEM_PROMPT)
         
     Returns:
-        Tuple of (processed dataset, maximum token length)
+        The processed dataset
     """
     assert len(codes) == len(labels), "codes and labels must have the same length"
     
@@ -153,4 +153,4 @@ def create_classification_dataset(
     # Shuffle dataset
     classification_data = classification_data.shuffle(seed=42)
     
-    return classification_data, max(classification_data["tokenized_length"]) 
+    return classification_data

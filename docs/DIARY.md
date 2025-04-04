@@ -44,6 +44,13 @@
 
 ## April 8 - April 14, 2025
 
+#### Keywords
+Multi-turn, end2end, reinforcement training of coding agents.
+
+Training, not fine-tuning (maybe a bit controversial)
+
+We would certainly have superior domain specific performance within e.g. Aider but the goal is to improve "agentic" coding behavior in general. What I want to illustrate in my thesis is that this isn't a fine-tuning technique, but perhaps one of the key steps in the post-training stage of the next iteration of frontier models (circa Claude-3.7-sonnet).
+
 #### Tasks:
 - [ ] Fix container, problem with trl vllm-serve
   - Now I get "backend not found" error
@@ -53,11 +60,12 @@
   - Should be easy when the problem above is fixed
   - Leave it on in the background as I work on the other stuff
 
+
 ## April 1 - April 7, 2025 (SLURM issues were a priority, but couldn't work on them bc. Berzileus was down)
 
 #### Tasks:
 - [x] Jobscripts vastly simplified
-- [x] Make hf cache (and uv if simple) point to my project directory instead of my home directory
+- [x] Make hf and uv cache point to my project directory instead of my home directory
 - [x] Ran a sanity check test that two apptainer containers can talk to each other via HTTP
 - [x] Training runs with grpo.use_vllm=false work
 - [x] Paralellized Aider test
@@ -72,9 +80,11 @@
   - New endpoint to get histories and resets the buffer
 - [ ] Test Aider working with this vllm-serve
   - See if there is a unique id we can use on the server side to catch the entire history
-  - If not, we need some other way of knowing which requests are terminal for each agent (find N requests that have our answer xml tag?)
+  - If not, we need some other way of knowing which requests are terminal for each agent
 - [ ] Customize GRPOTrainer to have reserved "repo_folder" keyword
-  - Things like "prompt" doesn't exist in this exact paradigm
+  - The clone_repo_at_commit needs to work with the RepeatSampler thingy
+  - We should clone the repo (or copy the first clone into a new directory) for each repetition
+  - (Otherwise the many agents could interfere with each other)
 - [ ] Change GRPOTrainer ".generate()" stage
   - Replace "vllm_client.generate" with paralellized Aider instances
     - Echoes extras/paralellized_aider.py

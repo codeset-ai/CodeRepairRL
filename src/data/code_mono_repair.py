@@ -1,5 +1,5 @@
 import logging
-from typing import List, Tuple, Optional
+from typing import List, Optional
 
 from datasets import Dataset
 from transformers import PreTrainedTokenizer
@@ -121,7 +121,7 @@ def create_mono_repair_dataset(
     max_prompt_length: int = 512,
     system_prompt: Optional[str] = None,
     context_lines: int = 0
-) -> Tuple[Dataset, int]:
+) -> Dataset:
     """
     Create a dataset for code repair tasks from paired before/after code samples.
     
@@ -135,7 +135,7 @@ def create_mono_repair_dataset(
         context_lines: Number of context lines to include in diffs (default: 0)
 
     Returns:
-        Tuple of (processed dataset, maximum token length)
+        The processed dataset
     """
     assert len(before_codes) == len(after_codes), "before_codes and after_codes must have the same length"
     
@@ -184,4 +184,4 @@ def create_mono_repair_dataset(
     # Shuffle dataset
     repair_data = repair_data.shuffle(seed=42)
     
-    return repair_data, max(repair_data["tokenized_length"]) 
+    return repair_data

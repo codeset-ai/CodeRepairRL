@@ -1,4 +1,4 @@
-from typing import Tuple, Optional
+from typing import Optional
 
 from datasets import load_dataset, Dataset
 from transformers import PreTrainedTokenizer
@@ -13,7 +13,7 @@ def get_primevul_repair_dataset(
     split: str = "train_paired",
     system_prompt: Optional[str] = None,
     context_lines: int = 0
-) -> Tuple[Dataset, int]:
+) -> Dataset:
     """
     Create a dataset for code repair tasks from PrimeVul paired data.
     
@@ -25,7 +25,7 @@ def get_primevul_repair_dataset(
         system_prompt: Optional system prompt to use
         context_lines: Number of context lines to include in diffs (default: 0)
     Returns:
-        Tuple of (processed dataset, maximum token length)
+        The processed dataset
     """
     assert split.endswith("_paired"), "Only paired dataset is supported for repair tasks"
 
@@ -96,7 +96,7 @@ def get_primevul_detection_dataset(
     tokenizer: PreTrainedTokenizer,
     split: str = "train_paired",
     max_prompt_length: int = 512,
-) -> Tuple[Dataset, int]:
+) -> Dataset:
     """
     Create a dataset for vulnerability detection tasks from PrimeVul data.
     
@@ -106,7 +106,7 @@ def get_primevul_detection_dataset(
         max_prompt_length: Maximum prompt length for filtering (default: 512)
         
     Returns:
-        Tuple of (processed dataset, maximum token length)
+        The processed dataset
     """
     # Load the dataset
     data = load_dataset("ASSERT-KTH/PrimeVul", split=split)

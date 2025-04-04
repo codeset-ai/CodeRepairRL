@@ -80,7 +80,7 @@ def get_stack_repair_dataset(
     max_prompt_length: int = 512,
     system_prompt: Optional[str] = None,
     context_lines: int = 0
-) -> Tuple[Dataset, int]:
+) -> Dataset:
     """
     Create a dataset for code repair tasks from The Stack dataset docstrings.
     
@@ -90,7 +90,7 @@ def get_stack_repair_dataset(
         system_prompt: Optional system prompt to use
         context_lines: Number of context lines to include in diffs (default: 0)
     Returns:
-        Tuple of (processed dataset, maximum token length)
+        The processed dataset
     """
     # stack.py thinks it is a module, and can therefore not import from src when run directly (creating the ds)
     from src.data.code_mono_repair import create_mono_repair_dataset

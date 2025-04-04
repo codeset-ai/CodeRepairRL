@@ -137,8 +137,8 @@ def main(cfg: Config) -> None:
 
     # Get dataset based on the task
     if cfg.run.task_type == "repair":
-        repair_dataset = get_stack_repair_dataset if cfg.run.dataset_type == "stack" else get_primevul_repair_dataset
-        dataset, max_prompt_length = repair_dataset(
+        get_repair_dataset = get_stack_repair_dataset if cfg.run.dataset_type == "stack" else get_primevul_repair_dataset
+        dataset = get_repair_dataset(
             tokenizer=tokenizer,
             max_prompt_length=cfg.grpo.max_prompt_length,
             context_lines=cfg.run.context_lines
@@ -151,8 +151,8 @@ def main(cfg: Config) -> None:
         ]
         reward_weights = [0.1, 0.2, 0.3, 0.4]
     elif cfg.run.task_type == "detection":  # primevul only
-        if cfg.run.dataset_type == "stack": raise ValueError("Stack does not support detection task")
-        dataset, max_prompt_length = get_primevul_detection_dataset(
+        if not cfg.run.dataset_type == "primevul": raise ValueError("Only primevul supports detection task")
+        dataset = get_primevul_detection_dataset(
             tokenizer=tokenizer, 
             max_prompt_length=cfg.grpo.max_prompt_length
         )
@@ -164,12 +164,6 @@ def main(cfg: Config) -> None:
         reward_weights = [0.1, 0.2, 0.7]
     else:
         raise ValueError(f"Unknown task: {cfg.run.task_type}")  # can't happen but looks nice
-
-    # Adjust sequence lengths if needed (ensures we are not wasting context window)
-    if max_prompt_length < cfg.grpo.max_prompt_length:
-        diff = cfg.grpo.max_prompt_length - max_prompt_length
-        cfg.grpo.max_prompt_length = max_prompt_length
-        cfg.grpo.max_completion_length = cfg.grpo.max_completion_length + diff
 
     # Convert grpo config from OmegaConf to regular Python dict to ensure JSON serialization works
     grpo_params = OmegaConf.to_container(cfg.grpo, resolve=True)
