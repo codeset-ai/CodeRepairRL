@@ -24,7 +24,6 @@
 
 <details>
 <summary>General Research Tasks</summary>
-
 - [ ] Look at how SWE-Bench works exactly, should we train for that behavior end2end?
 - [ ] Read S∗: Test Time Scaling for Code Generation: https://arxiv.org/pdf/2502.14382
 - [ ] Read MUFIN **paper**
@@ -50,6 +49,7 @@
 - [x] Jobscripts vastly simplified
 - [x] Make hf cache (and uv if simple) point to my project directory instead of my home directory
 - [x] Ran a sanity check test that two apptainer containers can talk to each other via HTTP
+- [x] Training runs with grpo.use_vllm=false work
 - [ ] Fix container, problem with trl vllm-serve
   - Now I get "backend not found" errors
   - I think its due to "Linux" version, not flash-attn as I thought before
