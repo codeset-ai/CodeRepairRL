@@ -3,8 +3,9 @@ from typing import Literal
 
 from datasets import load_dataset, Dataset
 
-from src.data.code_repo_repair import create_repo_repair_dataset
 from src.utils.git import handle_to_url
+from src.utils.diff import SearchReplaceDiff
+from src.data.code_repo_repair import create_repo_repair_dataset
 
 logger = logging.getLogger(__name__)
 
@@ -32,11 +33,10 @@ def get_swe_bench_dataset(
     
     logger.info(f"Creating repository repair dataset with {len(swe_ds)} examples")
     
-    # Create the repository repair dataset
     return create_repo_repair_dataset(
         repo_urls=[handle_to_url(item["repo"]) for item in swe_ds],
         repo_commit_hashes=[item["base_commit"] for item in swe_ds],
-        patches=[item["patch"] for item in swe_ds],
+        search_replace_patches=[SearchReplaceDiff.from_unified_diff(item["patch"]).to_string() for item in swe_ds],
         descriptions=[item["problem_statement"] for item in swe_ds],
     )
 
