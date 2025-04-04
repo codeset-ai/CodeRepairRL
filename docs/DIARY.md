@@ -49,19 +49,33 @@
 #### Tasks:
 - [x] Jobscripts vastly simplified
 - [x] Make hf cache (and uv if simple) point to my project directory instead of my home directory
-- [ ] Double check recommended flast-attn version for vllm
+- [x] Ran a sanity check test that two apptainer containers can talk to each other via HTTP
+- [ ] Fix container, problem with trl vllm-serve
   - Now I get "backend not found" errors
+  - I think its due to "Linux" version, not flash-attn as I thought before
+  - Can run vLLM myself on the container
 - [ ] Train Qwen-2.5-Coder-32B on stack "repair" on SLURM
-  - Main concern is whether the two apptainers can talk to each other (the vLLM server opens a local unicorn server, I'd assume that it does)
-  - Could solve this on the python side, simplify the .sh side and use one script which detects gpu resources and launches training/inference nodes accordingly
-- [ ] Check on verifiers, is it better now?
-  - vLLM support?
-- [ ] Replace vllm_client.generate with paralellized Aider instances
-  - Main concern is just whether trl-serve launches an OpenAI compatible server or something more minimal.
-- [ ] Create SWE-Bench "repair" dataset
-  - Maybe best to just call the fast clone method I made at runtime
-- [ ] Setup Defect4J as reward signal and train on it
-- [ ]
+  - Should be easy when the problem above is fixed
+  - Leave it on in the background as I work on the other stuff
+- [x] Paralellized Aider test
+  - Under "extras"
+  - Multiprocess: clone a SWE-Bench-Lite repo, change directory, run aider, it maps the repo, suppress the terminal outputs ...
+  - It is possible to access the entire conversation history in textual format if we fork the repo
+  - Perhaps best to do this on the vLLM side. Make it "agent agnostic". Gather all the requests in a buffer, then in our training loop, when Aider exits, we call a new api_endpoint which gives us the entire history and resets the buffer.
+- [ ] Transfer ownership of my fork to ASSERT-KTH
+- [ ] Change vllm-serve
+  - Make an OpenAI compatible endpoint
+  - Gather chat histories in a buffer
+  - New endpoint to get histories and reset buffer
+- [ ] Create a "repo repair dataset"
+  - We can just prefetch all the repos (and initialize Aider cache for speed perhaps)
+  - Store the path to the tempfolder under "repo_folder" key
+  - Create "get_repo_repair_dataset" in swe_bench.py (has no system prompt, that is delegated to the agent)
+- [ ] Customize GRPOTrainer to have reserved "repo_folder" keyword
+  - Things like "prompt" doesn't exist in this exact paradigm
+- [ ] Change GRPOTrainer ".generate()" stage
+  - Replace "vllm_client.generate" with paralellized Aider instances
+    - Echoes extras/paralellized_aider.py
 
 ## March 24 - March 30, 2025
 

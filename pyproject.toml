@@ -5,16 +5,20 @@ description = "Finetuning LLMs with RL to improve program repair capabilities"
 readme = "README.md"
 requires-python = ">=3.11,<4"
 dependencies = [
-    "transformers",
-    "huggingface-hub",
-    "trl @ git+https://github.com/BjarniHaukur/trl.git",
-    "wandb>=0.19.6",
-    "hydra-core>=1.3.2",
+    # Our fork of trl
+    "trl @ git+https://github.com/BjarniHaukur/trl.git", 
+    # Other HF stuff
+    "transformers>=4.48.3",
+    "huggingface-hub>=0.30.1",
     "datasets>=3.3.0",
-    "pytest>=8.3.4",
     "peft>=0.15.0",
-    "vllm>=0.8.2",
-    "bitsandbytes>=0.45.4",
+    "bitsandbytes>=0.45.4; platform_system != 'Darwin'",
+    # Fast inference, used in GRPOTrainer
+    "vllm>=0.8.2; platform_system != 'Darwin'",
+    # Logging
+    "wandb>=0.19.6",
+    # Config
+    "hydra-core>=1.3.2",
 ]
 
 [project.optional-dependencies]

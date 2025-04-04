@@ -32,3 +32,4 @@ repomix-output.txt
 
 # singularity image for ttc
 crrl.sif
+.aider*
