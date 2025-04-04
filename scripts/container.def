@@ -2,8 +2,7 @@ Bootstrap: docker
 From: pytorch/pytorch:2.6.0-cuda12.4-cudnn9-devel
 
 %environment
-    # For WandB
-    # Explicitly point to the standard CA bundle location
+    # For WandB, explicitly point to the standard CA bundle location
     export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 
 %files

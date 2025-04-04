@@ -6,7 +6,7 @@
 #SBATCH --time=48:00:00
 #SBATCH -C "fat"
 
-# Large training job, 8 GPUs, 4 running vLLM, 4 training via accelerate
+# Large training job, 8 GPUs, 4 running vLLM, 4 training via accelerate and deepspeed
 
 # Configuration
 MODEL_CONFIG="large_qwen"
@@ -18,7 +18,7 @@ TP_SIZE=4
 # Launch vLLM server on GPUs 4-7
 apptainer exec --nv --env CUDA_VISIBLE_DEVICES=0,1,2,3 crrl.sif \
     trl vllm-serve --model $MODEL_NAME \
-    --tensor_parallel_size 4 &  # & makes it run in the background
+    --tensor_parallel_size $TP_SIZE &  # & makes it run in the background
 
 # Launch training on GPUs 0-3 with large model configuration using accelerate
 apptainer exec --nv --bind "$(pwd):/app" --env CUDA_VISIBLE_DEVICES=4,5,6,7 crrl.sif \

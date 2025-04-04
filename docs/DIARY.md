@@ -79,15 +79,16 @@ We would certainly have superior domain specific performance within e.g. Aider b
   - Gather chat histories in a buffer
   - New endpoint to get histories and resets the buffer
 - [ ] Test Aider working with this vllm-serve
+  - I have no GPUs atm (Berzileus is down), rent from Lambda Cloud
   - See if there is a unique id we can use on the server side to catch the entire history
   - If not, we need some other way of knowing which requests are terminal for each agent
-- [ ] Customize GRPOTrainer to have reserved "repo_folder" keyword
+- [ ] Customize GRPOTrainer to have reserved "repo_url"/"repo_commit" keywords
   - The clone_repo_at_commit needs to work with the RepeatSampler thingy
   - We should clone the repo (or copy the first clone into a new directory) for each repetition
   - (Otherwise the many agents could interfere with each other)
 - [ ] Change GRPOTrainer ".generate()" stage
-  - Replace "vllm_client.generate" with paralellized Aider instances
-    - Echoes extras/paralellized_aider.py
+  - Replace "vllm_client.generate" with paralellized Aider instances (echoes extras/paralellized_aider.py)
+  - Modify API_ENDPOINT to our vllm server
 - [ ] Create a "repo repair dataset"
   - We can just prefetch all the repos (and initialize Aider cache for speed perhaps)
   - Store the path to the tempfolder under "repo_folder" key
