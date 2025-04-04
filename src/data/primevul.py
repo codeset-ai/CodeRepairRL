@@ -1,14 +1,10 @@
-import logging
 from typing import Tuple, Optional
 
 from datasets import load_dataset, Dataset
 from transformers import PreTrainedTokenizer
 
-from src.data.code_repair import create_repair_dataset
+from data.code_mono_repair import create_mono_repair_dataset
 from src.data.code_classification import create_classification_dataset
-
-
-logger = logging.getLogger(__name__)
 
 
 def get_primevul_repair_dataset(
@@ -60,7 +56,7 @@ def get_primevul_repair_dataset(
         descriptions.append(f"Type: {vulnerable['cwe']}\nDescription: {vulnerable['cwe_description']}")
     
     # Create the repair dataset using the generalized function
-    return create_repair_dataset(
+    return create_mono_repair_dataset(
         before_codes=before_codes,
         after_codes=after_codes,
         descriptions=descriptions,

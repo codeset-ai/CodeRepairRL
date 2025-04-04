@@ -53,14 +53,14 @@
 - [x] Ran a sanity check test that two apptainer containers can talk to each other via HTTP
 - [x] Training runs with grpo.use_vllm=false work
 - [ ] Fix container, problem with trl vllm-serve
-  - Now I get "backend not found" errors
-  - I think its due to "Linux" version, not flash-attn as I thought before
+  - Now I get "backend not found" error
+  - I think its due to "Linux/image" version, not flash-attn as I thought before
   - Can run vLLM myself on the container
 - [ ] Train Qwen-2.5-Coder-32B on stack "repair" on SLURM
   - Should be easy when the problem above is fixed
   - Leave it on in the background as I work on the other stuff
 - [x] Paralellized Aider test
-  - Under "extras"
+  - Under extras/
   - Multiprocess: clone a SWE-Bench-Lite repo, change directory, run aider, it maps the repo, suppress the terminal outputs ...
   - It is possible to access the entire conversation history in textual format if we fork the repo
   - Perhaps best to do this on the vLLM side. Make it "agent agnostic". Gather all the requests in a buffer, then in our training loop, when Aider exits, we call a new api_endpoint which gives us the entire history and resets the buffer.

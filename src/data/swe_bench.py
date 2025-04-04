@@ -4,7 +4,7 @@ from typing import Tuple, Optional
 from datasets import load_dataset, Dataset
 from transformers import PreTrainedTokenizer
 
-from src.data.code_repair import create_repair_dataset
+from data.code_mono_repair import create_mono_repair_dataset
 from src.utils.git import clone_repo_at_commit, handle_to_url, clean_repo_dir
 
 logger = logging.getLogger(__name__)

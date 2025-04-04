@@ -1,4 +1,4 @@
-# TODO: If this is something we want to pursue we should consider the following:
+# If this is something we want to pursue we should consider the following:
 # - Use a larger subset of the stack dataset
 # - Filter out functions with large contiguous comment blocks
 # - Filter out functions with too many comments
@@ -13,20 +13,12 @@ implementations, and prepares them as tasks for LLM generation.
 """
 import ast
 import re
-import logging
 from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass
 
 from tqdm import tqdm
 from datasets import load_dataset, Dataset, DatasetInfo, Features, Value
 from transformers import PreTrainedTokenizer
-
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
 
 
 # System prompt for code implementation from specification
@@ -101,12 +93,10 @@ def get_stack_repair_dataset(
         Tuple of (processed dataset, maximum token length)
     """
     # stack.py thinks it is a module, and can therefore not import from src when run directly (creating the ds)
-    from src.data.code_repair import create_repair_dataset
-    
+    from src.data.code_mono_repair import create_mono_repair_dataset
+
     # Load the cached dataset
     ds = load_dataset("ASSERT-KTH/stack-smol-docstrings")["train"]
-    
-    logger.info(f"Successfully loaded {len(ds)} tasks from cached dataset")
     
     # Prepare data for repair dataset creation
     before_codes = []  # Masked code (with function removed)
@@ -128,7 +118,7 @@ def get_stack_repair_dataset(
         )
     
     # Create the repair dataset using the generalized function
-    return create_repair_dataset(
+    return create_mono_repair_dataset(
         before_codes=before_codes,
         after_codes=after_codes,
         descriptions=descriptions,
@@ -480,8 +470,15 @@ def display_task_stats(tasks: List[DocstringTask]):
 
 
 if __name__ == "__main__":
-    import sys, os, argparse
+    import logging, argparse
     from datasets import Dataset
+    
+    
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+    logger = logging.getLogger(__name__)
 
     
     # Parse command line arguments
