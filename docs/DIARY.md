@@ -42,6 +42,8 @@
 - [ ] Multi file repair
 </details>
 
+## April 8 - April 
+
 
 ## April 1 - April 7, 2025
 
@@ -62,7 +64,7 @@
   - Multiprocess: clone a SWE-Bench-Lite repo, change directory, run aider, it maps the repo, suppress the terminal outputs ...
   - It is possible to access the entire conversation history in textual format if we fork the repo
   - Perhaps best to do this on the vLLM side. Make it "agent agnostic". Gather all the requests in a buffer, then in our training loop, when Aider exits, we call a new api_endpoint which gives us the entire history and resets the buffer.
-- [ ] Transfer ownership of my fork to ASSERT-KTH
+- [x] Transfer ownership of my fork to ASSERT-KTH
 - [ ] Change vllm-serve
   - Make an OpenAI compatible endpoint
   - Gather chat histories in a buffer
