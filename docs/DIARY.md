@@ -24,7 +24,7 @@
 
 <details>
 <summary>General Research Tasks</summary>
-- [ ] Look at how SWE-Bench works exactly, should we train for that behavior end2end?
+- [x] Look at how SWE-Bench works exactly, should we train for that behavior end2end?
 - [ ] Read S∗: Test Time Scaling for Code Generation: https://arxiv.org/pdf/2502.14382
 - [ ] Read MUFIN **paper**
 - [ ] Update DATASETS.md with everything
@@ -33,14 +33,6 @@
   - From docs (both mine and minutes)
 </details>
 
-<details>
-<summary>Advanced SWE Tasks (Conditional)</summary>
-- [ ] Replicate the "agentic workflow" of SWE-agent and similar 
-  - Find out how they normally put the codebase into the context window
-  - How they do function calling
-  - Otherwise we could just run repomix
-- [ ] Multi file repair
-</details>
 
 ## April 8 - April 14, 2025
 
@@ -51,6 +43,8 @@ Training, not fine-tuning (maybe a bit controversial)
 
 We would certainly have superior domain specific performance within e.g. Aider but the goal is to improve "agentic" coding behavior in general. What I want to illustrate in my thesis is that this isn't a fine-tuning technique, but perhaps one of the key steps in the post-training stage of the next iteration of frontier models (circa Claude-3.7-sonnet).
 
+"in-context training", "direct agent reinforcement", "agent-in-the-loop training"
+
 #### Tasks:
 - [ ] Fix container, problem with trl vllm-serve
   - Now I get "backend not found" error
@@ -59,6 +53,9 @@ We would certainly have superior domain specific performance within e.g. Aider b
 - [ ] Train Qwen-2.5-Coder-32B on stack "repair" on SLURM
   - Should be easy when the problem above is fixed
   - Leave it on in the background as I work on the other stuff
+- [ ] Unslop README.md
+- [ ] I don't think trl will be mergable after these changes
+  - Do we like this name? Agent-In-The-Loop Reinforcement Trainer (AITLRT)
 
 
 ## April 1 - April 7, 2025 (SLURM issues were a priority, but couldn't work on them bc. Berzileus was down)
@@ -79,17 +76,21 @@ We would certainly have superior domain specific performance within e.g. Aider b
   - Gather chat histories in a buffer
   - New endpoint to get histories and resets the buffer
 - [ ] Test Aider working with this vllm-serve
-  - I have no GPUs atm (Berzileus is down), rent from Lambda Cloud
+  - I have no GPUs atm (Berzileus is down), rent from Lambda Cloud?
   - See if there is a unique id we can use on the server side to catch the entire history
   - If not, we need some other way of knowing which requests are terminal for each agent
 - [ ] Customize GRPOTrainer to have reserved "repo_url"/"repo_commit" keywords
   - The clone_repo_at_commit needs to work with the RepeatSampler thingy
   - We should clone the repo (or copy the first clone into a new directory) for each repetition
   - (Otherwise the many agents could interfere with each other)
-- [ ] Change GRPOTrainer ".generate()" stage
+- [x] Change GRPOTrainer ".generate()" stage
   - Replace "vllm_client.generate" with paralellized Aider instances (echoes extras/paralellized_aider.py)
   - Modify API_ENDPOINT to our vllm server
-- [ ] Create a "repo repair dataset"
+  - Post:
+    - A hacky, probably non-functional impl in place (monkeypatch middle-ware)
+    - This is a bit tricky to get right
+    - Would be way simpler to customize Aider, but if this is done correcly, it could be quite profound (as an example at least)
+- [x] Create a "repo repair dataset"
   - We can just prefetch all the repos (and initialize Aider cache for speed perhaps)
   - Store the path to the tempfolder under "repo_folder" key
   - Create "get_repo_repair_dataset" in swe_bench.py (has no system prompt, that is delegated to the agent)
