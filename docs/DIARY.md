@@ -39,23 +39,63 @@
 #### Keywords
 Multi-turn, end2end, reinforcement training of coding agents.
 
-Training, not fine-tuning (maybe a bit controversial)
+Training, not fine-tuning? (maybe a bit controversial)
 
 We would certainly have superior domain specific performance within e.g. Aider but the goal is to improve "agentic" coding behavior in general. What I want to illustrate in my thesis is that this isn't a fine-tuning technique, but perhaps one of the key steps in the post-training stage of the next iteration of frontier models (circa Claude-3.7-sonnet).
 
 "in-context training", "direct agent reinforcement", "agent-in-the-loop training"
 
+I don't think trl will be mergable after these changes and do we like this name? Agent-In-The-Loop Reinforcement Trainer (AITLRT)
+
 #### Tasks:
+- [ ] Start writing
+  - Doesn't need to be a lot, 
+- [ ] Unslop README.md
+  - Move some of it to docs/PROJECT.md
+  - Perfect for AI context
+  - Also just nice to have if someone wants a deeper understanding of everything
+  - This way it doesn't clog up the README.md
+  - Add a section at the bottom of the README.md detailing what exactly all the .md files are
+  - Also just useful for later writin
+- [x] Test APIProxy against a real endpoint
+  - Launch a vllm server, make a call to the proxy which calls to vllm
+  - Verify that chats are stored and the format of the requests
+  - Post:
+    - Figured out a nicer abstraction, APIProxy no longer a thing
+- [x] Implement an OpenAI compatible endpoint
+  - https://github.com/huggingface/trl/issues/3284
+- [ ] Test Aider against our vllm_serve_openai_endpoint.py
+  - Is there and identifying header we can use for our purposes:
+    - [ ] yes, [ ] no
+  - Or do we need to map requests/responses to the prompts which caused them:
+- [ ] Test AgentManager against trl vllm endpoint
+  - Observe N Aiders working concurrently
+  - Find possible errors in OpenAI endpoint emulation
+  - Ensure that vllm dynamic batching works properly with this approach
+  - Check out vllm.entrypoints.openai.api_server, should hopefully work the same as our approach in essence
+- [ ] Ensure the input / output to AgentManager is correct
+  - Should mirror vllm_client.generate() exactly
+- [ ] Make median/std log to train_median/train_std (WandB)
+  - for convenience
+  - annoying to have to scroll throught those statistics when all I want is the actual value
+- [ ] Fix NotImplementedError for vllm attn_cls
+  - Probably some version thing
+  - Try going to vanilla trl, and launch trl vllm-serve
+  - If that doesn't work, roll back
+  - Find which vllm/trl/vllm_flash_attn/triton/etc. versions work
+
+#### Berzelius contingent tasks:
 - [ ] Fix container, problem with trl vllm-serve
+  - When Berzelius is back up
   - Now I get "backend not found" error
   - I think its due to "Linux/image" version, not flash-attn as I thought before
   - Can run vLLM myself on the container
 - [ ] Train Qwen-2.5-Coder-32B on stack "repair" on SLURM
+  - When Berzelius is back up
   - Should be easy when the problem above is fixed
   - Leave it on in the background as I work on the other stuff
-- [ ] Unslop README.md
-- [ ] I don't think trl will be mergable after these changes
-  - Do we like this name? Agent-In-The-Loop Reinforcement Trainer (AITLRT)
+- [ ] Train Aider-Qwen-2.5-Coder-32B
+  - Ensure that we are turning off bash commands for the agent (VIP)
 
 
 ## April 1 - April 7, 2025 (SLURM issues were a priority, but couldn't work on them bc. Berzileus was down)
@@ -75,14 +115,6 @@ We would certainly have superior domain specific performance within e.g. Aider b
   - Make an OpenAI compatible endpoint
   - Gather chat histories in a buffer
   - New endpoint to get histories and resets the buffer
-- [ ] Test Aider working with this vllm-serve
-  - I have no GPUs atm (Berzileus is down), rent from Lambda Cloud?
-  - See if there is a unique id we can use on the server side to catch the entire history
-  - If not, we need some other way of knowing which requests are terminal for each agent
-- [ ] Customize GRPOTrainer to have reserved "repo_url"/"repo_commit" keywords
-  - The clone_repo_at_commit needs to work with the RepeatSampler thingy
-  - We should clone the repo (or copy the first clone into a new directory) for each repetition
-  - (Otherwise the many agents could interfere with each other)
 - [x] Change GRPOTrainer ".generate()" stage
   - Replace "vllm_client.generate" with paralellized Aider instances (echoes extras/paralellized_aider.py)
   - Modify API_ENDPOINT to our vllm server
