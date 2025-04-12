@@ -64,15 +64,14 @@ I don't think trl will be mergable after these changes and do we like this name?
     - Figured out a nicer abstraction, APIProxy no longer a thing
 - [x] Implement an OpenAI compatible endpoint
   - https://github.com/huggingface/trl/issues/3284
-- [ ] Test Aider against our vllm_serve_openai_endpoint.py
+- [x] Test Aider against our vllm_serve_openai_endpoint.py
   - Is there and identifying header we can use for our purposes:
-    - [ ] yes, [ ] no
+    - [ ] yes, [x] no
   - Or do we need to map requests/responses to the prompts which caused them:
-- [ ] Test AgentManager against trl vllm endpoint
+- [x] Test MultiProcessAider against our endpoint
   - Observe N Aiders working concurrently
   - Find possible errors in OpenAI endpoint emulation
   - Ensure that vllm dynamic batching works properly with this approach
-  - Check out vllm.entrypoints.openai.api_server, should hopefully work the same as our approach in essence
 - [ ] Ensure the input / output to AgentManager is correct
   - Should mirror vllm_client.generate() exactly
 - [ ] Make median/std log to train_median/train_std (WandB)
