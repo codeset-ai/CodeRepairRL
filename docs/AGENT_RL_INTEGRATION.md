@@ -41,19 +41,6 @@ For example, in tasks from SWE-Gym, the model needs to generate code edits for r
 
 Rather than building ad-hoc scaffolding from scratch, integrating existing coding agents like Aider directly into the training loop is more efficient. These agents already support rich workflows such as repo mapping, diff parsing, and iterative interaction—and they use the OpenAI API interface.
 
-### Technical Challenges in Implementation
-
-1. **Native Streaming Limitations:**  
-   - The synchronous LLM class relies on a tight loop (using `.step()`) to process entire batches and assumes that a request is complete when it returns a full output.  
-   - In a production environment with many concurrent API calls, adapting this method to yield intermediate token updates is highly problematic.
-
-2. **Distributed Weight Synchronization:**  
-   - Our service uses distributed weight sync via `collective_rpc`, which is tightly integrated with the synchronous processing flow.  
-   - Any attempt to "extract" streaming behavior from the synchronous engine might interfere with weight sharing across processes.
-
-3. **Synchronous Wrapping as a Footgun:**  
-   - Wrapping or "hacking" the synchronous engine to simulate streaming is both fragile and error-prone.
-   - The synchronous design isn't built for yielding partial outputs, and re-engineering it introduces significant risk of race conditions or deadlocks under high concurrency.  
 
 ## Proposed Solution: OpenAI-Compatible vLLM API Server
 

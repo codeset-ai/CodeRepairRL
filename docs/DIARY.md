@@ -34,6 +34,31 @@
 </details>
 
 
+## April 14 - April 21
+
+### Tasks:
+- [ ] Start writing
+  - Doesn't need to be a lot,
+- [ ] Squash main
+  - Wayyy to many commits, work on dev, merge into main
+- [x] Rename issue, send email
+  - Mayebe ping willcobb or create an issue on the Verifiers side pointing to this
+  - Post: Maybe ping maintainer / willccbb. Verifiers can 
+- [ ] Ensure the input / output to AgentManager is correct
+  - Should mirror vllm_client.generate() exactly
+- [ ] Make median/std log to train_median/train_std (WandB)
+  - for convenience
+  - annoying to have to scroll throught those statistics when all I want is the actual value
+
+#### Berzelius contingent tasks:
+- [ ] Fix container, problem with trl vllm-serve
+  - When Berzelius is back up
+  - Now I get "backend not found" error
+  - I think its due to "Linux/image" version, not flash-attn as I thought before
+  - Can run vLLM myself on the container
+- [ ] Train Aider-Qwen-2.5-Coder-32B
+  - Ensure that we are turning off bash commands for the agent (VIP)
+
 ## April 8 - April 14, 2025
 
 #### Keywords
@@ -49,8 +74,9 @@ I don't think trl will be mergable after these changes and do we like this name?
 
 #### Tasks:
 - [ ] Start writing
-  - Doesn't need to be a lot, 
-- [ ] Unslop README.md
+  - Doesn't need to be a lot,
+  - Did some DeepResearch, but need to focus on this more.
+- [x] Unslop README.md
   - Move some of it to docs/PROJECT.md
   - Perfect for AI context
   - Also just nice to have if someone wants a deeper understanding of everything
@@ -72,30 +98,11 @@ I don't think trl will be mergable after these changes and do we like this name?
   - Observe N Aiders working concurrently
   - Find possible errors in OpenAI endpoint emulation
   - Ensure that vllm dynamic batching works properly with this approach
-- [ ] Ensure the input / output to AgentManager is correct
-  - Should mirror vllm_client.generate() exactly
-- [ ] Make median/std log to train_median/train_std (WandB)
-  - for convenience
-  - annoying to have to scroll throught those statistics when all I want is the actual value
-- [ ] Fix NotImplementedError for vllm attn_cls
+- [x] Fix NotImplementedError for vllm attn_cls
   - Probably some version thing
   - Try going to vanilla trl, and launch trl vllm-serve
   - If that doesn't work, roll back
   - Find which vllm/trl/vllm_flash_attn/triton/etc. versions work
-
-#### Berzelius contingent tasks:
-- [ ] Fix container, problem with trl vllm-serve
-  - When Berzelius is back up
-  - Now I get "backend not found" error
-  - I think its due to "Linux/image" version, not flash-attn as I thought before
-  - Can run vLLM myself on the container
-- [ ] Train Qwen-2.5-Coder-32B on stack "repair" on SLURM
-  - When Berzelius is back up
-  - Should be easy when the problem above is fixed
-  - Leave it on in the background as I work on the other stuff
-- [ ] Train Aider-Qwen-2.5-Coder-32B
-  - Ensure that we are turning off bash commands for the agent (VIP)
-
 
 ## April 1 - April 7, 2025 (SLURM issues were a priority, but couldn't work on them bc. Berzileus was down)
 
