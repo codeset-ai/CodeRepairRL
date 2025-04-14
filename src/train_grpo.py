@@ -20,7 +20,7 @@ from src.rewards import (
     diff_format_reward_func,
     diff_similarity_reward_func,
 )
-from src.data import get_stack_repair_dataset, get_primevul_repair_dataset, get_primevul_detection_dataset
+from src.data import get_stack_repair_dataset, get_primevul_repair_dataset, get_primevul_detection_dataset, get_swe_gym_repo_repair_dataset, get_swe_bench_repo_repair_dataset
 from src.utils.git import resolve_git_commit_hash
 
 logger = logging.getLogger(__name__)
@@ -29,17 +29,17 @@ logger = logging.getLogger(__name__)
 @dataclass
 class RunConfig:
     wandb_project: str = "TTC"
-    task_type: str = "repair"  # "detection" or "repair"
-    dataset_type: str = "stack"  # "primevul" or "stack"
+    task_type: str = "repo_repair"
+    dataset_type: str = "stack"
     context_lines: int = 0  # number of context lines to include in diffs
     commit_hash: str = ""  # added at runtime
     resume_training: bool = False
 
     def __post_init__(self):
-        if self.task_type not in ["detection", "repair"]:
+        if self.task_type not in ["detection", "repair", "repo_repair"]:
             raise ValueError("task_type must be either 'detection' or 'repair'")
-        if self.dataset_type not in ["primevul", "stack"]:
-            raise ValueError("dataset_type must be either 'stack', or 'primevul'")
+        if self.dataset_type not in ["primevul", "stack", "swe_gym", "swe_bench"]:
+            raise ValueError("dataset_type must be either 'stack', 'primevul', 'swe_gym', or 'swe_bench'")
 
 @dataclass
 class ModelConfig:
@@ -162,6 +162,8 @@ def main(cfg: Config) -> None:
             categorical_correctness_reward_func,
         ]
         reward_weights = [0.1, 0.2, 0.7]
+    elif cfg.run.task_type == "repo_repair":
+        raise NotImplementedError("Repo repair not implemented yet")
     else:
         raise ValueError(f"Unknown task: {cfg.run.task_type}")  # can't happen but looks nice
 

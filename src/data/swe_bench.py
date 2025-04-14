@@ -9,8 +9,8 @@ from src.data.code_repo_repair import create_repo_repair_dataset
 
 logger = logging.getLogger(__name__)
 
-# Cloning the repos must happen on the trl side (in our custom fork)
-def get_swe_bench_dataset(
+# We should of course use swe-gym instead
+def get_swe_bench_repo_repair_dataset(
     split: Literal["train", "dev"] = "dev",
     dataset_name: str = "princeton-nlp/SWE-bench_Lite",  # or any of the other SWE-bench datasets
     **kwargs  # absorbs additional arguments required by the other get functions

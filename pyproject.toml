@@ -5,11 +5,12 @@ description = "Finetuning LLMs with RL to improve program repair capabilities"
 readme = "README.md"
 requires-python = ">=3.11,<4"
 dependencies = [
+    "aider-chat @ git+https://github.com/BjarniHaukur/aider.git",
     # Our fork of trl
-    "trl @ git+https://github.com/BjarniHaukur/trl.git", 
+    "trl @ git+https://github.com/ASSERT-KTH/trl.git@dev",
     # Other HF stuff
-    "transformers>=4.48.3",
-    "huggingface-hub>=0.30.1",
+    "transformers",
+    "huggingface-hub",
     "datasets>=3.3.0",
     "peft>=0.15.0",
     "bitsandbytes>=0.45.4; platform_system != 'Darwin'",
@@ -19,6 +20,7 @@ dependencies = [
     "wandb>=0.19.6",
     # Config
     "hydra-core>=1.3.2",
+    "gitpython>=3.1.44",
 ]
 
 [project.optional-dependencies]
