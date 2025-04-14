@@ -3,7 +3,7 @@ from typing import Optional
 from datasets import load_dataset, Dataset
 from transformers import PreTrainedTokenizer
 
-from data.code_mono_repair import create_mono_repair_dataset
+from src.data.code_mono_repair import create_mono_repair_dataset
 from src.data.code_classification import create_classification_dataset
 
 

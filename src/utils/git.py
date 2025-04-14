@@ -33,7 +33,7 @@ def clone_repo_at_commit(repo_url: str, commit_id: str, target_dir: Optional[str
 
 def clean_repo_dir(repo_path: str):
     """Clean tempfolder"""
-    assert repo_path.startswith("/tmp/"), "For safety, repo_path must be a temporary directory"
+    assert repo_path.startswith("/tmp/") or repo_path.startswith("/var/folders/"), "For safety, repo_path must be a temporary directory"
     shutil.rmtree(repo_path)
 
 def resolve_git_commit_hash(git_commit_hash: Optional[str] = None) -> str:
@@ -43,3 +43,29 @@ def resolve_git_commit_hash(git_commit_hash: Optional[str] = None) -> str:
     
     try: return subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode('utf-8').strip()
     except: return "unknown"  
+
+def get_staged_diff(repo_path: str) -> str:
+    """
+    Get a diff of all staged changes in the repository.
+    
+    Args:
+        repo_path: Path to the repository
+        
+    Returns:
+        String representation of the diff for all staged changes
+    """
+    repo = git.Repo(repo_path)
+    return repo.git.diff('--staged')  
+
+def get_head_commit_diff(repo_path: str) -> str:
+    """
+    Get the diff for the HEAD commit in the repository.
+    
+    Args:
+        repo_path: Path to the repository
+        
+    Returns:
+        String representation of the changes introduced by the HEAD commit
+    """
+    repo = git.Repo(repo_path)
+    return repo.git.show('HEAD')  
