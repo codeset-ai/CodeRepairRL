@@ -39,8 +39,7 @@
 ### Tasks:
 - [ ] Start writing
   - Doesn't need to be a lot,
-- [ ] Squash main
-  - Wayyy to many commits, work on dev, merge into main
+- [ ] Read r2e_gym
 - [x] Rename issue, send email
   - Mayebe ping willcobb or create an issue on the Verifiers side pointing to this
   - Post: Maybe ping maintainer / willccbb. Verifiers can 
