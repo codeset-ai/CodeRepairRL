@@ -1,5 +1,5 @@
 import logging
-from typing import List, Optional
+from typing import List
 
 from datasets import Dataset
 
@@ -10,16 +10,17 @@ def create_repo_repair_dataset(
     repo_urls: List[str],
     repo_commit_hashes: List[str],
     search_replace_patches: List[str],
-    descriptions: Optional[List[str]] = None,
+    descriptions: List[str],
 ) -> Dataset:
     """
     Create a dataset for entire repository repair tasks.
+    System prompts, repository traversal, function calling etc. are entirely handled downstream by the "agent in the loop" (e.g. Aider).
     
     Args:
-        repo_urls: List of repository URLs
+        repo_urls: List of repository URLs to be cloned during training
         repo_commit_hashes: List of commit hashes at which the issues occurred
-        search_replace_patches: List of search/replace patches that fix the issues
-        descriptions: Optional list of issue descriptions
+        search_replace_patches: List of search/replace patches that fix the issues (used as oracle solutions)
+        descriptions: List of issue descriptions that explain the problem to be fixed
         
     Returns:
         The processed dataset
