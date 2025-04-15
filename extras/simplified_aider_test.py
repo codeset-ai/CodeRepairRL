@@ -14,7 +14,7 @@ from src.utils.git import clone_repo_at_commit, handle_to_url, clean_repo_dir, g
 ds = load_dataset("princeton-nlp/SWE-bench_Lite")["dev"].shuffle(seed=42)
 
 url = handle_to_url(ds[0]["repo"])
-temp_folder = clone_repo_at_commit(url, ds[0]["base_commit"])
+temp_folder = clone_repo_at_commit(url, ds[0]["base_commit"], "bla")
 
 try:
     # Change to the repo's root directory so Aider can compute the repo-map
@@ -30,7 +30,7 @@ try:
     messsages = coder.format_chat_chunks().all_messages()
     diff = get_head_commit_diff(temp_folder)
 finally:
-    clean_repo_dir(temp_folder)
+    # clean_repo_dir(temp_folder)
     os.chdir(original_dir)
     
 

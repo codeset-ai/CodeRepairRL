@@ -40,6 +40,13 @@
 - [ ] Start writing
   - Doesn't need to be a lot,
 - [ ] Read r2e_gym
+- [x] Refactor AgentManager
+  - Now we import the abstract from our trl fork and implement our own custom agent
+- [x] Test MultiProcessAiderAgent
+ - Works well, think the abstraction of data dicts in, updated data dicts out is a nice abstraction
+- [ ] Update the issue to show this more mature use case
+- [ ] Find out how to deactivate the "context" pruning in aider
+  - Or reconstruct it, shouldn't be that hard
 - [x] Rename issue, send email
   - Mayebe ping willcobb or create an issue on the Verifiers side pointing to this
   - Post: Maybe ping maintainer / willccbb. Verifiers can 

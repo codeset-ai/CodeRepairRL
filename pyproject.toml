@@ -1,5 +1,5 @@
 [project]
-name = "coderepairrl"
+name = "crrl"
 version = "0.1.0"
 description = "Finetuning LLMs with RL to improve program repair capabilities"
 readme = "README.md"

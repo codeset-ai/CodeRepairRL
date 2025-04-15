@@ -67,5 +67,5 @@ def get_head_commit_diff(repo_path: str) -> str:
     Returns:
         String representation of the changes introduced by the HEAD commit
     """
-    repo = git.Repo(repo_path)
-    return repo.git.show('HEAD')  
+    repo = git.Repo(repo_path)  
+    return repo.git.show('HEAD', "--format=")  
