@@ -1,3 +1,8 @@
+# Relevant information
+
+## https://www.primeintellect.ai/blog/intellect-2 (decentralized, crowd sourced, inference rollout for GPRO training)
+
+
 # Research Papers
 
 ## https://r2e-gym.github.io/
