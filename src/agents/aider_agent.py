@@ -8,7 +8,7 @@ from aider.coders import Coder
 from aider.models import Model
 from aider.io import InputOutput
 
-from trl.extras.agent_manager import AgentManager
+from trl.extras.vllm_client import VLLMClient
 
 from src.utils.git import get_head_commit_diff, handle_to_url, clone_repo_at_commit, clean_repo_dir
 
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 mp.set_start_method("spawn", force=True)  # Force spawn method for multiprocessing 
 
 
-class MultiProcessAider(AgentManager):
+class AiderAgent(VLLMClient):
     """Agent manager that uses multiple processes to parallelize agent deployments."""
 
     def __init__(self, vllm_url: str = "http://localhost:8000/v1"):
@@ -28,7 +28,7 @@ class MultiProcessAider(AgentManager):
         """
         super().__init__(vllm_url)
 
-    def process_one(self, data: Dict[str, Any]) -> str:
+    def _process_one(self, data: Dict[str, Any]) -> str:
         """Process a single prompt and return the diff"""
 
         assert ("repo" in data and "base_commit" in data and "problem_statement" in data), "Data should contain repo, base_commit and problem_statement"
@@ -69,13 +69,13 @@ class MultiProcessAider(AgentManager):
         logger.info(f"[END] Processing {data['repo']} at {data['base_commit']}")
         return diff
 
-    def deploy(self, data: List[Dict[str, Any]], timeout: int = 300) -> List[Dict[str, Any]]:
+    def generate(self, data: List[Dict[str, Any]], timeout: int = 300, **kwargs) -> List[Dict[str, Any]]:
         """
-        Deploy parallel agents to process the given prompts, returning histories.
+        Deploys parallel agents to process the given data, returning the updated data with the generated diffs.
 
         Args:
-            prompts: List of prompts to process
-            timeout: Maximum time in seconds to wait for all prompts to complete
+            data: List of data to process
+            timeout: Maximum time in seconds to wait
 
         Returns:
             The data with an extra "generated_diff" field
@@ -83,7 +83,7 @@ class MultiProcessAider(AgentManager):
         # Process all prompts in parallel
         with mp.Pool(processes=min(len(data), mp.cpu_count())) as pool:  # mp will "batch" the prompts if they exceed the core count
             # Start async processing of all prompts
-            result = pool.map_async(self.process_one, data)
+            result = pool.map_async(self._process_one, data)
 
             try:
                 # Wait for results with timeout and collect diffs
@@ -116,3 +116,30 @@ class ApptainerAider(AgentManager):
 
     def deploy(self, data: List[Dict[str, Any]], timeout: int = 300) -> List[Dict[str, Any]]:
         pass
+
+
+class AiderAgent(VLLMClient):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        os.environ["OPENAI_API_BASE"] = f"http://{self.host}:{self.server_port}/v1/completions"
+
+    def process_one(self, data: dict[str, any]) -> tuple[str, list]:
+        orig = os.getcwd()
+        try:
+            temp = clone_repo_at_commit(data["repo_url"], data["base_commit"])
+            os.chdir(temp)
+            with open(os.devnull, "w") as d, redirect_stdout(d), redirect_stderr(d):
+                coder = Coder.create(main_model=Model("openai/our-model"), io=InputOutput(yes=True), suggest_shell_commands=False)
+                coder.run(data["problem_statement"])
+                messages = coder.format_chat_chunks().all_messages()  # convert to tokens
+                diff = get_head_commit_diff(temp)
+        finally:
+            clean_repo_dir(temp)
+            os.chdir(orig)
+        return diff, messages
+
+    def generate(self, data: list[dict[str, any]], timeout: int = 300, **kwargs) -> list[dict[str, any]]:
+        with mp.Pool(min(len(data), mp.cpu_count())) as p:
+            results = p.map_async(self.process_one, data).get(timeout=timeout)
+        for i, (d, m) in zip(data, results): i["generated_diff"] = d; i["messages"] = m
+        return data

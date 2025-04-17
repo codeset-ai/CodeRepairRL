@@ -1,3 +1,8 @@
+# Relevant information
+
+## https://www.primeintellect.ai/blog/intellect-2 (decentralized, crowd sourced, inference rollout for GPRO training)
+
+
 # Research Papers
 
 ## R2E‑Gym: Procedural Environments & Hybrid Verifiers for Scaling Open‑Weights SWE Agents  
