@@ -109,3 +109,22 @@ class ApptainerAider(VLLMClient):
 
     def deploy(self, data: List[Dict[str, Any]], timeout: int = 300) -> List[Dict[str, Any]]:
         pass
+
+
+if __name__ == "__main__":
+    from src.data import get_swe_gym_repo_repair_dataset
+
+    # vllm_server = subprocess.Popen(["trl", "vllm-serve-async", "--model", "Qwen/Qwen2.5-Coder-0.5B-Instruct"])
+
+    logger.info("Starting test")
+    logger.info("Loading dataset")
+    ds = get_swe_gym_repo_repair_dataset().shuffle(seed=42).select(range(2))
+    ds = [dict(x) for x in ds]  # Convert to list of dicts
+
+    logger.info("Deploying agents")
+    aider = AiderAgent(vllm_url="http://localhost:8000/v1")
+    ds = aider.deploy(ds)
+    
+    logger.info(f"Processed {len(ds)} examples")
+    for d in ds:
+        print(d["generated_diff"])
