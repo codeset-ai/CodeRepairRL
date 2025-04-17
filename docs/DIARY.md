@@ -46,6 +46,12 @@
 ### Tasks:
 - [ ] Start writing
   - Doesn't need to be a lot,
+- [x] Scope out the project
+  - I am setting very ambitious goals, especially since there is so little time left
+  - But I want to train my Aider-Qwen2.5-Coder on both SWE-Gym and Defects4j (mine correct patches from repairbench)
+  - (Because most of the program repair literature is on Python and Java)
+  - Then I want to evaluate my model on SWE-Bench-Verified and on Gitbug-Java.
+  - The latter hasn't been done I believe, nice to do since we progress and combine "in-house" work  
 - [x] Update PROJECT.md
 - [x] Read r2e_gym
   - https://www.monperrus.net/martin/fat-reading-notes, use this style of "Review"
@@ -58,7 +64,7 @@
 - [x] Refactor AgentManager
   - Now we import the abstract from our trl fork and implement our own custom agent
 - [x] Test MultiProcessAiderAgent
- - Works well, think the abstraction of data dicts in, updated data dicts out is a nice abstraction
+ - Works well, think the abstraction of data dicts in, updated data dicts out is nice
 - [x] Update the issue to show this more mature use case
 - [ ] Implement and support AsyncVLLMClient
   - The "correct" thing to do would be do replace all generating behavior with a Client
@@ -72,6 +78,8 @@
   - Post: Maybe ping maintainer / willccbb. Verifiers can 
 - [ ] Ensure the input / output to  is correct
   - Should mirror vllm_client.generate() exactly
+- [ ] SWE-Bench-verified setup
+- [ ] Aider-polyglot setup
 
 
 #### Berzelius contingent tasks:
