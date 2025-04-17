@@ -1,1 +1,0 @@
-# TODO: Support lighteval to benchmark models on e.g HumanEval

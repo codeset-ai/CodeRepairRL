@@ -33,28 +33,46 @@
   - From docs (both mine and minutes)
 </details>
 
+<details>
+<summary>Technical, non critical tasks</summary>
+- [ ] Make median/std log to train_median/train_std (WandB)
+  - for convenience
+  - annoying to have to scroll throught those statistics when all I want is the actual value
+</details>
+
 
 ## April 14 - April 21
 
 ### Tasks:
 - [ ] Start writing
   - Doesn't need to be a lot,
-- [ ] Read r2e_gym
+- [x] Update PROJECT.md
+- [x] Read r2e_gym
+  - https://www.monperrus.net/martin/fat-reading-notes, use this style of "Review"
+  - https://arxiv.org/pdf/2504.07164
+- [x] Read Multi-SWE-bench: A Multilingual Benchmark for Issue Resolving
+- [x] Read Reasoning Through Execution: Unifying Process and Outcome Rewards for Code Generation
+  - https://zhuohaoyu.github.io/assets/files/orps_icml_preprint.pdf
+- [x] Read SEAlign: Alignment Training for Software Engineering Agent
+  - https://arxiv.org/pdf/2503.18455
 - [x] Refactor AgentManager
   - Now we import the abstract from our trl fork and implement our own custom agent
 - [x] Test MultiProcessAiderAgent
  - Works well, think the abstraction of data dicts in, updated data dicts out is a nice abstraction
-- [ ] Update the issue to show this more mature use case
+- [x] Update the issue to show this more mature use case
+- [ ] Implement and support AsyncVLLMClient
+  - The "correct" thing to do would be do replace all generating behavior with a Client
+  - Let's just focus on adding this one thing with minimal flags and checks
+  - "Explore then contract", get this working, implement tests, then refine the idea
 - [ ] Find out how to deactivate the "context" pruning in aider
   - Or reconstruct it, shouldn't be that hard
+- [ ] Deal with EOS masking in GRPOTrainer
 - [x] Rename issue, send email
   - Mayebe ping willcobb or create an issue on the Verifiers side pointing to this
   - Post: Maybe ping maintainer / willccbb. Verifiers can 
-- [ ] Ensure the input / output to AgentManager is correct
+- [ ] Ensure the input / output to  is correct
   - Should mirror vllm_client.generate() exactly
-- [ ] Make median/std log to train_median/train_std (WandB)
-  - for convenience
-  - annoying to have to scroll throught those statistics when all I want is the actual value
+
 
 #### Berzelius contingent tasks:
 - [ ] Fix container, problem with trl vllm-serve

@@ -1,6 +1,54 @@
 # Research Papers
 
-## https://r2e-gym.github.io/
+## R2E‑Gym: Procedural Environments & Hybrid Verifiers for Scaling Open‑Weights SWE Agents  
+**Authors:** Naman Jain, Jaskirat Singh, Manish Shetty, Liang Zheng, Koushik Sen, Ion Stoica  
+**Link:** https://arxiv.org/pdf/2504.07164
+
+<details>
+<summary><b>Summary</b></summary>
+
+**What it is.** R2E‑Gym contributes an 8 135‑task, fully runnable benchmark for software‑engineering agents and shows that combining *execution‑based* test runners with an *execution‑free* learned scorer (“hybrid verifier”) lifts an open‑weights 32 B model to **51 % BEST@26** on SWE‑Bench‑Verified—closing much of the gap to proprietary systems.
+
+**How they build it.**
+- *SWEGEN* pipeline mines Git commits, synthesises failing → passing tests, and back‑translates commit logs into natural‑language issues, tripling the size of prior executable corpora.  
+- Four REACT‑style tools (`edit`, `search`, `bash`, `submit`) furnish a realistic agent interface.  
+- The hybrid verifier lets the agent prune low‑value rollouts early, trading a 2× speed‑up for a ~9 pt absolute accuracy gain over pure test‑based judging.
+
+**Key results.**
+- **Dataset scale:** 8 k repos / tests vs. SWE‑Gym’s 2.4 k.  
+- **Model:** Qwen‑2.5‑Coder‑32B finetuned on R2E‑Gym achieves 34.4 % PASS@1 and 51 % BEST@26.  
+- **Ablations:** execution tests and learned scorer each saturate ~42 %; their union is complementary.
+
+---
+
+### Relevance to *CodeRepairRL*
+| Project facet | Take‑away |
+|---------------|-----------|
+| **Agent‑in‑the‑loop RL** | R2E‑Gym’s REACT schema matches our TRL fork; we can import their trajectory JSON directly into our training loop. |
+| **Reward shaping** | The hybrid verifier gives a dense, early‑exit reward signal—drop‑in compatible with our KL‑regularised PPO objective. |
+| **Environment diversity** | 8 k runnable tasks offer a richer curriculum for multi‑file edits than the current 500‑task SWE‑Bench subset. |
+| **Patch minimisation** | Their diff‑sizing script can refine our “search/replace diff accuracy” reward, encouraging minimal fixes. |
+| **Benchmark continuity** | They report on SWE‑Bench‑Verified, so any improvements transfer straight to our existing W&B benchmarks. |
+</details>
+
+## Multi‑SWE‑bench: A Multilingual Benchmark for Issue Resolving  
+**Authors:** Daoguang Zan, Zhirong Huang, Wei Liu, Hanwu Chen, Linhao Zhang, *et al.*  
+**Link:** https://arxiv.org/pdf/2504.02605
+
+<details>
+<summary><b>Summary</b></summary>
+
+**What it is.**  
+Multi‑SWE‑bench extends the Python‑centric SWE‑bench to **1632** human‑verified issues across **seven languages** (Java, TypeScript, JavaScript, Go, Rust, C, C++). It ships with runnable Docker environments and imports the 500 SWE‑bench‑Verified Python tasks for continuity, giving a single, language‑diverse testbed for code‑repair agents.
+
+**How they build it.**  
+A five‑phase pipeline (repo selection → PR crawl → environment dockerisation → auto filtering → dual manual review) filters 2 456 candidate PRs down to high‑quality instances; 68 expert annotators validate that each patch reproduces the bug and fixes it without regression. The authors open‑source both the pipeline and images.
+
+**Key results.**  
+- **Benchmark insights:** even the best agent setup (OpenHands + Claude‑3.7‑Sonnet) resolves **≈ 19 %** overall, with sharp drops for Rust and multi‑file fixes—exposing long‑context and cross‑file reasoning limits.
+- **Method comparison:** scaffolded agents (SWE‑agent, OpenHands) outperform “agentless” prompting by ~1.8 ×, but their edge vanishes when patches exceed **600 tokens** or touch several files.
+- **Multi‑SWE‑RL:** they seed an **open community dataset (4723 instances)** to bootstrap reinforcement‑learning research on the same languages.
+</details>
 
 ## https://arxiv.org/pdf/2504.02605
 
