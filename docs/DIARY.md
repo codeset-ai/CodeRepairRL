@@ -10,7 +10,7 @@
 - Outcome-supervised reward modeling, reward the final patch generated, not the process of creating it
 - Essentially just running multiple coding agents in parallel and reinforce behaviors that lead to superior outcomes
 
-#### 2. Test-Driven Reinforcement Learning
+#### 2. Test-Driven Reinforcement Learning (Backlogged - Not in current project scope)
 - Implement a reward system based on passing test cases rather than similarity to reference solutions
 - Deploy scalable Kubernetes infrastructure to parallelize test case execution across multiple model outputs
 - Benefits:
@@ -45,7 +45,8 @@
 
 ### Tasks:
 - [ ] Start writing
-  - Doesn't need to be a lot,
+  - Doesn't need to be a lot
+  - I'm not too freaked out about this, since I have a LOT of written material spread out over these many documents over what I have been doing, what papers I've been reading, etc.
 - [x] Scope out the project
   - I am setting very ambitious goals, especially since there is so little time left
   - But I want to train my Aider-Qwen2.5-Coder on both SWE-Gym and Defects4j (mine correct patches from repairbench)
@@ -70,17 +71,25 @@
   - The "correct" thing to do would be do replace all generating behavior with a Client
   - Let's just focus on adding this one thing with minimal flags and checks
   - "Explore then contract", get this working, implement tests, then refine the idea
-- [ ] Find out how to deactivate the "context" pruning in aider
+- [x] Find out how to deactivate the "context" pruning in aider
   - Or reconstruct it, shouldn't be that hard
   - Perhaps just add my own list of messages, only append new messages (Aider seems to change previous messages), remove the last message if it looks weird
-- [ ] Deal with EOS masking in GRPOTrainer
+  - Post:
+    - Aider "violates" my 1-to-1 requirement
+    - It modifies the conversation history, removing context, presumably to help less capable models "follow" the conversation better
+    - I don't think Qwen32B or even Qwen7B would struggle too much with having that extended context
+    - Also makes inference less efficient, invalidating a lot of KV-Cache
 - [x] Rename issue, send email
   - Mayebe ping willcobb or create an issue on the Verifiers side pointing to this
   - Post: Maybe ping maintainer / willccbb. Verifiers can 
+- [ ] Deal with EOS masking in GRPOTrainer
 - [ ] Ensure the input / output to  is correct
   - Should mirror vllm_client.generate() exactly
 - [ ] SWE-Bench-verified setup
 - [ ] Aider-polyglot setup
+- [ ] See "the golden path" trajectories by running vllm serve myself.
+  - See if SWE-Agent is also modifying the histories as egregiously as Aider
+  - Ultimately, would be really cool to use Codex
 
 
 #### Berzelius contingent tasks:

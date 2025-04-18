@@ -7,8 +7,8 @@ import hydra
 from omegaconf import OmegaConf
 from hydra.core.config_store import ConfigStore
 from peft import LoraConfig as PEFTLoraConfig, get_peft_model
-from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 from trl import GRPOConfig as HFGRPOConfig, GRPOTrainer as HFGRPOTrainer
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
 from src.rewards import (
     # reasoning rewards
@@ -163,6 +163,7 @@ def main(cfg: Config) -> None:
         ]
         reward_weights = [0.1, 0.2, 0.7]
     elif cfg.run.task_type == "repo_repair":
+        # agent = SWEAgent()
         raise NotImplementedError("Repo repair not implemented yet")
     else:
         raise ValueError(f"Unknown task: {cfg.run.task_type}")  # can't happen but looks nice
@@ -175,6 +176,7 @@ def main(cfg: Config) -> None:
     # Initialize trainer with task-specific reward functions
     trainer = HFGRPOTrainer(
         model=model,
+        # client=agent,  # defaults to Synchronous VLLM client if not specified and use_vllm is True
         processing_class=tokenizer,
         reward_funcs=reward_functions,
         args=training_args,
