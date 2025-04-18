@@ -72,6 +72,7 @@
   - "Explore then contract", get this working, implement tests, then refine the idea
 - [ ] Find out how to deactivate the "context" pruning in aider
   - Or reconstruct it, shouldn't be that hard
+  - Perhaps just add my own list of messages, only append new messages (Aider seems to change previous messages), remove the last message if it looks weird
 - [ ] Deal with EOS masking in GRPOTrainer
 - [x] Rename issue, send email
   - Mayebe ping willcobb or create an issue on the Verifiers side pointing to this

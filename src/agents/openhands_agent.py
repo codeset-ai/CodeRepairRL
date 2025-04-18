@@ -18,7 +18,7 @@ class OpenHandsAgent(VLLMClient):
     def __init__(
         self,
         vllm_url: str = "http://localhost:8000",
-        model: str = "openhands-lm-32b-v0.1",
+        model: str = "Qwen/Qwen2.5-Coder-1.5B-Instruct",
         runtime: str = "local",          # can't use docker on berzileus
         max_iterations: int = 50,        # guard rail so the agent terminates
         timeout: int = 3 * 60,      # 2 minutes
@@ -95,12 +95,8 @@ class OpenHandsAgent(VLLMClient):
             clean_repo_dir(repo_dir)
 
     def generate(self, data: List[Dict[str, Any]], timeout: int = 600) -> List[Dict[str, Any]]:
-        import multiprocessing as mp
-
-        with mp.get_context("spawn").Pool(processes=min(len(data), mp.cpu_count())) as p:
-            results: List[Tuple[str, List[Dict[str, str]]]] = p.map(
-                self._process_one, data, chunksize=1
-            )
+        with mp.Pool(processes=min(len(data), mp.cpu_count())) as p:
+            results = p.map(self._process_one, data, chunksize=1)
 
         for job, (diff, convo) in zip(data, results):
             job["generated_diff"] = diff

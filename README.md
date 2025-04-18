@@ -112,4 +112,4 @@ This repository uses several Markdown files to organize information:
 - **docs/DIARY.md**: A development diary tracking progress, challenges, and decisions.
 - **docs/AGENT_RL_INTEGRATION.md**: Describes our approach to integrating agent frameworks into RL training loops using OpenAI-compatible API servers.
 - **docs/DATASETS.md**: Describes the datasets used in the project.
-- **docs/PAPERS.md**: Lists relevant research papers and literature reviewed for the project.
+- **docs/RESOURCES.md**: Lists relevant research papers, literature and broader resources reviewed for the project.
