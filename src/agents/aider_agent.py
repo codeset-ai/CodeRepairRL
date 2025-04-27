@@ -9,7 +9,7 @@ from aider.models import Model
 from aider.io import InputOutput
 
 from git import Tuple
-from trl.extras.vllm_client import VLLMClient
+from trl.extras.vllm_client import AsyncVLLMClient
 
 from src.utils.git import get_head_commit_diff, handle_to_url, clone_repo_at_commit, clean_repo_dir
 
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 mp.set_start_method("spawn", force=True)  # Force spawn method for multiprocessing
 
 
-class AiderAgent(VLLMClient):
+class AiderAgent(AsyncVLLMClient):
     """Agent manager that uses multiple processes to parallelize agent deployments."""
 
     def __init__(self, vllm_url: str = "http://localhost:8000/v1"):
@@ -98,7 +98,7 @@ class AiderAgent(VLLMClient):
         return data
 
 
-class ApptainerAider(VLLMClient):
+class ApptainerAider(AsyncVLLMClient):
     """Aider agent that uses apptainer containers to parallelize agent deployments."""
 
     def __init__(self, vllm_url: str = "http://localhost:8000", apptainer_image: str = "aider.sif"):

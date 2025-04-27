@@ -1,7 +1,7 @@
 [project]
 name = "crrl"
 version = "0.1.0"
-description = "CodeRepairRL; Finetuning LLMs with RL to improve program repair capabilities"
+description = "Finetuning LLMs with RL to improve program repair capabilities"
 readme = "README.md"
 requires-python = ">=3.11,<4"
 dependencies = [
@@ -25,4 +25,4 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest>=8.3.4", "setuptools>=75.8.0", "matplotlib>=3.10.0", "scikit-learn>=1.6.1"]
 aider = ["aider-chat @ git+https://github.com/BjarniHaukur/aider.git"]
-sweagent = ["sweagent @ git+https://github.com/SWE-agent/SWE-agent.git@main#egg=sweagent"]
+sweagent = ["sweagent @ git+https://github.com/BjarniHaukur/SWE-agent.git"]

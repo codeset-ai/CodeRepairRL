@@ -1,5 +1,4 @@
 version = 1
-revision = 1
 requires-python = ">=3.11, <4"
 resolution-markers = [
     "python_full_version < '3.12' and sys_platform == 'darwin'",
@@ -582,13 +581,12 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3.4" },
     { name = "scikit-learn", marker = "extra == 'dev'", specifier = ">=1.6.1" },
     { name = "setuptools", marker = "extra == 'dev'", specifier = ">=75.8.0" },
-    { name = "sweagent", marker = "extra == 'sweagent'", git = "https://github.com/SWE-agent/SWE-agent.git?rev=main" },
+    { name = "sweagent", marker = "extra == 'sweagent'", git = "https://github.com/BjarniHaukur/SWE-agent.git" },
     { name = "transformers" },
     { name = "trl", git = "https://github.com/ASSERT-KTH/trl.git?rev=dev" },
     { name = "vllm", marker = "sys_platform != 'darwin'", specifier = ">=0.8.2" },
     { name = "wandb", specifier = ">=0.19.6" },
 ]
-provides-extras = ["dev", "aider", "sweagent"]
 
 [[package]]
 name = "cupy-cuda12x"
@@ -3473,7 +3471,7 @@ wheels = [
 [[package]]
 name = "sweagent"
 version = "1.0.1"
-source = { git = "https://github.com/SWE-agent/SWE-agent.git?rev=main#8f89e15e9227b2c5b254f67cf5aadba76dc0a35a" }
+source = { git = "https://github.com/BjarniHaukur/SWE-agent.git#1e34284a9168be60d34262f76c62be1e9df865e2" }
 dependencies = [
     { name = "datasets" },
     { name = "flask" },
@@ -3530,7 +3528,7 @@ wheels = [
 
 [[package]]
 name = "textual"
-version = "3.1.0"
+version = "3.1.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "markdown-it-py", extra = ["linkify", "plugins"] },
@@ -3538,9 +3536,9 @@ dependencies = [
     { name = "rich" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/dc/1f/df371f1455524a3d0079871e49e3850c82767904e9f4e2bdea6d30a866a7/textual-3.1.0.tar.gz", hash = "sha256:6bcab6581e9753d2a2043caf49f43c5818feb35f8049ed185bd38982bfb310ca", size = 1591879 }
+sdist = { url = "https://files.pythonhosted.org/packages/d2/c9/b36f65d15452bdca2b186526262ce8759ee8089ae76c3cc8e3fe303cc527/textual-3.1.1.tar.gz", hash = "sha256:cfb40a820edf77cae1c11fa15056d9e1a731c7bcbc6ab293aafcc139a4e46b6a", size = 1592628 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/32/6b/d6d37a5fd93c344a27c53cdc4910d8d52cedd3ae63eae3d645fb108bd591/textual-3.1.0-py3-none-any.whl", hash = "sha256:940a765b6fcd562cd88603780343dc98a4e66c1d8d42f09b6a16a474a89aca0c", size = 683799 },
+    { url = "https://files.pythonhosted.org/packages/8d/a7/802690234cdbdf99020c7c55512b5cea8344b6578a40b19f2f863c659867/textual-3.1.1-py3-none-any.whl", hash = "sha256:623fa18be75f8acba6c8d5aca019ff894a9614de8c456574ba53a728c6c44dad", size = 683838 },
 ]
 
 [[package]]
