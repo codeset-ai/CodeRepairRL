@@ -40,6 +40,42 @@
   - annoying to have to scroll throught those statistics when all I want is the actual value
 </details>
 
+# April 28 - May 5
+
+### Writing tasks:
+- [ ] Write something in relevant research
+- [ ] Write down some research questions
+- [ ] ...
+### Scaffold tasks:
+- [ ] See if we can't fix local SWE-Agent
+- [ ] See "the golden path" trajectories by running vllm serve myself.
+### TRL tasks:
+- [ ] Think about the VLLMClient abstraction I am proposing
+  - I like the extra customizability
+  - I don't like delegating such a complex class to the user when they only need to implement one method
+- [ ] Deal with EOS masking in GRPOTrainer
+- [ ] Ensure the input / output to  is correct
+  - Should mirror vllm_client.generate() exactly
+- [ ] Implement and support AsyncVLLMClient
+  - The "correct" thing to do would be do replace all generating behavior with a Client
+  - Let's just focus on adding this one thing with minimal flags and checks
+  - "Explore then contract", get this working, implement tests, then refine the idea
+### CodeRepairRL tasks:
+- [ ] SWE-Bench-verified setup
+- [ ] Aider-polyglot setup
+
+
+## April 21 - April 28
+Mostly spent this week prepping for a hard exam
+
+### Tasks:
+- [x] Verify Aider eligibility
+  - Can work, needs a relatively extensive fork to completely remove context pruning and everything that violates my inference-training context parity requirements.
+- [x] Verify SWE-Agent eligibility
+  - A much more "mature" code base
+  - However, it seems to have some internal issues with their local deployment, it is a recent feature I believe
+- [ ] Verify Codex eligibility
+
 
 ## April 14 - April 21
 
@@ -82,14 +118,7 @@
 - [x] Rename issue, send email
   - Mayebe ping willcobb or create an issue on the Verifiers side pointing to this
   - Post: Maybe ping maintainer / willccbb. Verifiers can 
-- [ ] Deal with EOS masking in GRPOTrainer
-- [ ] Ensure the input / output to  is correct
-  - Should mirror vllm_client.generate() exactly
-- [ ] SWE-Bench-verified setup
-- [ ] Aider-polyglot setup
-- [ ] See "the golden path" trajectories by running vllm serve myself.
-  - See if SWE-Agent is also modifying the histories as egregiously as Aider
-  - Ultimately, would be really cool to use Codex
+
 
 
 #### Berzelius contingent tasks:
