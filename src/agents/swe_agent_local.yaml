@@ -1,0 +1,5 @@
+agent:
+  model:
+    name: openai/qwen2.5-7b-instruct
+    api_key: dummy
+    api_base: http://localhost:8000/v1
