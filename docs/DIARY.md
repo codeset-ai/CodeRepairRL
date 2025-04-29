@@ -23,6 +23,7 @@
 ### Writing Tasks
 - [ ] Write something in relevant research
 - [x] Write down some research questions
+- [x] Setup paper skeleton (PAPER.md) 
 - [x] Update .md files
   - This includes a lot of the content of my final thesis
   - Useful as model context 
