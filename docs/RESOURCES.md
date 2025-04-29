@@ -5,6 +5,92 @@
 
 # Research Papers
 
+## LLM Post-Training: A Deep Dive into Reasoning Large Language Models  
+**Authors:** Komal Kumar, Tajamul Ashraf, Omkar Thawakar, Rao M. Anwer, Hisham Cholakkal, Mubarak Shah, Ming-Hsuan Yang, Phillip Torr, Fahad S. Khan, Salman Khan  
+**Link:** https://arxiv.org/pdf/2502.21321
+
+<details>
+<summary><b>Summary</b></summary>
+
+**What it is.** A 377-reference survey that catalogues every major *post-training* technique for LLMs—SFT, RLHF/RLAIF, DPO, ORPO, GRPO, OREO, test-time scaling, etc.—with an explicit focus on *reasoning quality*. It frames the field around four persistent pain-points: catastrophic forgetting, reward hacking, safety alignment, and inference-cost trade-offs. :contentReference[oaicite:0]{index=0}  
+
+**Key take-aways.**  
+- **Outcome vs Process supervision.** The authors contrast outcome reward models (ORM) with process reward models (PRM), noting a market shift back toward ORM despite earlier safety reservations.  
+- **Recipe cards.** Tables 2–4 give “minimal reproducible” hyper-parameter recipes for PPO, TRPO, ORPO, DPO and beam-search-guided RL, plus scaling laws for KL-penalties.  
+- **Caveats.** A few speculative claims—e.g. GPT-4 “trained with GRBM pre-conditioners”—are *not* sourced; treat them as hypotheses, not fact.  
+- **Best practice checklist.** Run mixed-objective finetuning (language loss + entropy bonus) *before* explicit RL to mitigate early reward hacking; monitor *in-distribution perplexity* as an over-fitting alarm.  
+
+---
+
+### Relevance to *CodeRepairRL*
+| Project facet | Take-away |
+|---------------|-----------|
+| **Baseline grid** | Ready-made hyper-parameter grids for DPO/ORPO save time reproducing policy-gradient baselines. |
+| **Safety knobs** | The survey’s “reward taming” tricks (outlier clipping, reward normalisation) plug directly into our KL-regularised PPO loop. |
+| **Process signals** | Arguments for PRM suggest logging intermediate diff-quality metrics (e.g. patch size) as auxiliary rewards. |
+| **Sanity checks** | Their proposed *per-iteration perplexity drift* metric is a cheap early-warning signal for catastrophic forgetting during RL on code. |
+</details>
+
+---
+
+## s1: Simple Test-Time Scaling  
+**Authors:** Niklas Muennighoff, Zitong Yang, Weijia Shi, Xiang Lisa Li, Li Fei-Fei, Hannaneh Hajishirzi, Luke Zettlemoyer, Percy Liang, Emmanuel Candès, Tatsunori Hashimoto  
+**Link:** https://arxiv.org/pdf/2501.19393
+
+<details>
+<summary><b>Summary</b></summary>
+
+**What it is.** An ultra-minimal recipe (“budget forcing”) that converts *any* instruction-tuned model into an *o1-style* test-time-scalable reasoner. The authors release **s1K** (1 000 difficult, diverse, high-quality trace-annotated maths questions) and show that appending or truncating **“Wait.”** tokens forces the model to allocate more or less compute on the fly, letting users trade latency for accuracy. :contentReference[oaicite:1]{index=1}  
+
+**Key results.**  
+- **Qwen2.5-32B +s1** jumps from 42 %→69 % *PASS@1* on AIME-24 after adding a single “Wait.” loop.  
+- **Scaling law.** Doubling the forced “thinking budget” yields diminishing returns after ~4×, but never degrades answers.  
+- **Open release.** Code, weights and a reference harness land in `github.com/simplescaling/s1`.  
+
+---
+
+### Relevance to *CodeRepairRL*
+| Project facet | Take-away |
+|---------------|-----------|
+| **Dynamic compute** | “Wait.” prompting is trivial to integrate into an agent that already budgets rollouts—useful for long multi-file patches. |
+| **Data efficiency** | s1K’s trace format mirrors our planned CoT-for-code schema; we can repurpose it as a sanity-check suite. |
+| **Latency knobs** | Budget forcing gives a knob to stay within CI time-outs without retraining. |
+</details>
+
+---
+
+## Does Reinforcement Learning Really Incentivize Reasoning Capacity in LLMs Beyond the Base Model?  
+**Authors:** Yang Yue, Zhiqi Chen, Rui Lu, Andrew Zhao, Zhaokai Wang, Shiji Song, Gao Huang  
+**Link:** https://arxiv.org/pdf/2504.13837
+
+<details>
+<summary><b>Summary</b></summary>
+
+**What it asks.** Popular belief says RL with verifiable rewards (RLVR) *creates* new reasoning skills. This paper stress-tests that claim by sampling *massive* pass@k (k ≤ 1 024) on maths, code-repair and visual-reasoning suites across seven model families. :contentReference[oaicite:2]{index=2}  
+
+**Methodology.**  
+1. **Exhaustive sampling.** Generate up to 1 024 rollouts per prompt from each *base* and its RL-finetuned counterpart.  
+2. **Boundary analysis.** Measure whether any *correct* solution produced by the RL model lies *outside* the base model’s 1 024-sample support.  
+3. **Diversity metrics.** Compute solution path entropy and n-gram novelty to quantify search-space narrowing.  
+
+**Findings.**  
+- **No new skills.** Every successful RL-trajectory already exists—albeit rarely—in the base distribution; RL just *re-weights* it. Lines 63–67. :contentReference[oaicite:3]{index=3}  
+- **Efficiency vs. coverage.** RL-tuned models hit higher pass@1, but at k ≥ 256 base models catch up or surpass them.  
+- **Side-effects.** RL reduces trajectory diversity by up to 40 % entropy, correlating with more fragile out-of-distribution behaviour (e.g., unseen bug patterns).  
+- **Positive control.** Distillation from a *larger* teacher *does* add genuinely novel reasoning paths, vindicating self-improve-via-search pipelines like rStar-Math.  
+
+---
+
+### Relevance to *CodeRepairRL*
+| Project facet | Take-away |
+|---------------|-----------|
+| **Reward design** | Merely biasing towards passing tests may shrink solution diversity—risky for heterogeneous bug fixes. |
+| **Curriculum planning** | Layering *distillation* after RL could inject new strategies absent from the base model. |
+| **Evaluation** | Adopt their large-k pass@k sweep to verify that RL adds (rather than just re-weights) patch patterns. |
+| **Search vs. policy** | Results motivate heavier Monte-Carlo or tree-search at inference instead of pure policy sampling. |
+</details>
+
+
 ## R2E‑Gym: Procedural Environments & Hybrid Verifiers for Scaling Open‑Weights SWE Agents  
 **Authors:** Naman Jain, Jaskirat Singh, Manish Shetty, Liang Zheng, Koushik Sen, Ion Stoica  
 **Link:** https://arxiv.org/pdf/2504.07164

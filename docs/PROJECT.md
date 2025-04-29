@@ -1,5 +1,30 @@
 # Project Details for CodeRepairRL
 
+This thesis explores transforming large language models from passive learners—trained purely on observational data—into active agents capable of experiential learning through direct interaction with their environment. Concretely, I embed a coding agent (Aider) into an asynchronous, OpenAI-compatible vLLM server to create real-time reinforcement learning loops where the model actively navigates and edits code repositories to fix bugs. The training dataset, SWE-Gym, consists of real-world GitHub repositories with known issues and corresponding resolved patches, which serve as oracle ground truths. By rewarding the model based on the similarity of its generated patches to these oracle patches, the agent learns to perform context-aware navigation and issue resolution, rather than merely replicating static patterns. Evaluating generalization capabilities on the more challenging SWE-Bench-Verified dataset, this research investigates whether experiential, agent-in-the-loop reinforcement learning produces more robust and transferable code-repair skills compared to traditional synchronous RL or conventional fine-tuning methods.
+
+In this thesis, I differentiate between two distinct types of coding agent scaffolding: a lightweight approach, exemplified by OpenAI's Codex agent, which interacts solely through basic terminal commands (e.g., ls, cat, grep) to navigate and understand repositories; and a heavyweight approach, represented by tools like Aider, which incorporate extensive contextual understanding features such as heuristic-based repository summarization (RepoMap) and internal reasoning dialogues to guide file operations. By training identical language models within these two contrasting scaffolds, I aim to evaluate the performance differences resulting from varying degrees of environmental support and contextual assistance, thereby exploring the trade-offs between scaffold complexity and agent efficiency.
+
+
+## Research Questions
+
+<b>RQ1</b>
+Does integrating a scaffold into the reinforcement learning training loop significantly improve automated code repair performance relative to the original, non-RL-tuned model?
+- Base assumption
+
+
+<b>RQ2</b>
+Does a minimalist coding scaffold (with simple, terminal-style interactions and minimal assumptions) yield better performance in RL-based code repair than a heavily engineered coding scaffold (with extensive support such as repository context mapping and simulated dialogues)?
+- Bitter lesson angle, are fewer assumptions better in the long run?
+- Motivated by my belief that companies like Anthropic and OpenAI are already doing this kind of training on their base models.
+- A lot of work (in "heavyweight" scaffolds) goes into corraling models to behave a certain way. Is it perhaps better to keep it simple, then train the models to behave properly.
+
+
+<b>RQ3</b>
+To what extent do the performance gains from scaffold-in-the-loop RL training for code repair generalize beyond the training environment, such as to program repair tasks in other programming languages and to general code-generation benchmarks like HumanEval?
+- Does it generalize? 
+- Is this approach simply fine-tuning the models to behaver better inside their relative scaffolds or does it make them qualitatively better?
+
+
 ## Implementation Note
 
 This project uses a [custom fork of TRL](https://github.com/BjarniHaukur/trl) (Transformer Reinforcement Learning), originally enhanced for better Weights & Biases logging. The fork has evolved to support integrating coding agents directly into the reinforcement learning loop, with contributions being prepared for potential integration into the main TRL repository.
@@ -16,11 +41,38 @@ Our project pioneers a novel approach that integrates agent frameworks directly 
 
 This approach significantly lowers the barrier to entry for research on tool-using, environment-interactive agent training, bringing open-source capabilities closer to what we believe large AI labs are implementing internally.
 
+## Implementation Approach
+
+### Current Implementation: Enhancing TRL/GRPOTrainer with Agentic Capabilities
+
+The core of our implementation involves integrating agentic capabilities directly into the reinforcement learning pipeline:
+
+- **Integration with Aider**: We replace the standard `model.generate` functionality with `aider.Coder.chat`, leveraging Aider's built-in agentic coding tools for repository exploration, understanding, and multi-file change management.
+
+- **Outcome-Supervised Reward Modeling**: Rather than attempting to reward intermediate steps of the process (which would be highly complex), we focus on rewarding the final patch generated. This allows us to assess and reinforce behaviors that lead to superior outcomes.
+
+- **Parallel Agent Execution**: Our architecture enables running multiple coding agents in parallel, each addressing the same task but potentially taking different approaches. This parallelism not only improves training efficiency but also allows us to discover diverse solution strategies.
+
+### Future Directions
+
+While our current implementation focuses on patch similarity for reward modeling, several promising extensions are under consideration:
+
+#### Test-Driven Reinforcement Learning
+
+A natural evolution of our approach would implement a reward system based on passing test cases rather than similarity to reference solutions:
+
+- Deploy scalable Kubernetes infrastructure to parallelize test case execution across multiple model outputs
+- Reward functional correctness while allowing creative problem-solving approaches
+- Provide greater flexibility compared to "golden patch" approaches
+- Encourage models to develop diverse solution strategies that still satisfy requirements
+
+This approach would require significant infrastructure development but would offer a more generalizable and robust measure of code correctness than patch similarity alone.
+
 ## Objectives
 
 ### Code Repair
 
-Our primary objective remains generating accurate code patches to fix specific software issues. Initially, we reward the model based on the accuracy of the generated diffs using a search/replace approach that compares model-generated diffs against oracle solutions. With our agent-in-the-loop approach, we can now explore more complex multi-file edits while maintaining evaluation simplicity. Ultimately, we aim to use software tests as the oracle for correctness, though this presents challenges due to the extensive compute requirements for running comprehensive test suites.
+Our primary objective remains generating accurate code patches to fix specific software issues. Initially, we reward the model based on the accuracy of the generated diffs using a search/replace approach that compares model-generated diffs against oracle solutions. With our agent-in-the-loop approach, we can now explore more complex multi-file edits while maintaining evaluation simplicity. Ultimately, we aim to use software tests as the oracle for correctness, though this presents challenges due to the extensive compute requirements for running comprehensive test suites. **While test execution and support for additional languages such as Java are promising extensions to this work, the current focus is on Python and diff-based evaluation.**
 
 ### Code Implementation from Specification
 
@@ -43,24 +95,25 @@ Post-training of LLMs is a complex, multivariate process consisting of many spec
 ## Experimental Plan & Benchmark Rationale
 
 Our agent‑in‑the‑loop code‑repair thesis hinges on **showing real generalisation, not memorisation**.  
-To that end we split data into **(i) a medium‑size, fully‑reproducible training set** that lets the agent learn tooling skills, and **(ii) two tougher, newer evaluation suites** that expose it to unseen projects and build systems.
+To that end we split data into **(i) a Python-focused training set** that lets the agent learn tooling skills, and **(ii) evaluation suites across both Python and Java** that test generalization capabilities.
 
-| Phase | Corpus | Language(s) | Why it’s in‑scope |
+| Phase | Corpus | Language(s) | Why it's in‑scope |
 |-------|--------|-------------|-------------------|
-| **Train / fine‑tune** | **SWE‑Gym** (≈ 2.4 k tasks) | Python | RL‑ready, containerised tasks—perfect for teaching interactive tool use. |
-| | **Defects4J v2.0** (835 bugs) | Java | Decade‑long APR baseline; ensures direct comparability with the literature. |
-| **Evaluate (primary)** | **SWE‑Bench‑Verified** (≈ 2.3 k bugs) | Python | Harder, multi‑file patches in modern repos; measures generalisation beyond SWE‑Gym. |
-| | **GitBug‑Java** (199 recent bugs) | Java | 2020‑2023 GitHub issues with Gradle/Maven builds; covers modern Java ecosystems that Defects4J lacks. |
-| **Evaluate (sanity / optional)** | **BugsInPy** + **QuixBugs** | Python & Java | Quick cross‑language smoke tests; catch trivial regressions before full runs. |
+| **Train / fine‑tune** | **SWE‑Gym** (≈ 2.4 k tasks) | Python | RL‑ready, containerised tasks—perfect for teaching interactive tool use. |
+| **Evaluate (primary)** | **SWE‑Bench‑Verified** (≈ 2.3 k bugs) | Python | Harder, multi‑file patches in modern repos; measures generalization beyond SWE‑Gym. |
+| **Evaluate (generalization)** | **Defects4J v2.0** (835 bugs) | Java | Tests cross-language generalization capabilities, addressing RQ3 about transfer learning. |
+| **Evaluate (generalization)** | **GitBug‑Java** (199 recent bugs) | Java | 2020‑2023 GitHub issues with modern Java ecosystems; further tests language transfer. |
+| **Evaluate (sanity / optional)** | **BugsInPy** + **QuixBugs** | Python & Java | Quick cross‑language smoke tests; catch trivial regressions before full runs. |
 
 **Why this split works**
 
-* **Language breadth** – Python + Java covers the two most‑studied code‑repair ecosystems and showcases cross‑language transfer.  
-* **Temporal gap** – Training data stops at 2018 (Defects4J) and curated snapshots (SWE‑Gym); evaluation bugs are 2020 – 2024, reducing leakage risk.  
-* **Task diversity** – From single‑hunk unit‑test fixes (Defects4J) to multi‑file repo repairs (SWE‑Bench, GitBug‑Java), giving a holistic picture of the agent’s capabilities.  
-* **Comparability** – Nearly every APR paper reports Defects4J; SWE‑Bench is the emerging LLM standard. Using both lets reviewers benchmark us instantly.
+* **Focus on Python training** – Concentrates learning efforts on a single language ecosystem, avoiding dilution of the training signal.
+* **Cross-language evaluation** – Java evaluation directly addresses RQ3, measuring how well Python-learned repair skills transfer to a syntactically different language.
+* **Temporal gap** – Training data comes from curated SWE-Gym snapshots; evaluation bugs are more recent (2020 – 2024), reducing leakage risk.
+* **Task diversity** – From simpler Python tasks to Java repairs, giving a complete picture of the agent's generalization capabilities.
+* **Comparability** – SWE‑Bench is the emerging LLM standard for Python; Defects4J provides a traditional baseline for Java evaluations.
 
-Success criterion: **≥ 5 pp absolute improvement** over strong zero‑shot LLM baselines on SWE‑Bench‑Verified *and* any noticeable lift on GitBug‑Java (where no fine‑tuned agent numbers exist yet). Achieving that validates the thesis claim that agentic RL on realistic tasks yields transferable repair skills.
+Success criterion: **≥ 5 pp absolute improvement** over strong zero‑shot LLM baselines on SWE‑Bench‑Verified for in-domain performance, plus *any* measurable improvement on Java datasets would demonstrate cross-language transfer. This directly validates RQ3 by showing whether agent skills learned in Python environments can generalize beyond the training domain.
 
 
 ## Compute Efficiency

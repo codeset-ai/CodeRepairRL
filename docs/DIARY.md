@@ -1,36 +1,13 @@
-# Project Diary and Planning
+# Project Diary
 
-### Ideas
 
-#### 1. Enhance trl/GRPOTrainer with Agentic Capabilities
-- Integrate `aider.Coder.chat` to replace the standard `model.generate` functionality
-- Leverage aider's built-in agentic coding tools for:
-  - Repository exploration and understanding
-  - Multi-file change management
-- Outcome-supervised reward modeling, reward the final patch generated, not the process of creating it
-- Essentially just running multiple coding agents in parallel and reinforce behaviors that lead to superior outcomes
-
-#### 2. Test-Driven Reinforcement Learning (Backlogged - Not in current project scope)
-- Implement a reward system based on passing test cases rather than similarity to reference solutions
-- Deploy scalable Kubernetes infrastructure to parallelize test case execution across multiple model outputs
-- Benefits:
-  - Rewards functional correctness while allowing creative problem-solving approaches
-  - Provides greater flexibility compared to "golden patch" approaches
-  - Encourages models to develop diverse solution strategies that still satisfy requirements
-
-#### The stack.py, LLM generated versions of the Oracle patch
-
-### Backlog
+## Backlog
 
 <details>
 <summary>General Research Tasks</summary>
 - [x] Look at how SWE-Bench works exactly, should we train for that behavior end2end?
 - [ ] Read S∗: Test Time Scaling for Code Generation: https://arxiv.org/pdf/2502.14382
 - [ ] Read MUFIN **paper**
-- [ ] Update DATASETS.md with everything
-  - From overleaf
-  - From emails
-  - From docs (both mine and minutes)
 </details>
 
 <details>
@@ -40,27 +17,45 @@
   - annoying to have to scroll throught those statistics when all I want is the actual value
 </details>
 
-# April 28 - May 5
 
-### Writing tasks:
+## April 28 - May 5
+
+### Writing Tasks
 - [ ] Write something in relevant research
-- [ ] Write down some research questions
-- [ ] ...
-### Scaffold tasks:
-- [ ] See if we can't fix local SWE-Agent
-- [ ] See "the golden path" trajectories by running vllm serve myself.
-### TRL tasks:
+- [x] Write down some research questions
+- [x] Update .md files
+  - This includes a lot of the content of my final thesis
+  - Useful as model context 
+
+### Scaffold Tasks
+- [ ] Fix local SWE-Agent implementation
+  - Option 1: Configure it to run inside an apptainer (though this means docker inside apptainer, which is not ideal)
+  - Option 2: Debug the call stack to identify why it fails when running locally
+- [ ] Resolve Codex issues
+  - Currently not working for any team member
+  - Only o4-mini seems viable; other models are essentially unusable
+  - Primary issue: models fail to properly utilize tools, especially the apply_patch function
+- [x] Is parallel apptainer execution feasible?
+  - Determine if this creates a performance bottleneck
+  - Check execution speed (acceptable if <2s)
+  - Test nested apptainer functionality: Can we launch an apptainer from within another apptainer with different configurations?
+  - Post:
+    - Yes, shouldn't be a problem
+    - Hopefully don't run into problems in practice
+
+### TRL Tasks
 - [ ] Think about the VLLMClient abstraction I am proposing
   - I like the extra customizability
   - I don't like delegating such a complex class to the user when they only need to implement one method
 - [ ] Deal with EOS masking in GRPOTrainer
-- [ ] Ensure the input / output to  is correct
+- [ ] Ensure the input/output is correct
   - Should mirror vllm_client.generate() exactly
 - [ ] Implement and support AsyncVLLMClient
-  - The "correct" thing to do would be do replace all generating behavior with a Client
+  - The "correct" thing to do would be to replace all generating behavior with a Client
   - Let's just focus on adding this one thing with minimal flags and checks
   - "Explore then contract", get this working, implement tests, then refine the idea
-### CodeRepairRL tasks:
+
+### CodeRepairRL Tasks
 - [ ] SWE-Bench-verified setup
 - [ ] Aider-polyglot setup
 
@@ -74,7 +69,11 @@ Mostly spent this week prepping for a hard exam
 - [x] Verify SWE-Agent eligibility
   - A much more "mature" code base
   - However, it seems to have some internal issues with their local deployment, it is a recent feature I believe
-- [ ] Verify Codex eligibility
+- [x] Verify Codex eligibility
+  - Probably, but need to wait a bit longer
+  - Needs npm, can install it from an apptainer
+  - It doesn't seem to work that well, their approach is to offload everything onto the model, e.g. repowide understanding by navigating in the terminal
+  - Fails 100% of the time when it is not o4-mini
 
 
 ## April 14 - April 21
@@ -119,9 +118,7 @@ Mostly spent this week prepping for a hard exam
   - Mayebe ping willcobb or create an issue on the Verifiers side pointing to this
   - Post: Maybe ping maintainer / willccbb. Verifiers can 
 
-
-
-#### Berzelius contingent tasks:
+### Berzelius contingent tasks:
 - [ ] Fix container, problem with trl vllm-serve
   - When Berzelius is back up
   - Now I get "backend not found" error
