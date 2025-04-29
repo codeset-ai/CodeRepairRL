@@ -1,97 +1,110 @@
-# hello_sweagent.py
 import os
 import json
 from pathlib import Path
+import uuid
+import subprocess
+import multiprocessing as mp
+import logging
+from typing import Dict, Any, List, Tuple
+from contextlib import redirect_stdout, redirect_stderr
+# from trl.extras.vllm_client import VLLMClient
 
-from sweagent.run.run_single import run_from_config, RunSingleConfig
+from src.utils.git import (
+    get_head_commit_diff,
+    handle_to_url,
+    clone_repo_at_commit,
+    clean_repo_dir,
+)
 
+logger = logging.getLogger(__name__)
+mp.set_start_method("spawn", force=True)
 
-# ---------- helpers you already have -----------------------------------------
-from src.data import get_swe_gym_repo_repair_dataset          # provides HF dataset
-from src.utils.git import handle_to_url, clone_repo_at_commit, clean_repo_dir                # clones and returns path
-# ------------------------------------------------------------------------------
+class SWEAgent: #(VLLMClient):
+    """Parallel runner for SWE‑Agent via its CLI."""
 
-# Directory that will NEVER live inside any git repo
-BASE_RUN_DIR = Path.home() / "sweagent_runs"
-BASE_RUN_DIR.mkdir(parents=True, exist_ok=True)
+    def __init__(
+        self,
+        # vllm_url: str = "http://localhost:8000/v1",
+        config: str = "swe_agent_haiku.yaml",
+        timeout: int = 3 * 60,
+    ):
+        self.config = config
+        self.timeout = timeout
+        # no extra env needed for SWE‑Agent beyond API_BASE/API_KEY if using vLLM
 
-def run_one(example, run_id="hello-world"):
-    """
-    example = {
-        'repo'           : 'org/name',
-        'base_commit'    : 'abcdef0',
-        'problem_statement' : '…'
-    }
-    """
-    repo_path = clone_repo_at_commit(handle_to_url(example["repo"]), example["base_commit"])
+    def _process_one(self, data: Dict[str, Any]) -> Tuple[str, List[Dict[str, Any]]]:
+        assert all(k in data for k in ("repo", "base_commit", "problem_statement")), \
+            "Data must include repo, base_commit and problem_statement"
+        
+        repo_url = handle_to_url(data["repo"])
+        base = data["base_commit"]
+        logger.info(f"[START] SWE‑Agent on {repo_url}@{base}")
 
-    # 2) pick a dedicated output folder
-    out_dir = BASE_RUN_DIR / run_id
-    out_dir.mkdir(parents=True, exist_ok=True)
+        # 1) clone & checkout
+        repo_dir = clone_repo_at_commit(repo_url, base)
+        repo_dir = Path(repo_dir)
+        traj_path = repo_dir / f"traj_{uuid.uuid4().hex}.json"
 
-    # 3) build a *schema-correct* config
-    cfg = RunSingleConfig(
-        output_dir=str(out_dir),            # replaces old logging.output_dir
-        agent=dict(
-            model=dict(
-                # Prepend provider to model name so LiteLLM knows which backend to use
-                name="anthropic/claude-3.5-haiku",
-                api_key=os.getenv("ANTHROPIC_API_KEY"),
-                max_input_tokens=8_000,
-                max_output_tokens=4_096,
-                # Avoid Anthropic empty system message error
-                convert_system_to_user=False,
-            ),
-            templates=dict(
-                system_template="You are a helpful software engineering agent."
-            ),
-            tools=dict(
-                parse_function=dict(type="thought_action")
-            )
-        ),
-        env=dict(
-            deployment=dict(
-                type="local",               # <- discriminator discriminator field
-            ),
-            repo=dict(
-                type="preexisting",
-                repo_name=str(repo_path).lstrip("/"),
-                base_commit=example["base_commit"],
-            ),
-        ),
-        problem_statement=dict(
-            text=example["problem_statement"],
-        ),
-    )
+        try:
+            # 2) run sweagent CLI
+            cmd = [
+                "sweagent", "run",
+                "--config", self.config,
+                "--problem_statement.text", data["problem_statement"],
+                "--env.repo.path", str(repo_dir),
+                "--env.repo.type", "local",
+                "--agent.recorder.save_path", str(traj_path),
+            ]
+            # optional: silence stdout/stderr from the subprocess
+            with open(os.devnull, "w") as devnull, redirect_stdout(devnull), redirect_stderr(devnull):
+                subprocess.run(
+                    cmd,
+                    cwd=repo_dir,
+                    env=os.environ.copy(),
+                    stdout=devnull,
+                    stderr=devnull,
+                    timeout=self.timeout,
+                    check=False,
+                )
 
-    # 4) run synchronously
-    run_from_config(cfg)
+            # 3) collect results
+            diff = get_head_commit_diff(repo_dir)
+            if traj_path.exists():
+                chat = json.loads(traj_path.read_text())
+            else:
+                logger.warning("No trajectory file, returning empty chat")
+                chat = []
 
-    # 5) read the last assistant message
-    traj_file = max(out_dir.glob("trajectory_*.jsonl"), key=lambda p: p.stat().st_mtime)
-    with traj_file.open() as fp:
-        for line in fp:
-            evt = json.loads(line)
-            if evt["type"] == "assistant_message":
-                print("\n=== assistant said ===\n", evt["content"])
-                break
+        finally:
+            # 4) cleanup
+            clean_repo_dir(str(repo_dir))
+            logger.info(f"[END] SWE‑Agent on {repo_url}@{base}")
 
-    # 6) cleanup cloned repo
-    clean_repo_dir(repo_path)
+        return diff, chat
 
+    def generate(
+        self,
+        data: List[Dict[str, Any]],
+        timeout: int = None,
+        **kwargs
+    ) -> List[Dict[str, Any]]:
+        """
+        data: list of { repo, base_commit, problem_statement }
+        returns each item extended with .generated_diff and .conversation
+        """
+        timeout = timeout or self.timeout
+        with mp.Pool(processes=min(len(data), mp.cpu_count())) as pool:
+            results = pool.map(self._process_one, data)
+
+        for item, (diff, chat) in zip(data, results):
+            item["generated_diff"] = diff
+            item["conversation"] = chat
+        return data
 
 if __name__ == "__main__":
-    # one toy sample from SWE-Gym
-    ds = get_swe_gym_repo_repair_dataset().select(range(1))
-    ex = dict(ds[0])      # repo, base_commit, problem_statement
-
-    run_one(ex, run_id="hello-world")
-
-
-
-sweagent run \
-  --agent.model.name=claude-3-5-sonnet-20241022 \
-  --agent.model.per_instance_cost_limit=2.00 \
-  --env.deployment.type=local \
-  --env.repo.github_url=https://github.com/SWE-agent/test-repo \
-  --problem_statement.github_url=https://github.com/SWE-agent/test-repo/issues/1
+    agent = SweAgent(config="swe_agent_haiku.yaml")
+    data = [
+        {"repo": "ASSERT-KTH/trl", "base_commit": "main", "problem_statement": "What is the difference between async and sync vllm clients?"}
+    ]
+    results = agent.generate(data)
+    # print(results)
