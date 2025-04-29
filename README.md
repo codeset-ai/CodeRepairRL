@@ -13,10 +13,11 @@ For more details on the project's objectives, conceptual background, and impleme
 To build the Apptainer container:
 
 ```bash
-./scripts/build_container.sh
+# Build the training container 
+apptainer build crrl.sif scripts/train_container.def
 ```
 
-This creates a `crrl.sif` file in the project root.
+(the build process may take several minutes)
 
 #### Running Training Jobs
 

@@ -16,5 +16,9 @@ mp.set_start_method("spawn", force=True)  # Force spawn method for multiprocessi
 
 class CodexAgent(VLLMClient):
     ...
+
+    def generate(self, data: List[Dict[str, Any]], timeout: int = None, **kwargs) -> List[Dict[str, Any]]:
+        ...
+        # subprocess.run(["apptainer", "run", "codex.sif", "--dangerously-auto-approve-everything"])
     
 # calls into the codex cli in full auto mode
