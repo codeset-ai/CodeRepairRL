@@ -1,14 +1,13 @@
 import os
 import logging
 import multiprocessing as mp
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple
 from contextlib import redirect_stdout, redirect_stderr
 
 from aider.coders import Coder
 from aider.models import Model
 from aider.io import InputOutput
 
-from git import Tuple
 from trl.extras.vllm_client import AsyncVLLMClient
 
 from src.utils.git import get_head_commit_diff, handle_to_url, clone_repo_at_commit, clean_repo_dir

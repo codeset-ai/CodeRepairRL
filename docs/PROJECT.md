@@ -7,22 +7,32 @@ In this thesis, I differentiate between two distinct types of coding agent scaff
 
 ## Research Questions
 
-<b>RQ1</b>
+**RQ1**
 Does integrating a scaffold into the reinforcement learning training loop significantly improve automated code repair performance relative to the original, non-RL-tuned model?
 - Base assumption
 
 
-<b>RQ2</b>
+**RQ2**
 Does a minimalist coding scaffold (with simple, terminal-style interactions and minimal assumptions) yield better performance in RL-based code repair than a heavily engineered coding scaffold (with extensive support such as repository context mapping and simulated dialogues)?
 - Bitter lesson angle, are fewer assumptions better in the long run?
 - Motivated by my belief that companies like Anthropic and OpenAI are already doing this kind of training on their base models.
 - A lot of work (in "heavyweight" scaffolds) goes into corraling models to behave a certain way. Is it perhaps better to keep it simple, then train the models to behave properly.
 
 
-<b>RQ3</b>
+**RQ3**
 To what extent do the performance gains from scaffold-in-the-loop RL training for code repair generalize beyond the training environment, such as to program repair tasks in other programming languages and to general code-generation benchmarks like HumanEval?
 - Does it generalize? 
 - Is this approach simply fine-tuning the models to behaver better inside their relative scaffolds or does it make them qualitatively better?
+
+### Secondary version
+**RQ 1**  
+Does reinforcement learning conducted within a coding scaffold raise automated program-repair accuracy beyond what is achieved by the same model without reinforcement learning?
+
+**RQ 2**  
+When the identical reinforcement-learning protocol is applied, does a minimalist scaffold confer at least as much improvement in program repair as a heavyweight scaffold that provides extensive engineered context?
+
+**RQ 3**  
+Do the performance gains obtained through scaffold-based reinforcement learning (i) transfer to bug-fixing in another programming language when the scaffold is reused and (ii) persist on standard code-generation tasks run without any scaffold at all?
 
 
 ## Implementation Note

@@ -20,9 +20,5 @@ From: debian:bullseye-slim
     # Set PATH just in case
     export PATH=/usr/local/bin:/usr/bin:/bin:$PATH
 
-%labels
-    Author YourName
-    Description "Minimal container with Node.js, npm, and @openai/codex CLI installed."
-
 %runscript
     exec codex "$@"

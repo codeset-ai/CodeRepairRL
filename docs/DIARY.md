@@ -26,9 +26,16 @@
 - [x] Setup paper skeleton (PAPER.md) 
 - [x] Update .md files
   - This includes a lot of the content of my final thesis
-  - Useful as model context 
+  - Useful as model context
+- [x] Setup local latex
+  - It's been really annoying to use Overleaf lately
+  - Frequently exceed compilation time
+  - Slow in general
+  - Bad writing experience IMO
+  - Could link my repo to Overleaf for easier sharing, or just push the latest pdf always
 
 ### Scaffold Tasks
+- [ ] SimpleAgent
 - [ ] Fix local SWE-Agent implementation
   - Option 1: Configure it to run inside an apptainer (though this means docker inside apptainer, which is not ideal)
   - Option 2: Debug the call stack to identify why it fails when running locally
@@ -45,16 +52,24 @@
     - Hopefully don't run into problems in practice
 
 ### TRL Tasks
+- [ ] Setup a developmental fix
+<details><summary>If I want to merge</summary>
+
+
 - [ ] Think about the VLLMClient abstraction I am proposing
   - I like the extra customizability
   - I don't like delegating such a complex class to the user when they only need to implement one method
+
 - [ ] Deal with EOS masking in GRPOTrainer
+
 - [ ] Ensure the input/output is correct
   - Should mirror vllm_client.generate() exactly
+
 - [ ] Implement and support AsyncVLLMClient
   - The "correct" thing to do would be to replace all generating behavior with a Client
   - Let's just focus on adding this one thing with minimal flags and checks
   - "Explore then contract", get this working, implement tests, then refine the idea
+</details>
 
 ### CodeRepairRL Tasks
 - [ ] SWE-Bench-verified setup

@@ -6,6 +6,10 @@ CodeRepairRL leverages recent advancements in applying Reinforcement Learning (R
 
 For more details on the project's objectives, conceptual background, and implementation specifics, see [docs/PROJECT.md](docs/PROJECT.md).
 
+## Academic Paper
+
+The methodology and findings of this project are documented in an academic paper. The LaTeX repository for the paper is available at [CodeRepairRL-Paper](https://github.com/BjarniHaukur/CodeRepairRL-Paper).
+
 ## Getting Started
 
 ### Building the Container
