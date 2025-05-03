@@ -35,7 +35,8 @@
   - Could link my repo to Overleaf for easier sharing, or just push the latest pdf always
 
 ### Scaffold Tasks
-- [ ] SimpleAgent
+- [ ] SimpleAgent for debugging
+- [ ] Double check that apptainer codex works on berzileus (test with o4-mini)
 - [ ] Fix local SWE-Agent implementation
   - Option 1: Configure it to run inside an apptainer (though this means docker inside apptainer, which is not ideal)
   - Option 2: Debug the call stack to identify why it fails when running locally
