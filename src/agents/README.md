@@ -1,0 +1,1 @@
+The agents generate the rollouts we train on using GRPOTrainer.

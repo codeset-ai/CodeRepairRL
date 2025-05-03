@@ -17,7 +17,8 @@ logger = logging.getLogger(__name__)
 
 # Constants
 VLLM_ENDPOINT = os.getenv("VLLM_ENDPOINT", "http://localhost:8000/v1")
-ANTHROPIC_ENDPOINT = "https://api.anthropic.com/v1/messages"
+OPENAI_ENDPOINT = "https://api.openai.com/v1/chat/completions"
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")  # or gpt-4o
 MODEL = os.getenv("REPAIR_MODEL", "qwen3-0.6b")
 BAD_CMD = re.compile(r"\b(rm|mv|chmod|chown|truncate|mkfs|>|>>)\b")
 TRUNCATE = 8_000  # cap shell output
@@ -30,7 +31,17 @@ SEARCH_REPLACE_SPEC = """You are a code repair expert tasked with fixing issues 
 1. Information about the specific issue (if available)
 2. The code segment that needs to be fixed
 
-Your task is to analyze the issue and generate *SEARCH/REPLACE* edits that fix the problem while preserving the code's intended functionality.
+You have access to two tools:
+1. The 'shell' tool: Use this to explore the repository and understand the code
+2. The 'submit_patch' tool: Use this ONLY when you're ready to submit your final fix
+
+First, use the 'shell' tool to:
+1. Explore the repository structure (`ls`, `find`, etc.)
+2. Examine relevant files (`cat`, `head`, `grep`, etc.)
+3. Understand the context of the issue
+4. Locate the specific files that need modification
+
+Only after thoroughly understanding the codebase and identifying the exact problems, generate *SEARCH/REPLACE* edits and submit them using the 'submit_patch' tool.
 
 Every *SEARCH/REPLACE* edit must use this format:
 1. The start of search block: <<<<<<< SEARCH
@@ -59,7 +70,7 @@ Wrap each *SEARCH/REPLACE* edit in a code block as shown in the example above.
 """
 
 
-def safe_bash(cmd: str, cwd: Path, timeout=4) -> str:
+def safe_shell(cmd: str, cwd: Path, timeout=4) -> str:
     """Run a shell command safely with timeout and output limits."""
     if BAD_CMD.search(cmd):
         return f"read-only mode: cannot execute `{cmd}`"
@@ -72,16 +83,51 @@ def safe_bash(cmd: str, cwd: Path, timeout=4) -> str:
         out = e.output
     except subprocess.TimeoutExpired:
         out = "[command timed out]"
+    except Exception as e:
+        out = f"[command failed: {e}]"
     return out[:TRUNCATE]
+
+
+def openai_chat(messages, tools, temperature=0.0, max_tokens=4096):
+    """Send a request to the OpenAI API and get a response."""
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise ValueError("OPENAI_API_KEY environment variable is not set")
+        
+    payload = {
+        "model": OPENAI_MODEL,
+        "messages": messages,
+        "tools": tools,          # OpenAI-style tool objects
+        "tool_choice": "auto",
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+    }
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    
+    logger.info(f"Sending request to OpenAI API with model: {payload['model']}")
+    
+    try:
+        r = requests.post(OPENAI_ENDPOINT, headers=headers, json=payload, timeout=60)
+        r.raise_for_status()
+        return r.json()["choices"][0]["message"]  # identical structure to vLLM
+    except requests.exceptions.RequestException as e:
+        logger.error(f"OpenAI API request failed: {str(e)}")
+        if hasattr(e, 'response') and hasattr(e.response, 'text'):
+            logger.error(f"Response content: {e.response.text}")
+        raise
 
 
 class SubmitPatchAgent:
     """Agent that interacts with LLM to analyze code and submit patches."""
     
-    BASH_TOOL = {
+    SHELL_TOOL = {
         "type": "function",
         "function": {
-            "name": "bash",
+            "name": "shell",
             "description": "Run a read-only shell command inside the repo.",
             "parameters": {
                 "type": "object",
@@ -121,56 +167,18 @@ class SubmitPatchAgent:
             {"role": "system", "content": SEARCH_REPLACE_SPEC},
             {"role": "user", "content": task},
         ]
-        self.tools = [self.BASH_TOOL, self.SUBMIT_PATCH_TOOL]
-        self.api_key = os.getenv("ANTHROPIC_API_KEY") if TESTING else "dummy"
+        self.tools = [self.SHELL_TOOL, self.SUBMIT_PATCH_TOOL]
 
     def _chat(self) -> dict:
         """Send a request to the LLM API and get a response."""
         if TESTING:
-            # Check if API key is available
-            if not self.api_key:
-                logger.error("ANTHROPIC_API_KEY not set. Set this environment variable when using TESTING mode.")
-                raise ValueError("ANTHROPIC_API_KEY environment variable not set")
-
-            # Use Anthropic API for testing
-            headers = {
-                "x-api-key": self.api_key,
-                "content-type": "application/json",
-                "anthropic-version": "2023-06-01"
-            }
-            
-            # Create payload - Note: Claude API doesn't accept tool_choice parameter
-            payload = {
-                "model": "claude-3.5-haiku-latest",
-                "messages": self.history,
-                "tools": self.tools,
-                "temperature": self.temperature,
-                "max_tokens": 4096
-            }
-            
-            logger.info(f"Sending request to Anthropic API with model: {payload['model']}")
-            
-            try:
-                r = requests.post(
-                    ANTHROPIC_ENDPOINT,
-                    headers=headers,
-                    json=payload,
-                    timeout=60,
-                )
-                r.raise_for_status()
-                response_json = r.json()
-                
-                if "content" not in response_json or not response_json["content"]:
-                    logger.error(f"Unexpected Anthropic API response format: {response_json}")
-                    raise ValueError("Invalid response from Anthropic API")
-                
-                return response_json["content"][0]  # Anthropic API response format
-                
-            except requests.exceptions.RequestException as e:
-                logger.error(f"Anthropic API request failed: {str(e)}")
-                if hasattr(e, 'response') and hasattr(e.response, 'text'):
-                    logger.error(f"Response content: {e.response.text}")
-                raise
+            # Use OpenAI API for testing
+            return openai_chat(
+                messages=self.history,
+                tools=self.tools,
+                temperature=self.temperature,
+                max_tokens=4096
+            )
         else:
             # Use VLLM API
             try:
@@ -221,15 +229,16 @@ class SubmitPatchAgent:
                     args = json.loads(call["function"]["arguments"])
                     cid = call["id"]
 
-                    if name == "bash":
-                        logger.info(f"Executing bash command: {args['cmd']}")
-                        output = safe_bash(args["cmd"], cwd=self.repo)
+                    if name == "shell":
+                        logger.info(f"Executing shell command: {args['cmd']}")
+                        output = safe_shell(args["cmd"], cwd=self.repo)
                         self._feedback_tool(call, cid, output)
                         tool_calls += 1
                         break  # let the model think again
 
                     elif name == "submit_patch":
                         diff_text = args.get("diff", "")
+                        self._feedback_tool(call, cid, diff_text)
                         logger.info(f"Received patch with {len(diff_text)} characters")
                         return {"status": "ok", "diff": diff_text}
 
@@ -349,20 +358,21 @@ if __name__ == "__main__":
     
     # Load example from dataset
     from src.data import get_swe_gym_repo_repair_dataset
+    from src.utils.diff import SearchReplaceDiff
     
     logger.info("Loading dataset")
-    ds = get_swe_gym_repo_repair_dataset().shuffle(seed=42).select(range(1))
+    ds = get_swe_gym_repo_repair_dataset().shuffle(seed=43).select(range(1))
     example = dict(ds[0])
     
     logger.info(f"Testing with repo {example['repo']} at commit {example['base_commit']}")
     
     if TESTING:
-        # Testing mode - direct usage of SubmitPatchAgent with Anthropic
+        # Testing mode - direct usage of SubmitPatchAgent with OpenAI
         logger.info("Running in TESTING mode with direct SubmitPatchAgent")
         
         # Check for API key before proceeding
-        if not os.getenv("ANTHROPIC_API_KEY"):
-            logger.error("ANTHROPIC_API_KEY environment variable is not set. Please set it when using TESTING mode.")
+        if not os.getenv("OPENAI_API_KEY"):
+            logger.error("OPENAI_API_KEY environment variable is not set. Please set it when using TESTING mode.")
             exit(1)
             
         # Create a temporary directory for testing
@@ -370,17 +380,33 @@ if __name__ == "__main__":
         
         try:
             # Test with direct SubmitPatchAgent
-            result = SubmitPatchAgent(
+            agent = SubmitPatchAgent(
                 repo=Path(temp_folder),
                 task=example["problem_statement"],
-                max_tool_calls=6,
+                max_tool_calls=50,
                 temperature=0.0,
-            ).run()
+            )
+            result = agent.run()
             
             print(f"\nRepo: {example['repo']} at {example['base_commit']}")
-            print(f"Problem: {example['problem_statement'][:100]}...")
-            print("\nGenerated diff:")
-            print(result.get("diff", "") or "No diff generated")
+            print(f"Problem: {example['problem_statement']}")
+            print(f"Oracle diff: {example['patch']}")
+            print(f"Generated diff: {result.get('diff', '')}")
+
+
+            oracle_diff = SearchReplaceDiff.from_unified_diff(example['patch'])[0]
+            print(f"Parsed Oracle diff: {oracle_diff.to_string()}")
+            
+            generated_diff = SearchReplaceDiff.from_string(result.get("diff", ""))
+            print(f"\nParsed Generated diff: {generated_diff.to_string()}")
+
+            print(f"Diff similarity: {oracle_diff.similarity(generated_diff)}")
+
+            import json
+            with open("messages.json", "w") as f:
+                json.dump(agent.history, f, indent=4)
+
+        
             
             if result["status"] != "ok":
                 logger.error(f"Agent failed: {result.get('reason', 'Unknown error')}")

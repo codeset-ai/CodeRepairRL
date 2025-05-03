@@ -91,8 +91,37 @@ class SearchReplaceDiff:
         result = []
         
         for block in blocks:
-            # Try various patterns, from most exact to most forgiving
+            # Alternative approach: Split based on marker positions rather than regex capture
+            if "SEARCH" in block and "=======" in block and "REPLACE" in block:
+                try:
+                    # Find the positions of the markers
+                    search_pos = block.find("SEARCH")
+                    divider_pos = block.find("=======")
+                    replace_pos = block.find("REPLACE")
+                    
+                    # Make sure markers are in the correct order
+                    if search_pos < divider_pos < replace_pos:
+                        # Find the line endings after each marker
+                        search_end = block.find("\n", search_pos)
+                        divider_end = block.find("\n", divider_pos)
+                        replace_end = block.find("\n", replace_pos)
+                        
+                        if search_end != -1 and divider_end != -1:
+                            # Extract the content between markers
+                            search_content = block[search_end+1:divider_pos].strip()
+                            replace_content = block[divider_end+1:replace_pos].strip()
+                            # Find the line with REPLACE marker
+                            replace_line_start = block.rfind("\n", 0, replace_pos) + 1
+                            # Check if we have content before the REPLACE marker on the same line
+                            if replace_line_start < replace_pos:
+                                replace_content = replace_content[:-(replace_pos-replace_line_start)]
+                            
+                            result.append((search_content, replace_content))
+                            continue
+                except:
+                    pass  # Fall back to regex patterns if this approach fails
             
+            # Try various patterns, from most exact to most forgiving (as fallback)
             # Standard pattern
             pattern_with_search = r"<<<+\s*SEARCH\s*>*\n(.*?)\n=+\n(.*?)\n>>>+\s*REPLACE\s*<*"
             match = re.search(pattern_with_search, block, re.DOTALL)
