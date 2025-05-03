@@ -3,22 +3,22 @@ import json
 import re
 import subprocess
 import shlex
-import requests
 import logging
 from pathlib import Path
+from typing import  Dict, Any, List, Tuple
 from concurrent.futures import ProcessPoolExecutor
-from typing import Optional, Dict, Any, List, Tuple
 
+import requests
 from trl.extras.vllm_client import AsyncVLLMClient
 
-from src.utils.git import handle_to_url, clone_repo_at_commit, clean_repo_dir, get_head_commit_diff
+from src.utils.git import handle_to_url, clone_repo_at_commit, clean_repo_dir
 
 logger = logging.getLogger(__name__)
 
 # Constants
 VLLM_ENDPOINT = os.getenv("VLLM_ENDPOINT", "http://localhost:8000/v1")
-OPENAI_ENDPOINT = "https://api.openai.com/v1/chat/completions"
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")  # or gpt-4o
+OPENAI_ENDPOINT = "http://0.0.0.0:8000/v1/chat/completions"  #os.getenv("OPENAI_ENDPOINT", "https://api.openai.com/v1/chat/completions")
+OPENAI_MODEL = "Qwen/Qwen3-1.7B"  #os.getenv("OPENAI_MODEL", "gpt-4.1-mini")  # or gpt-4o
 MODEL = os.getenv("REPAIR_MODEL", "qwen3-0.6b")
 BAD_CMD = re.compile(r"\b(rm|mv|chmod|chown|truncate|mkfs|>|>>)\b")
 TRUNCATE = 8_000  # cap shell output
@@ -41,32 +41,7 @@ First, use the 'shell' tool to:
 3. Understand the context of the issue
 4. Locate the specific files that need modification
 
-Only after thoroughly understanding the codebase and identifying the exact problems, generate *SEARCH/REPLACE* edits and submit them using the 'submit_patch' tool.
-
-Every *SEARCH/REPLACE* edit must use this format:
-1. The start of search block: <<<<<<< SEARCH
-2. A contiguous chunk of lines to search for in the existing source code
-3. The dividing line: =======
-4. The lines to replace with the fixed implementation
-5. The end of the replace block: >>>>>>> REPLACE
-
-Here is an example:
-
-```
-<<<<<<< SEARCH
-    printf("hello\n");
-=======
-    printf("Hello world!\n");
->>>>>>> REPLACE
-```
-
-Please note:
-1. The *SEARCH/REPLACE* edit REQUIRES PROPER INDENTATION
-2. Make minimal necessary changes to fix the issue
-3. Ensure the fix doesn't break the code's intended functionality
-4. If multiple issues exist, provide multiple *SEARCH/REPLACE* blocks
-
-Wrap each *SEARCH/REPLACE* edit in a code block as shown in the example above.
+Only after thoroughly understanding the codebase and identifying the exact problems, generate a unified git diff and submit it using the 'submit_patch' tool.
 """
 
 
@@ -356,9 +331,10 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, 
                         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     
+    from difflib import SequenceMatcher
     # Load example from dataset
     from src.data import get_swe_gym_repo_repair_dataset
-    from src.utils.diff import SearchReplaceDiff
+
     
     logger.info("Loading dataset")
     ds = get_swe_gym_repo_repair_dataset().shuffle(seed=43).select(range(1))
@@ -393,14 +369,7 @@ if __name__ == "__main__":
             print(f"Oracle diff: {example['patch']}")
             print(f"Generated diff: {result.get('diff', '')}")
 
-
-            oracle_diff = SearchReplaceDiff.from_unified_diff(example['patch'])[0]
-            print(f"Parsed Oracle diff: {oracle_diff.to_string()}")
-            
-            generated_diff = SearchReplaceDiff.from_string(result.get("diff", ""))
-            print(f"\nParsed Generated diff: {generated_diff.to_string()}")
-
-            print(f"Diff similarity: {oracle_diff.similarity(generated_diff)}")
+            print(f"Diff similarity: {SequenceMatcher(None, example['patch'], result.get('diff', '')).ratio()}")
 
             import json
             with open("messages.json", "w") as f:
@@ -430,3 +399,6 @@ if __name__ == "__main__":
             print(result["generated_diff"] or "No diff generated")
     
     logger.info("Test completed")
+
+
+# vllm serve Qwen/Qwen3-1.7B --host 0.0.0.0 --enable-auto-tool-choice --tool-call-parser hermes

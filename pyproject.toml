@@ -14,7 +14,7 @@ dependencies = [
     "peft>=0.15.0",
     "bitsandbytes>=0.45.4; platform_system != 'Darwin'",
     # Fast inference, used in GRPOTrainer
-    "vllm>=0.8.2; platform_system != 'Darwin'",
+    "vllm>=0.8.5; platform_system != 'Darwin'",
     # Logging
     "wandb>=0.19.6",
     # Config
