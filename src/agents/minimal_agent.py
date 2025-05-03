@@ -17,10 +17,6 @@ from src.utils.git import handle_to_url, clone_repo_at_commit, clean_repo_dir
 
 logger = logging.getLogger(__name__)
 
-# Constants for command safety
-BAD_CMD = re.compile(r"\b(rm|mv|chmod|chown|truncate|mkfs|>|>>)\b")
-TRUNCATE = 8_000  # cap shell output
-
 # Testing mode - when enabled, uses OpenAI API instead of local models
 TESTING = os.getenv("TESTING", "0") == "1"
 
@@ -49,15 +45,14 @@ First, use the 'shell' tool to:
 
 Only after thoroughly understanding the codebase and identifying the exact problems, generate a unified git diff and submit it using the 'submit_patch' tool.
 """
-
+# Constants for command safety
+TRUNCATE = 8_000  # cap shell output
 
 def safe_shell(cmd: str, cwd: Path, timeout=4) -> str:
-    """Run a shell command safely with timeout and output limits."""
-    if BAD_CMD.search(cmd):
-        return f"read-only mode: cannot execute `{cmd}`"
+    """Run a shell command safely using rbash with timeout and output limits."""
     try:
         out = subprocess.check_output(
-            shlex.split(cmd), cwd=cwd, timeout=timeout,
+            ["rbash", "-c", cmd], cwd=cwd, timeout=timeout,
             stderr=subprocess.STDOUT, text=True, errors="ignore"
         )
     except subprocess.CalledProcessError as e:
@@ -95,6 +90,7 @@ def openai_chat(messages, tools, temperature=0.0, max_tokens=4096):
             tool_choice="auto",
             temperature=temperature,
             max_tokens=max_tokens,
+            # chat_template_kwargs={"enable_thinking": False} if "Qwen" in model else None
         )
         # Convert to dict for compatibility with the rest of the code
         return response.choices[0].message.model_dump()
@@ -402,4 +398,4 @@ if __name__ == "__main__":
     logger.info("Test completed")
 
 
-# vllm serve Qwen/Qwen3-1.7B --host 0.0.0.0 --enable-auto-tool-choice --tool-call-parser hermes --max-model-len 32768
+# vllm serve Qwen/Qwen3-30B-A3B --host 0.0.0.0 --enable-auto-tool-choice --tool-call-parser hermes --max-model-len 32768 --enable-reasoning --reasoning-parser deepseek_r1  
