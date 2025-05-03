@@ -4,30 +4,36 @@ import re
 import subprocess
 import shlex
 import logging
+import datetime
 from pathlib import Path
-from typing import  Dict, Any, List, Tuple
+from typing import Dict, Any, List, Tuple
 from concurrent.futures import ProcessPoolExecutor
 
-import requests
+
+from openai import OpenAI
 from trl.extras.vllm_client import AsyncVLLMClient
 
 from src.utils.git import handle_to_url, clone_repo_at_commit, clean_repo_dir
 
 logger = logging.getLogger(__name__)
 
-# Constants
-VLLM_ENDPOINT = os.getenv("VLLM_ENDPOINT", "http://localhost:8000/v1")
-OPENAI_ENDPOINT = "http://0.0.0.0:8000/v1/chat/completions"  #os.getenv("OPENAI_ENDPOINT", "https://api.openai.com/v1/chat/completions")
-OPENAI_MODEL = "Qwen/Qwen3-1.7B"  #os.getenv("OPENAI_MODEL", "gpt-4.1-mini")  # or gpt-4o
-MODEL = os.getenv("REPAIR_MODEL", "qwen3-0.6b")
+# Constants for command safety
 BAD_CMD = re.compile(r"\b(rm|mv|chmod|chown|truncate|mkfs|>|>>)\b")
 TRUNCATE = 8_000  # cap shell output
 
-# Check if we're in testing mode
+# Testing mode - when enabled, uses OpenAI API instead of local models
 TESTING = os.getenv("TESTING", "0") == "1"
 
+# Endpoint configuration
+VLLM_ENDPOINT = os.getenv("VLLM_ENDPOINT", "http://localhost:8000/v1")
+LOCAL_ENDPOINT = os.getenv("LOCAL_ENDPOINT", "http://0.0.0.0:8000/v1")
+
+# Model configuration
+LOCAL_MODEL = os.getenv("LOCAL_MODEL", "Qwen/Qwen3-1.7B")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
+
 # Search/Replace specification from code_mono_repair.py
-SEARCH_REPLACE_SPEC = """You are a code repair expert tasked with fixing issues in code. You will be provided with:
+SYSTEM_PROMPT = """You are a code repair expert tasked with fixing issues in code. You will be provided with:
 1. Information about the specific issue (if available)
 2. The code segment that needs to be fixed
 
@@ -65,35 +71,36 @@ def safe_shell(cmd: str, cwd: Path, timeout=4) -> str:
 
 def openai_chat(messages, tools, temperature=0.0, max_tokens=4096):
     """Send a request to the OpenAI API and get a response."""
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        raise ValueError("OPENAI_API_KEY environment variable is not set")
+    # Determine endpoint and model based on TESTING flag
+    if TESTING:
+        # Use actual OpenAI API
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            raise ValueError("OPENAI_API_KEY environment variable is not set")
         
-    payload = {
-        "model": OPENAI_MODEL,
-        "messages": messages,
-        "tools": tools,          # OpenAI-style tool objects
-        "tool_choice": "auto",
-        "temperature": temperature,
-        "max_tokens": max_tokens,
-    }
-
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json",
-    }
-    
-    logger.info(f"Sending request to OpenAI API with model: {payload['model']}")
+        client = OpenAI(api_key=api_key)
+        model = OPENAI_MODEL
+        logger.info(f"Using OpenAI API with model: {model}")
+    else:
+        # Use local vLLM API with OpenAI-compatible interface
+        client = OpenAI(api_key="dummy-key", base_url=VLLM_ENDPOINT)
+        model = LOCAL_MODEL
+        logger.info(f"Using local endpoint at {VLLM_ENDPOINT} with model: {model}")
     
     try:
-        r = requests.post(OPENAI_ENDPOINT, headers=headers, json=payload, timeout=60)
-        r.raise_for_status()
-        return r.json()["choices"][0]["message"]  # identical structure to vLLM
-    except requests.exceptions.RequestException as e:
-        logger.error(f"OpenAI API request failed: {str(e)}")
-        if hasattr(e, 'response') and hasattr(e.response, 'text'):
-            logger.error(f"Response content: {e.response.text}")
-        raise
+        response = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            tools=tools,
+            tool_choice="auto",
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+        # Convert to dict for compatibility with the rest of the code
+        return response.choices[0].message.model_dump()
+    except Exception as e:
+        logger.error(f"Chat API request failed: {str(e)}")
+        raise e
 
 
 class SubmitPatchAgent:
@@ -139,42 +146,38 @@ class SubmitPatchAgent:
         self.max_tool_calls = max_tool_calls
         self.temperature = temperature
         self.history = [
-            {"role": "system", "content": SEARCH_REPLACE_SPEC},
+            {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": task},
         ]
         self.tools = [self.SHELL_TOOL, self.SUBMIT_PATCH_TOOL]
+        
+        # Setup trajectory logging
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        Path("trajectories/minimal_agent/").mkdir(exist_ok=True, parents=True)
+        self.trajectory_path = Path(f"trajectories/minimal_agent/trajectory_{timestamp}.jsonl")
+        
+        # Log initial state
+        with open(self.trajectory_path, "w") as f:
+            json.dump({
+                "repo": str(repo),
+                "task": task,
+                "timestamp": timestamp,
+                "message": {"role": "system", "content": SYSTEM_PROMPT}
+            }, f)
+            f.write("\n")
+            json.dump({
+                "message": {"role": "user", "content": task}
+            }, f)
+            f.write("\n")
 
     def _chat(self) -> dict:
         """Send a request to the LLM API and get a response."""
-        if TESTING:
-            # Use OpenAI API for testing
-            return openai_chat(
-                messages=self.history,
-                tools=self.tools,
-                temperature=self.temperature,
-                max_tokens=4096
-            )
-        else:
-            # Use VLLM API
-            try:
-                r = requests.post(
-                    f"{VLLM_ENDPOINT}/chat/completions",
-                    json={
-                        "model": MODEL,
-                        "messages": self.history,
-                        "tools": self.tools,
-                        "tool_choice": "auto",
-                        "temperature": self.temperature,
-                    },
-                    timeout=60,
-                )
-                r.raise_for_status()
-                return r.json()["choices"][0]["message"]
-            except requests.exceptions.RequestException as e:
-                logger.error(f"VLLM API request failed: {str(e)}")
-                if hasattr(e, 'response') and hasattr(e.response, 'text'):
-                    logger.error(f"Response content: {e.response.text}")
-                raise
+        return openai_chat(
+            messages=self.history,
+            tools=self.tools,
+            temperature=self.temperature,
+            max_tokens=4096
+        )
 
     def run(self) -> dict:
         """
@@ -215,6 +218,12 @@ class SubmitPatchAgent:
                         diff_text = args.get("diff", "")
                         self._feedback_tool(call, cid, diff_text)
                         logger.info(f"Received patch with {len(diff_text)} characters")
+                        
+                        # Log the final result to JSONL
+                        with open(self.trajectory_path, "a") as f:
+                            json.dump({"result": {"status": "ok", "diff": diff_text}}, f)
+                            f.write("\n")
+                            
                         return {"status": "ok", "diff": diff_text}
 
                     else:
@@ -228,16 +237,26 @@ class SubmitPatchAgent:
             return {"status": "error", "reason": error_msg}
 
     def _feedback_tool(self, call, cid, output):
-        """Add tool call and result to conversation history."""
+        """Add tool call and result to conversation history and log to JSONL."""
         # Echo assistant tool call
-        self.history.append({"role": "assistant", "content": None, "tool_calls": [call]})
+        assistant_msg = {"role": "assistant", "content": None, "tool_calls": [call]}
+        self.history.append(assistant_msg)
+        
         # Add actual tool result
-        self.history.append({
+        tool_msg = {
             "role": "tool",
             "tool_call_id": cid,
             "name": call["function"]["name"],
             "content": output,
-        })
+        }
+        self.history.append(tool_msg)
+        
+        # Log to JSONL file
+        with open(self.trajectory_path, "a") as f:
+            json.dump({"message": assistant_msg}, f)
+            f.write("\n")
+            json.dump({"message": tool_msg}, f)
+            f.write("\n")
 
 
 class MinimalAgent(AsyncVLLMClient):
@@ -337,68 +356,50 @@ if __name__ == "__main__":
 
     
     logger.info("Loading dataset")
-    ds = get_swe_gym_repo_repair_dataset().shuffle(seed=43).select(range(1))
+    ds = get_swe_gym_repo_repair_dataset().shuffle(seed=42).select(range(1))
     example = dict(ds[0])
     
     logger.info(f"Testing with repo {example['repo']} at commit {example['base_commit']}")
     
     if TESTING:
-        # Testing mode - direct usage of SubmitPatchAgent with OpenAI
-        logger.info("Running in TESTING mode with direct SubmitPatchAgent")
+        # Testing with OpenAI API
+        logger.info("Running in TESTING mode with OpenAI API")
         
         # Check for API key before proceeding
         if not os.getenv("OPENAI_API_KEY"):
             logger.error("OPENAI_API_KEY environment variable is not set. Please set it when using TESTING mode.")
             exit(1)
-            
-        # Create a temporary directory for testing
-        temp_folder = clone_repo_at_commit(handle_to_url(example["repo"]), example["base_commit"])
-        
-        try:
-            # Test with direct SubmitPatchAgent
-            agent = SubmitPatchAgent(
-                repo=Path(temp_folder),
-                task=example["problem_statement"],
-                max_tool_calls=50,
-                temperature=0.0,
-            )
-            result = agent.run()
-            
-            print(f"\nRepo: {example['repo']} at {example['base_commit']}")
-            print(f"Problem: {example['problem_statement']}")
-            print(f"Oracle diff: {example['patch']}")
-            print(f"Generated diff: {result.get('diff', '')}")
-
-            print(f"Diff similarity: {SequenceMatcher(None, example['patch'], result.get('diff', '')).ratio()}")
-
-            import json
-            with open("messages.json", "w") as f:
-                json.dump(agent.history, f, indent=4)
-
-        
-            
-            if result["status"] != "ok":
-                logger.error(f"Agent failed: {result.get('reason', 'Unknown error')}")
-            
-        finally:
-            # Clean up
-            clean_repo_dir(temp_folder)
     else:
-        # Normal mode - using MinimalAgent with VLLM
-        logger.info("Running in normal mode with MinimalAgent")
+        logger.info("Running with local vLLM endpoint")
+    
+    # Create a temporary directory for testing
+    temp_folder = clone_repo_at_commit(handle_to_url(example["repo"]), example["base_commit"])
+    
+    try:
+        # Run SubmitPatchAgent (using either OpenAI or local vLLM based on TESTING flag)
+        agent = SubmitPatchAgent(
+            repo=Path(temp_folder),
+            task=example["problem_statement"],
+            max_tool_calls=50,
+            temperature=0.0,
+        )
+        result = agent.run()
         
-        # Create and run agent
-        agent = MinimalAgent(vllm_url=VLLM_ENDPOINT)
-        results = agent.generate([example], timeout=300)
+        print(f"\nRepo: {example['repo']} at {example['base_commit']}")
+        print(f"Problem: {example['problem_statement']}")
+        print(f"Oracle diff: {example['patch']}")
+        print(f"Generated diff: {result.get('diff', '')}")
+
+        print(f"Diff similarity: {SequenceMatcher(None, example['patch'], result.get('diff', '')).ratio()}")
         
-        # Print results
-        for result in results:
-            print(f"\nRepo: {result['repo']} at {result['base_commit']}")
-            print(f"Problem: {result['problem_statement'][:100]}...")
-            print("\nGenerated diff:")
-            print(result["generated_diff"] or "No diff generated")
+        if result["status"] != "ok":
+            logger.error(f"Agent failed: {result.get('reason', 'Unknown error')}")
+        
+    finally:
+        # Clean up
+        clean_repo_dir(temp_folder)
     
     logger.info("Test completed")
 
 
-# vllm serve Qwen/Qwen3-1.7B --host 0.0.0.0 --enable-auto-tool-choice --tool-call-parser hermes
+# vllm serve Qwen/Qwen3-1.7B --host 0.0.0.0 --enable-auto-tool-choice --tool-call-parser hermes --max-model-len 32768
