@@ -127,43 +127,71 @@ class SubmitPatchAgent:
     def _chat(self) -> dict:
         """Send a request to the LLM API and get a response."""
         if TESTING:
+            # Check if API key is available
+            if not self.api_key:
+                logger.error("ANTHROPIC_API_KEY not set. Set this environment variable when using TESTING mode.")
+                raise ValueError("ANTHROPIC_API_KEY environment variable not set")
+
             # Use Anthropic API for testing
             headers = {
                 "x-api-key": self.api_key,
                 "content-type": "application/json",
                 "anthropic-version": "2023-06-01"
             }
+            
+            # Create payload - Note: Claude API doesn't accept tool_choice parameter
             payload = {
-                "model": "claude-3.5-haiku-latest",  # Using a default Anthropic model
+                "model": "claude-3.5-haiku-latest",
                 "messages": self.history,
                 "tools": self.tools,
-                "tool_choice": "auto",
                 "temperature": self.temperature,
                 "max_tokens": 4096
             }
-            r = requests.post(
-                ANTHROPIC_ENDPOINT,
-                headers=headers,
-                json=payload,
-                timeout=60,
-            )
-            r.raise_for_status()
-            return r.json()["content"][0]  # Anthropic API response format
+            
+            logger.info(f"Sending request to Anthropic API with model: {payload['model']}")
+            
+            try:
+                r = requests.post(
+                    ANTHROPIC_ENDPOINT,
+                    headers=headers,
+                    json=payload,
+                    timeout=60,
+                )
+                r.raise_for_status()
+                response_json = r.json()
+                
+                if "content" not in response_json or not response_json["content"]:
+                    logger.error(f"Unexpected Anthropic API response format: {response_json}")
+                    raise ValueError("Invalid response from Anthropic API")
+                
+                return response_json["content"][0]  # Anthropic API response format
+                
+            except requests.exceptions.RequestException as e:
+                logger.error(f"Anthropic API request failed: {str(e)}")
+                if hasattr(e, 'response') and hasattr(e.response, 'text'):
+                    logger.error(f"Response content: {e.response.text}")
+                raise
         else:
             # Use VLLM API
-            r = requests.post(
-                f"{VLLM_ENDPOINT}/chat/completions",
-                json={
-                    "model": MODEL,
-                    "messages": self.history,
-                    "tools": self.tools,
-                    "tool_choice": "auto",
-                    "temperature": self.temperature,
-                },
-                timeout=60,
-            )
-            r.raise_for_status()
-            return r.json()["choices"][0]["message"]
+            try:
+                r = requests.post(
+                    f"{VLLM_ENDPOINT}/chat/completions",
+                    json={
+                        "model": MODEL,
+                        "messages": self.history,
+                        "tools": self.tools,
+                        "tool_choice": "auto",
+                        "temperature": self.temperature,
+                    },
+                    timeout=60,
+                )
+                r.raise_for_status()
+                return r.json()["choices"][0]["message"]
+            except requests.exceptions.RequestException as e:
+                logger.error(f"VLLM API request failed: {str(e)}")
+                if hasattr(e, 'response') and hasattr(e.response, 'text'):
+                    logger.error(f"Response content: {e.response.text}")
+                raise
 
     def run(self) -> dict:
         """
@@ -182,9 +210,11 @@ class SubmitPatchAgent:
                     return {"status": "error", "reason": "max_tool_calls reached"}
 
                 msg = self._chat()
-
+                
                 if "tool_calls" not in msg:
-                    return {"status": "error", "reason": "assistant returned plain text"}
+                    error_msg = f"Assistant returned plain text without tool calls: {msg}"
+                    logger.error(error_msg)
+                    return {"status": "error", "reason": error_msg}
 
                 for call in msg["tool_calls"]:
                     name = call["function"]["name"]
@@ -192,6 +222,7 @@ class SubmitPatchAgent:
                     cid = call["id"]
 
                     if name == "bash":
+                        logger.info(f"Executing bash command: {args['cmd']}")
                         output = safe_bash(args["cmd"], cwd=self.repo)
                         self._feedback_tool(call, cid, output)
                         tool_calls += 1
@@ -199,13 +230,18 @@ class SubmitPatchAgent:
 
                     elif name == "submit_patch":
                         diff_text = args.get("diff", "")
+                        logger.info(f"Received patch with {len(diff_text)} characters")
                         return {"status": "ok", "diff": diff_text}
 
                     else:
-                        return {"status": "error", "reason": f"unknown tool {name}"}
+                        error_msg = f"Unknown tool {name}"
+                        logger.error(error_msg)
+                        return {"status": "error", "reason": error_msg}
 
         except Exception as e:
-            return {"status": "error", "reason": str(e)}
+            error_msg = f"Error during agent execution: {str(e)}"
+            logger.exception(error_msg)
+            return {"status": "error", "reason": error_msg}
 
     def _feedback_tool(self, call, cid, output):
         """Add tool call and result to conversation history."""
@@ -295,6 +331,7 @@ class MinimalAgent(AsyncVLLMClient):
                     diff, messages = future.result(timeout=timeout)
                     results.append((diff, messages))
                 except Exception as e:
+                    logger.exception(f"Error in worker process: {str(e)}")
                     results.append(("", [f"Error: {str(e)}"]))
         
         # Attach the diffs to the corresponding data items
@@ -323,6 +360,11 @@ if __name__ == "__main__":
         # Testing mode - direct usage of SubmitPatchAgent with Anthropic
         logger.info("Running in TESTING mode with direct SubmitPatchAgent")
         
+        # Check for API key before proceeding
+        if not os.getenv("ANTHROPIC_API_KEY"):
+            logger.error("ANTHROPIC_API_KEY environment variable is not set. Please set it when using TESTING mode.")
+            exit(1)
+            
         # Create a temporary directory for testing
         temp_folder = clone_repo_at_commit(handle_to_url(example["repo"]), example["base_commit"])
         
@@ -339,6 +381,9 @@ if __name__ == "__main__":
             print(f"Problem: {example['problem_statement'][:100]}...")
             print("\nGenerated diff:")
             print(result.get("diff", "") or "No diff generated")
+            
+            if result["status"] != "ok":
+                logger.error(f"Agent failed: {result.get('reason', 'Unknown error')}")
             
         finally:
             # Clean up
