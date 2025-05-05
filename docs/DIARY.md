@@ -35,7 +35,8 @@
   - Could link my repo to Overleaf for easier sharing, or just push the latest pdf always
 
 ### Scaffold Tasks
-- [ ] SimpleAgent for debugging
+- [x] SimpleAgent for debugging
+- [ ] nano-codex for baseline
 - [ ] Double check that apptainer codex works on berzileus (test with o4-mini)
 - [ ] Fix local SWE-Agent implementation
   - Option 1: Configure it to run inside an apptainer (though this means docker inside apptainer, which is not ideal)
@@ -53,7 +54,9 @@
     - Hopefully don't run into problems in practice
 
 ### TRL Tasks
-- [ ] Setup a developmental fix
+- [x] Setup a developmental fix
+- [ ] Bugcheck with SimpleAgent
+- [ ] Bugcheck with NanoCodexAgent
 <details><summary>If I want to merge</summary>
 
 
