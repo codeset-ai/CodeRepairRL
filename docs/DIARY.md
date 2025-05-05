@@ -18,6 +18,21 @@
 </details>
 
 
+## May 5 - May 12
+### Writing Task
+- [ ] Add something to the paper
+
+### nano-"codex"
+- [ ] Rename, "lame to have openai"
+- [ ] Enable calling "apply_patch" many times
+- [ ] At the end of .run() always return the unified diff
+- [ ] Ready for deployment
+
+### CodeRepairRL tasks
+- [ ] Have a training run going before the monday meeting
+
+
+
 ## April 28 - May 5
 
 ### Writing Tasks
@@ -35,8 +50,9 @@
   - Could link my repo to Overleaf for easier sharing, or just push the latest pdf always
 
 ### Scaffold Tasks
-- [ ] SimpleAgent for debugging
-- [ ] Double check that apptainer codex works on berzileus (test with o4-mini)
+- [x] SimpleAgent for debugging
+- [x] Double check that apptainer codex works on berzileus (test with o4-mini)
+- [x] Implement "nano-codex"
 - [ ] Fix local SWE-Agent implementation
   - Option 1: Configure it to run inside an apptainer (though this means docker inside apptainer, which is not ideal)
   - Option 2: Debug the call stack to identify why it fails when running locally
@@ -53,7 +69,7 @@
     - Hopefully don't run into problems in practice
 
 ### TRL Tasks
-- [ ] Setup a developmental fix
+- [x] Setup a developmental fix
 <details><summary>If I want to merge</summary>
 
 
