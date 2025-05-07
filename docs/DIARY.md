@@ -20,10 +20,6 @@
 
 ## May 5 - May 12
 
-### Scaffold tasks 
-- [x] Implement NanoAgent client
-- [ ] Stress test paralellizability
-
 ### nano-"codex"
 - [x] Rename, "lame to have openai"
 - [x] Enable calling "apply_patch" many times
@@ -38,6 +34,9 @@
 - [x] Ready for deployment
 
 ### CodeRepairRL tasks
+- [x] Implement NanoAgent client
+- [ ] Stress test paralellizability
+- [ ] Should I reintroduce unsloth? It is much faster...
 - [ ] Have a training run going before the monday meeting
 
 
