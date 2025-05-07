@@ -88,11 +88,12 @@ class AiderAgent(AsyncVLLMClient):
             except mp.TimeoutError:
                 logger.warning(f"Agent timeout reached after {timeout} seconds.")
                 diffs = [""] * len(data)
+                messages = [[]] * len(data)
 
         # Attach the diffs to the corresponding data items
-        for item, diff, messages in zip(data, diffs, messages):
+        for item, diff, msgs in zip(data, diffs, messages):
             item["generated_diff"] = diff
-            item["messages"] = messages
+            item["messages"] = msgs
 
         return data
 

@@ -24,5 +24,6 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8.3.4", "setuptools>=75.8.0", "matplotlib>=3.10.0", "scikit-learn>=1.6.1"]
+nano = ["nano @ git+https://github.com/BjarniHaukur/nano-agent.git"]
 # aider = ["aider-chat @ git+https://github.com/BjarniHaukur/aider.git"]
 # sweagent = ["sweagent @ git+https://github.com/BjarniHaukur/SWE-agent.git"]

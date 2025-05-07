@@ -15,7 +15,8 @@ From: pytorch/pytorch:2.6.0-cuda12.4-cudnn9-devel
     ./pyproject.toml
 
 %post
-    apt-get update && apt-get install -y curl git ca-certificates
+    # Nano agent and Codex frequently call ripgrep so we install it here
+    apt-get update && apt-get install -y curl git ca-certificates ripgrep 
 
     # Would use uv, but it halts indefinitely one some package, poetry just works
     curl -sSL https://install.python-poetry.org | python3 -
