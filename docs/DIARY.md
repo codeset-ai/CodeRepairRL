@@ -19,14 +19,23 @@
 
 
 ## May 5 - May 12
-### Writing Task
-- [ ] Add something to the paper
+
+### Scaffold tasks 
+- [x] Implement NanoAgent client
+- [ ] Stress test paralellizability
 
 ### nano-"codex"
-- [ ] Rename, "lame to have openai"
-- [ ] Enable calling "apply_patch" many times
-- [ ] At the end of .run() always return the unified diff
-- [ ] Ready for deployment
+- [x] Rename, "lame to have openai"
+- [x] Enable calling "apply_patch" many times
+- [x] At the end of .run() always return the unified diff
+- [x] Debug reasoning models
+  - {enabled: false} doesnt seem to work
+- [x] Add verbosity flag
+- [x] CLI 
+- [x] Clarify that "cat-ing" an entire file is not a good strategy?
+- [x] "We expect the agent to fail in certain situations, but we will directly reinforce favorable behaviors with outcome supervision..."
+- [x] Transfer and email
+- [x] Ready for deployment
 
 ### CodeRepairRL tasks
 - [ ] Have a training run going before the monday meeting
@@ -51,13 +60,8 @@
 
 ### Scaffold Tasks
 - [x] SimpleAgent for debugging
-<<<<<<< HEAD
-- [ ] nano-codex for baseline
-- [ ] Double check that apptainer codex works on berzileus (test with o4-mini)
-=======
 - [x] Double check that apptainer codex works on berzileus (test with o4-mini)
 - [x] Implement "nano-codex"
->>>>>>> 6725e953e8d916acbacff299c61c7d0343588797
 - [ ] Fix local SWE-Agent implementation
   - Option 1: Configure it to run inside an apptainer (though this means docker inside apptainer, which is not ideal)
   - Option 2: Debug the call stack to identify why it fails when running locally
@@ -75,11 +79,8 @@
 
 ### TRL Tasks
 - [x] Setup a developmental fix
-<<<<<<< HEAD
 - [ ] Bugcheck with SimpleAgent
 - [ ] Bugcheck with NanoCodexAgent
-=======
->>>>>>> 6725e953e8d916acbacff299c61c7d0343588797
 <details><summary>If I want to merge</summary>
 
 
