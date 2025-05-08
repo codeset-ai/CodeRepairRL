@@ -1,7 +1,7 @@
 defaults:
-  - small_qwen
+  - medium_qwen
 
-model_name: "Qwen/Qwen2.5-Coder-32B-Instruct"  # Upgraded to 32B model
+model_name: "Qwen/Qwen3-32B"
 # only used if run.lora is true
 r: 64
 lora_alpha: 128

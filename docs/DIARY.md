@@ -17,7 +17,6 @@
   - annoying to have to scroll throught those statistics when all I want is the actual value
 </details>
 
-
 ## May 5 - May 12
 
 ### nano-"codex"
@@ -37,7 +36,9 @@
 - [x] Implement NanoAgent client
 - [x] Stress test paralellizability
   - 2 Nanos in paralell are faster than 16 but not bottlenecking
-- [ ] Should I reintroduce unsloth? It is much faster...
+- [x] Should I reintroduce unsloth? It is much faster...
+  - No, atleast not all of it, its too much hassle
+  - I could have FastLanguageModel from unsloth only, but that requires carefully disabling trainer monkey patch
 - [ ] Have a training run going before the monday meeting
 
 

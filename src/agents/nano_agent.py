@@ -1,21 +1,18 @@
 import os
 import logging
-from pathlib import Path
 import multiprocessing as mp
 from typing import Dict, Any, List, Tuple
 
 from nano import Agent
-
 from trl.extras.vllm_client import AsyncVLLMClient
-
 
 from src.utils.git import handle_to_url, clone_repo_at_commit, clean_repo_dir
 
 logger = logging.getLogger(__name__)
 
-class NanoAgent(AsyncVLLMClient):
-    """Minimal wrapper for the SubmitPatchAgent using AsyncVLLMClient."""
+mp.set_start_method("spawn")
 
+class NanoAgent(AsyncVLLMClient):
     def __init__(self, vllm_url: str = "http://localhost:8000/v1"):
         super().__init__(vllm_url)
 

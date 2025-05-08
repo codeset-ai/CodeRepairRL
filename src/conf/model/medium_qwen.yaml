@@ -1,7 +1,7 @@
 defaults:
   - small_qwen
 
-model_name: "Qwen/Qwen2.5-Coder-7B-Instruct"  # Upgraded to 7B model
+model_name: "Qwen/Qwen3-8B"
 # only used if run.lora is true
 r: 64
 lora_alpha: 128

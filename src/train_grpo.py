@@ -10,6 +10,7 @@ from peft import LoraConfig as PEFTLoraConfig, get_peft_model
 from trl import GRPOConfig as HFGRPOConfig, GRPOTrainer as HFGRPOTrainer
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
+from src.agents import NanoAgent, SimpleAgent
 from src.rewards import (
     # reasoning rewards
     partial_reasoning_format_reward_func,
@@ -20,7 +21,7 @@ from src.rewards import (
     diff_format_reward_func,
     diff_similarity_reward_func,
 )
-from src.data import get_stack_repair_dataset, get_primevul_repair_dataset, get_primevul_detection_dataset, get_swe_gym_repo_repair_dataset, get_swe_bench_repo_repair_dataset
+from src.data import get_stack_repair_dataset, get_primevul_repair_dataset, get_primevul_detection_dataset, get_swe_gym_repo_repair_dataset
 from src.utils.git import resolve_git_commit_hash
 
 logger = logging.getLogger(__name__)
@@ -31,6 +32,7 @@ class RunConfig:
     wandb_project: str = "TTC"
     task_type: str = "repo_repair"
     dataset_type: str = "stack"
+    agent_type: Optional[str] = None  # for repo repair, either "nano" or "simple"
     context_lines: int = 0  # number of context lines to include in diffs
     commit_hash: str = ""  # added at runtime
     resume_training: bool = False
@@ -38,13 +40,18 @@ class RunConfig:
     def __post_init__(self):
         if self.task_type not in ["detection", "repair", "repo_repair"]:
             raise ValueError("task_type must be either 'detection' or 'repair'")
-        if self.dataset_type not in ["primevul", "stack", "swe_gym", "swe_bench"]:
-            raise ValueError("dataset_type must be either 'stack', 'primevul', 'swe_gym', or 'swe_bench'")
+        if self.dataset_type not in ["primevul", "stack", "swe_gym"]:
+            raise ValueError("dataset_type must be either 'stack', 'primevul' or 'swe_gym'")
+        if self.agent_type:
+            if self.task_type != "repo_repair":
+                raise ValueError("agent_type must be None for non-repo repair tasks")
+            if self.agent_type not in ["nano", "simple"]:
+                raise ValueError("agent_type must be either 'nano' or 'simple'")
 
 @dataclass
 class ModelConfig:
     # Transformers configuration
-    model_name: str = "Qwen/Qwen2.5-Coder-1.5B-Instruct"
+    model_name: str = "Qwen/Qwen3-8B"
     attn_implementation: str = "flash_attention_3"  # only on >Hopper GPUs
     load_in_8bit: bool = True  # bitsandbytes quantization
     # LoRA configuration
@@ -135,6 +142,9 @@ def main(cfg: Config) -> None:
 
     model.print_trainable_parameters()
 
+    # Only repo repair requires a specialized client, the others can use batched vllm
+    client = None
+
     # Get dataset based on the task
     if cfg.run.task_type == "repair":
         get_repair_dataset = get_stack_repair_dataset if cfg.run.dataset_type == "stack" else get_primevul_repair_dataset
@@ -163,8 +173,12 @@ def main(cfg: Config) -> None:
         ]
         reward_weights = [0.1, 0.2, 0.7]
     elif cfg.run.task_type == "repo_repair":
-        # agent = SWEAgent()
-        raise NotImplementedError("Repo repair not implemented yet")
+        dataset = get_swe_gym_repo_repair_dataset()
+        client = NanoAgent if cfg.run.agent_type == "nano" else SimpleAgent
+        reward_functions = [
+            diff_similarity_reward_func,
+        ]
+        reward_weights = [1.0]
     else:
         raise ValueError(f"Unknown task: {cfg.run.task_type}")  # can't happen but looks nice
 
@@ -176,7 +190,7 @@ def main(cfg: Config) -> None:
     # Initialize trainer with task-specific reward functions
     trainer = HFGRPOTrainer(
         model=model,
-        # client=agent,  # defaults to Synchronous VLLM client if not specified and use_vllm is True
+        client=client,  # defaults to Synchronous VLLM client if not specified and grpo_config.use_vllm is True
         processing_class=tokenizer,
         reward_funcs=reward_functions,
         args=training_args,
