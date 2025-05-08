@@ -35,7 +35,8 @@
 
 ### CodeRepairRL tasks
 - [x] Implement NanoAgent client
-- [ ] Stress test paralellizability
+- [x] Stress test paralellizability
+  - 2 Nanos in paralell are faster than 16 but not bottlenecking
 - [ ] Should I reintroduce unsloth? It is much faster...
 - [ ] Have a training run going before the monday meeting
 
