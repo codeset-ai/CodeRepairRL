@@ -3,7 +3,7 @@ name = "crrl"
 version = "0.1.0"
 description = "Finetuning LLMs with RL to improve program repair capabilities"
 readme = "README.md"
-requires-python = ">=3.11,<4"
+requires-python = ">=3.11,<3.13"
 dependencies = [
     # Our fork of trl
     "trl @ git+https://github.com/ASSERT-KTH/trl.git@dev",

@@ -39,7 +39,27 @@
 - [x] Should I reintroduce unsloth? It is much faster...
   - No, atleast not all of it, its too much hassle
   - I could have FastLanguageModel from unsloth only, but that requires carefully disabling trainer monkey patch
-- [ ] Have a training run going before the monday meeting
+- [x] Unified diff rewards
+- [x] Get vllm_container.sif working
+  - Needs to have bleeding edge vllm, flash-attn, etc.
+  - Post: Maybe revert back to uv / pip and try to fix that way.
+- [x] Run vllm serve and hook up Nano to it.
+  - Should work, just being paranoid
+- [x] Integrate vllm_container into train_container.sif
+- [x] Run vllm-serve-async and observe the LLM endpoint working
+  - Post: It was simpler to create a new entrypoint instead of working with TRL's argparse
+    - "vllm-serve-async --model ..."
+- [X] Hook up one Nano instance with the trl vllm-serve
+- [ ] Run vllm-serve-async and observe the weight sync endpoints working
+  - "AsyncLLM engine has no argument `llm_engine`"
+- [ ] Smol training run, 2 thin GPUs, Qwen3-0.6B Lora
+  - Find problems with my trl changes
+  - Probably something wrong in ._generate_and_score
+- [ ] **Have a full training run going before the monday meeting**
+
+### trl tasks
+- [ ] Make system prompt + task specification into "prompt"
+  - Double check where AutoTokenizer places the tools. I'd assume into the system prompt.
 
 
 

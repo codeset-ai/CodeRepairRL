@@ -17,9 +17,11 @@ from src.rewards import (
     strict_reasoning_format_reward_func,
     # detection rewards
     categorical_correctness_reward_func,
-    # repair rewards
-    diff_format_reward_func,
-    diff_similarity_reward_func,
+    # mono repair rewards
+    sr_diff_format_reward_func,
+    sr_diff_similarity_reward_func,
+    # repo repair rewards
+    unified_diff_similarity_reward_func,
 )
 from src.data import get_stack_repair_dataset, get_primevul_repair_dataset, get_primevul_detection_dataset, get_swe_gym_repo_repair_dataset
 from src.utils.git import resolve_git_commit_hash
@@ -156,8 +158,8 @@ def main(cfg: Config) -> None:
         reward_functions = [
             partial_reasoning_format_reward_func,
             strict_reasoning_format_reward_func,
-            diff_format_reward_func,
-            diff_similarity_reward_func, 
+            sr_diff_format_reward_func,
+            sr_diff_similarity_reward_func, 
         ]
         reward_weights = [0.1, 0.2, 0.3, 0.4]
     elif cfg.run.task_type == "detection":  # primevul only
@@ -176,7 +178,7 @@ def main(cfg: Config) -> None:
         dataset = get_swe_gym_repo_repair_dataset()
         client = NanoAgent if cfg.run.agent_type == "nano" else SimpleAgent
         reward_functions = [
-            diff_similarity_reward_func,
+            unified_diff_similarity_reward_func,
         ]
         reward_weights = [1.0]
     else:

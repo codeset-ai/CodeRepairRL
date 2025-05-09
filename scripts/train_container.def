@@ -2,29 +2,37 @@ Bootstrap: docker
 From: pytorch/pytorch:2.6.0-cuda12.4-cudnn9-devel
 
 %environment
-    # For WandB, explicitly point to the standard CA bundle location
     export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
-
-    # Ensure we use the existing cache directories
     export PROJECT_DIR=/proj/berzelius-2024-336/users/x_bjabj
     export HF_HOME=$PROJECT_DIR/.hf
     export TRANSFORMERS_CACHE=$PROJECT_DIR/.cache/huggingface/transformers
     export HF_DATASETS_CACHE=$PROJECT_DIR/.cache/huggingface/datasets
 
 %files
-    ./pyproject.toml
+    .
 
 %post
-    # Nano agent and Codex frequently call ripgrep so we install it here
-    apt-get update && apt-get install -y curl git ca-certificates ripgrep 
+    # This can probably be simplified a great deal
+    # I think I only need apptainer to get ripgrep
+    # I could just let uv install everything on every run due to caching
+    # But this works as is
 
-    # Would use uv, but it halts indefinitely one some package, poetry just works
-    curl -sSL https://install.python-poetry.org | python3 -
-    export PATH="/root/.local/bin:${PATH}"
+    set -eux
 
-    # Install dependencies globally
-    poetry config virtualenvs.create false
-    poetry install --no-root
+    apt-get update && \
+    apt-get install -y --no-install-recommends git curl ca-certificates ripgrep && \
+    rm -rf /var/lib/apt/lists/*
 
-    # can only be installed AFTER torch has been installed and needs cuda libraries to be linked
-    pip3 install --no-cache-dir flash-attn --no-build-isolation  
+    python -m pip install --upgrade pip setuptools wheel
+
+    # install your package *and* its dependencies
+    pip install --no-cache-dir .[dev]        # add extras group if you need it
+
+    # flash-attn after torch is present
+    pip install --no-cache-dir flash-attn --no-build-isolation
+
+    rm -rf /root/.cache/pip
+
+%runscript
+    #!/bin/bash
+    exec "$@"
