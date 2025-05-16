@@ -17,6 +17,33 @@
   - annoying to have to scroll throught those statistics when all I want is the actual value
 </details>
 
+
+## May 12 - May 19
+Entries got deleted, did A LOT more
+
+### Writing
+- [ ] Start writing this weekend
+
+### trl
+- [x] Update to latest
+- [x] Support DP in vllm_serve_async
+- [x] Write test cases for vllm_serve_async
+  - Post: They pass
+- [x] Setup cli
+  - Post: workaround, still use vllm's
+- [x] Generalize handling of prompt, completion, tools in GenerationResult
+- [x] Patch GRPOTrainer to handle vllm_mode="async_server" without requiring prompts  
+- [ ] Update GitHub issue, @ the maintainer
+- [ ]  
+
+### nano
+- [x] Fix issue with logging and multiprocess (same timestamp)
+- [x] Added failure handling for subprocess commands to show raw terminal output
+
+### CodeRepairRL
+- [ ] Smol training run  
+
+
 ## May 5 - May 12
 
 ### nano-"codex"
@@ -50,7 +77,7 @@
   - Post: It was simpler to create a new entrypoint instead of working with TRL's argparse
     - "vllm-serve-async --model ..."
 - [X] Hook up one Nano instance with the trl vllm-serve
-- [ ] Run vllm-serve-async and observe the weight sync endpoints working
+- [x] Run vllm-serve-async and observe the weight sync endpoints working
   - "AsyncLLM engine has no argument `llm_engine`"
 - [ ] Smol training run, 2 thin GPUs, Qwen3-0.6B Lora
   - Find problems with my trl changes

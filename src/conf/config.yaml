@@ -1,9 +1,9 @@
 defaults:
   - _self_
-  - run: base
+  - run: repair
   - grpo: base
   - model: small_qwen
 
 hydra:
   job:
-    chdir: false  # Prevents Hydra from changing working directory at runtime
+    chdir: false # Prevents Hydra from changing the working directory

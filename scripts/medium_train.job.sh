@@ -21,6 +21,7 @@ apptainer exec --nv --env CUDA_VISIBLE_DEVICES=0 crrl.sif \
 
 apptainer exec --nv --env CUDA_VISIBLE_DEVICES=1 crrl.sif \
     python -m src.train_grpo \
+    run=repo_repair \
     model=$MODEL_CONFIG \
     grpo.per_device_train_batch_size=8 \
     grpo.gradient_accumulation_steps=4 \

@@ -27,6 +27,7 @@ apptainer exec --nv --bind "$(pwd):/app" --env CUDA_VISIBLE_DEVICES=4,5,6,7 crrl
     --num_processes 4 \
     --num_machines 1 \
     /app/src/train_grpo.py \
+    run=repo_repair \
     model=$MODEL_CONFIG \
     grpo.per_device_train_batch_size=4 \
     grpo.gradient_accumulation_steps=8 \

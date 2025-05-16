@@ -22,6 +22,9 @@ def get_swe_gym_repo_repair_dataset(
     
     # Load the SWE-bench dataset
     swe_ds = load_dataset(dataset_name)["train"]  # only has train split
+
+    # Add a dummy "prompt" key for compatibility with trl
+    swe_ds = swe_ds.map(lambda x: {"prompt": "Dummy"})
     
     logger.info(f"Creating repository repair dataset with {len(swe_ds)} examples")
     

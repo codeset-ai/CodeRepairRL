@@ -1,0 +1,5 @@
+defaults:
+  - repair
+
+task_type: "detection"
+dataset_type: "primevul"

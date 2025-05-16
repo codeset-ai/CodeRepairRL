@@ -1,0 +1,11 @@
+wandb_project: "TTC"
+
+task_type: "repair"  # detection, repair or repo_repair
+dataset_type: "stack"  # primevul or stack
+agent_type: null  # null except for repo_repair
+
+# Only for repair uses (not repo_repair)
+context_lines: 0  # number of context lines to include in diffs
+
+commit_hash: ""  # will be set automatically
+resume_training: false

@@ -67,6 +67,7 @@ class ModelConfig:
 class GRPOConfig:
     # vLLM generation settings
     use_vllm: bool = True
+    vllm_mode: str = "server"
     
     # Optimizer settings
     learning_rate: float = 5e-6
