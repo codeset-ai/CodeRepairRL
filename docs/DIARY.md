@@ -41,6 +41,9 @@ Entries got deleted, did A LOT more
 - [x] Added failure handling for subprocess commands to show raw terminal output
 
 ### CodeRepairRL
+- [x] Update config files
+- [ ] Update slurm scripts
+- [ ] Update NanoAgent
 - [ ] Smol training run  
 
 

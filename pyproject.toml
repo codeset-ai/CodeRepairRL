@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.11,<3.13"
 dependencies = [
     # Our fork of trl
-    "trl @ git+https://github.com/ASSERT-KTH/trl.git@dev",
+    "trl @ git+https://github.com/ASSERT-KTH/trl.git@main",
     # Other HF stuff
     "transformers",
     "huggingface-hub",

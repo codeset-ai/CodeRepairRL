@@ -1,10 +1,10 @@
 import os
 import logging
 import multiprocessing as mp
-from typing import Dict, Any, List, Tuple
+from typing import Any
 
 from nano import Agent
-from trl.extras.vllm_client import AsyncVLLMClient
+from trl.extras.vllm_client import VLLMClient, GenerationResult
 
 from src.utils.git import handle_to_url, clone_repo_at_commit, clean_repo_dir
 
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 mp.set_start_method("spawn")
 
-class NanoAgent(AsyncVLLMClient):
+class NanoAgent(VLLMClient):
     def __init__(self, vllm_url: str = "http://localhost:8000/v1"):
         super().__init__(vllm_url)
 
@@ -20,10 +20,10 @@ class NanoAgent(AsyncVLLMClient):
         response = self.session.get(f"{self.api_base}/models").json()
         self.model = f"hosted_vllm/{response['data'][0]['id'].lower()}"
 
-    def _process_one(self, data: Dict[str, Any], **kwargs) -> Tuple[str, List[Dict[str, str]], List[Dict[str, str]]]:
+    def _process_one(self, data: dict[str, Any], **kwargs) -> GenerationResult:
         """Process a single prompt and return the diff."""
         assert ("repo" in data and "base_commit" in data and "problem_statement" in data), \
-            "Data should contain repo, base_commit and problem_statement"
+            "HF dataset should be SWE-Gym esque, including: repo, base_commit and problem_statement"
         
         logger.info(f"[START] Processing {data['repo']} at {data['base_commit']}")
         
@@ -41,11 +41,13 @@ class NanoAgent(AsyncVLLMClient):
             logger.info(f"Running agent for {data['repo']} at {data['base_commit']}")
             agent = Agent(
                 model=self.model,
+                api_base=self.api_base,
                 thinking=kwargs.get("thinking", False),
                 max_tool_calls=kwargs.get("max_tool_calls", 20),
                 temperature=kwargs.get("temperature", 0.7),
+                top_p=kwargs.get("top_p", 0.9),
+                top_k=kwargs.get("top_k", 0),
             )
-            
             diff = agent.run(task=data["problem_statement"], repo_root=temp_folder)
                 
             logger.info(f"Agent finished for {data['repo']} at {data['base_commit']}")
@@ -57,9 +59,15 @@ class NanoAgent(AsyncVLLMClient):
             logger.info(f"Cleanup done for {data['repo']} at {data['base_commit']}")
             
         logger.info(f"[END] Processing {data['repo']} at {data['base_commit']}")
-        return diff, agent.messages, agent.tools
 
-    def generate(self, data: List[Dict[str, Any]], timeout: int = 300, **kwargs) -> List[Dict[str, Any]]:
+        return GenerationResult(
+            prompt=agent.messages[:2],  # System prompt and task description is our prompt
+            completion=agent.messages[2:],
+            tools=agent.tools,
+            diff=diff,
+        )
+
+    def generate(self, data: list[dict[str, Any]], timeout: int = 300, **kwargs) -> list[GenerationResult]:
         """
         Deploys parallel agents to process the given data, returning the updated data with the generated diffs.
 
@@ -70,26 +78,20 @@ class NanoAgent(AsyncVLLMClient):
         Returns:
             The data with "generated_diff", "messages" and "tools" fields
         """
-        # Process all prompts in parallel
         with mp.Pool(processes=min(len(data), mp.cpu_count())) as pool:  # mp will "batch" the prompts if they exceed the core count
             # Start async processing of all prompts
             result = pool.map_async(self._process_one, data)
             
             try:
-                collected_results = result.get(timeout=timeout)
-                # Transpose the list of tuples.
-                diffs, messages, tools = [list(item) for item in zip(*collected_results)]
+                generation_results = result.get(timeout=timeout)
             except mp.TimeoutError:
                 logger.warning(f"Agent timeout reached after {timeout} seconds.")
                 # Initialize with placeholders matching the number of original data items
-                diffs = [""] * len(data)
-                messages = [[]] * len(data) # list of empty lists for messages
-                tools = [[]] * len(data)    # list of empty lists for tools
+                generation_results = [GenerationResult(
+                    prompt=[],
+                    completion=[],
+                    tools=[],
+                    diff="",
+                )] * len(data)
 
-        # Attach the diffs to the corresponding data items
-        for item, diff, msgs, tls in zip(data, diffs, messages, tools):
-            item["generated_diff"] = diff
-            item["messages"] = msgs
-            item["tools"] = tls
-
-        return data
+        return generation_results
