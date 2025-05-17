@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.11,<3.13"
 dependencies = [
     # Our fork of trl
-    "trl",
+    "trl @ git+https://github.com/ASSERT-KTH/trl.git",
     # Other HF stuff
     "transformers",
     "huggingface-hub",
@@ -33,6 +33,3 @@ sweagent = ["sweagent @ git+https://github.com/BjarniHaukur/SWE-agent.git"]
 
 [tool.uv]
 no-build-isolation-package = ["flash-attn", "flashinfer-python"]  
-
-[tool.uv.sources]
-trl = { path = "../trl", editable = true }

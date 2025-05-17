@@ -41,6 +41,8 @@ Entries got deleted, did A LOT more
   - Removed load_in_8bit
   - Should probably raise a warning...
 - [x] Bugfix - prompt_ids device
+- [ ] Bugfix - error processing chat template
+  - Post: Qwen3's jinja template is bugged
 - [ ] Bugfix - robustly parse .generate, if something goes wrong we should not crash in the trainer
   - We should always have a prompt at least, but perhaps not generations
 - [ ] Update GitHub issue, @ the maintainer

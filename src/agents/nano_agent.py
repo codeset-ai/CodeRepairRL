@@ -5,7 +5,7 @@ from typing import Any
 import multiprocessing as mp
 
 from nano import Agent
-from trl.extras.vllm_client import VLLMClient, GenerationResult
+from trl.extras.vllm_client import VLLMClient, GenerationResult  # I should remove these imports for multiprocessing reasons
 
 from src.utils.git import handle_to_url, clone_repo_at_commit, clean_repo_dir
 

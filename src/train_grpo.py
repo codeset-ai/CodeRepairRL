@@ -130,7 +130,10 @@ def main(cfg: Config) -> None:
     logger.info(f"Training with {precision_mode} precision based on GPU architecture")
     
     model = AutoModelForCausalLM.from_pretrained(cfg.model.model_name)
-    tokenizer = AutoTokenizer.from_pretrained(cfg.model.model_name)
+    if "Qwen3" in cfg.model.model_name:  # Qwen3's jinja template is bugged
+        tokenizer = AutoTokenizer.from_pretrained(cfg.model.model_name, chat_template=open("fixed_qwen3.jinja").read())
+    else:
+        tokenizer = AutoTokenizer.from_pretrained(cfg.model.model_name)
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "left"  # by padding a batch of prompts on the left side we can generate many completions in parallel (padding tokens are masked away)
 
