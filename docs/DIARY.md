@@ -41,7 +41,7 @@ Entries got deleted, did A LOT more
   - Removed load_in_8bit
   - Should probably raise a warning...
 - [x] Bugfix - prompt_ids device
-- [ ] Bugfix - error processing chat template
+- [x] Bugfix - error processing chat template
   - Post: Qwen3's jinja template is bugged
 - [ ] Bugfix - robustly parse .generate, if something goes wrong we should not crash in the trainer
   - We should always have a prompt at least, but perhaps not generations
@@ -51,19 +51,24 @@ Entries got deleted, did A LOT more
 ### nano
 - [x] Fix issue with logging and multiprocess (same timestamp)
 - [x] Added failure handling for subprocess commands to show raw terminal output
+- [ ] Now the feedback from the `shell` tool isn't "verbose" enough.
 
 ### CodeRepairRL
 - [x] Update config files
 - [x] Update NanoAgent
 - [x] Low hanging fruit debugging
-- [ ] NanoAgents fail
+- [x] NanoAgents fail
   - Isolate. Serve the model and initialize the client myself, see where it fails
   - Seems like GRPOTrainer is not happy with empty GenerationResults
-  - 
-- [ ] Update slurm scripts
-- [ ] Add FlashInfer
-- [ ] Smol training run  
-
+  - Post: it was Qwen3 jinja template issue
+- [x] Update slurm scripts
+  - Will make medium / large match when I'm ready for those
+- [x] Add FlashInfer
+- [ ] Bugfix - tokenizer parallelism
+  - huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks... To disable this warning, you can either: Avoid using `tokenizers` before the fork if possible. Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
+- [ ] Bugfix - No label_names provided for model class `PeftModelForCausalLM`
+- [x] **Smol training run**  
+- [ ] **8B training run**
 
 ## May 5 - May 12
 
