@@ -67,7 +67,7 @@ class ModelConfig:
 class GRPOConfig:
     # vLLM generation settings
     use_vllm: bool = True
-    vllm_mode: str = "server"
+    vllm_mode: str = "async_server"
     
     # Optimizer settings
     learning_rate: float = 5e-6
@@ -193,7 +193,7 @@ def main(cfg: Config) -> None:
     # Initialize trainer with task-specific reward functions
     trainer = HFGRPOTrainer(
         model=model,
-        client=client,  # defaults to Synchronous VLLM client if not specified and grpo_config.use_vllm is True
+        vllm_client_cls=client,  # defaults to Synchronous VLLM client if not specified and grpo_config.use_vllm is True
         processing_class=tokenizer,
         reward_funcs=reward_functions,
         args=training_args,

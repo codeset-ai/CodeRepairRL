@@ -1,6 +1,6 @@
 # vLLM generation settings
 use_vllm: true
-vllm_mode: ${oc.select_key_by_value:{"detection":"server", "repair":"server", "repo_repair":"async_server"}, ${run.task_type}, "server"}
+vllm_mode: "async_server"
 
 # Optimizer settings
 learning_rate: 5e-6

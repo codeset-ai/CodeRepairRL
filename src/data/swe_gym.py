@@ -1,5 +1,6 @@
 import logging
 
+import wandb
 from datasets import load_dataset, Dataset
 
 logger = logging.getLogger(__name__)
