@@ -32,7 +32,17 @@ Entries got deleted, did A LOT more
 - [x] Setup cli
   - Post: workaround, still use vllm's
 - [x] Generalize handling of prompt, completion, tools in GenerationResult
-- [x] Patch GRPOTrainer to handle vllm_mode="async_server" without requiring prompts  
+- [x] Patch GRPOTrainer to handle vllm_mode="async_server" without requiring prompts
+- [x] Bugfix - Kernel version
+  - [2025-05-17 16:20:37,654][accelerate.utils.other][WARNING] - Detected kernel version 4.18.0, which is below the recommended minimum of 5.5.0; this can cause the process to hang. It is recommended to upgrade the kernel to the minimum version or higher.
+  - Post: Nothing to do, this is the kernel version of Berzileus, could hang, could work
+- [x] Bugfix - Jumbled generations
+  - Weight Syncing does not work with quantization
+  - Removed load_in_8bit
+  - Should probably raise a warning...
+- [x] Bugfix - prompt_ids device
+- [ ] Bugfix - robustly parse .generate, if something goes wrong we should not crash in the trainer
+  - We should always have a prompt at least, but perhaps not generations
 - [ ] Update GitHub issue, @ the maintainer
 - [ ]  
 
@@ -42,8 +52,14 @@ Entries got deleted, did A LOT more
 
 ### CodeRepairRL
 - [x] Update config files
+- [x] Update NanoAgent
+- [x] Low hanging fruit debugging
+- [ ] NanoAgents fail
+  - Isolate. Serve the model and initialize the client myself, see where it fails
+  - Seems like GRPOTrainer is not happy with empty GenerationResults
+  - 
 - [ ] Update slurm scripts
-- [ ] Update NanoAgent
+- [ ] Add FlashInfer
 - [ ] Smol training run  
 
 

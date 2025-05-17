@@ -12,9 +12,6 @@ dependencies = [
     "huggingface-hub",
     "datasets>=3.3.0",
     "peft>=0.15.0",
-    "bitsandbytes>=0.45.4; platform_system != 'Darwin'",
-    # Fast inference, used in GRPOTrainer
-    "vllm>=0.8.5; platform_system != 'Darwin'",
     # Logging
     "wandb>=0.19.6",
     # Config
@@ -25,6 +22,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+vllm = ["vllm>=0.8.5", "flash-attn>=2.6.0", "flash-infer>=0.2.5"]
 dev = ["pytest>=8.3.4", "setuptools>=75.8.0", "matplotlib>=3.10.0", "scikit-learn>=1.6.1"]
 # aider = ["aider-chat @ git+https://github.com/BjarniHaukur/aider.git"]
 # sweagent = ["sweagent @ git+https://github.com/BjarniHaukur/SWE-agent.git"]
+
+[tool.uv]
+no-build-isolation-package = ["flash-attn", "flash-infer"]  

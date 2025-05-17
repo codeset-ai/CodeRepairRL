@@ -12,24 +12,24 @@
 MODEL_CONFIG="small_qwen"
 MODEL_NAME=$(grep -Po 'model_name: "\K[^"]*' src/conf/model/${MODEL_CONFIG}.yaml)
 
-NCCL_DEBUG=INFO apptainer exec --nv --env CUDA_VISIBLE_DEVICES=1 crrl.sif \
+NCCL_DEBUG=INFO CUDA_VISIBLE_DEVICES=1 apptainer exec --nv crrl.sif \
     trl vllm-serve-async \
     --model "$MODEL_NAME" \
-    --max_model_len 8096 \
+    --max_model_len 32768 \
     --enable-auto-tool-choice \
     --reasoning_parser deepseek_r1 \
     --tool-call-parser hermes \
     &  # & makes it run in the background
 
 # IMPORTANT: train job should include DEVICE 0
-NCCL_DEBUG=INFO apptainer exec --nv --env CUDA_VISIBLE_DEVICES=0 crrl.sif \
+NCCL_DEBUG=INFO CUDA_VISIBLE_DEVICES=0 apptainer exec --nv crrl.sif \
     python -m src.train_grpo \
     run=repo_repair \
     model=$MODEL_CONFIG \
     grpo.vllm_mode=async_server \
-    grpo.per_device_train_batch_size=16 \
+    grpo.per_device_train_batch_size=2 \
     grpo.gradient_accumulation_steps=4 \
-    grpo.num_generations=16 \
+    grpo.num_generations=4 \
     "$@"  # pass any additional arguments
     
 wait  # wait for all background processes to finish

@@ -11,6 +11,7 @@ from src.utils.git import handle_to_url, clone_repo_at_commit, clean_repo_dir
 
 logger = logging.getLogger(__name__)
 
+
 def _process_one(data: dict[str, Any], model: str, api_base: str, **kwargs) -> GenerationResult:
     assert (
         "repo" in data and "base_commit" in data and "problem_statement" in data
@@ -29,8 +30,9 @@ def _process_one(data: dict[str, Any], model: str, api_base: str, **kwargs) -> G
             thinking=kwargs.get("thinking", False),
             max_tool_calls=kwargs.get("max_tool_calls", 20),
             temperature=kwargs.get("temperature", 0.7),
-            top_p=kwargs.get("top_p", 0.9),
-            top_k=kwargs.get("top_k", 0),
+            top_p=kwargs.get("top_p", 0.8),
+            top_k=kwargs.get("top_k", 20),
+            verbose=kwargs.get("verbose", False)
         )
         diff = agent.run(task=data["problem_statement"], repo_root=temp_folder)
 
@@ -46,39 +48,51 @@ def _process_one(data: dict[str, Any], model: str, api_base: str, **kwargs) -> G
         generated_diff=diff,
     )
 
-
 class NanoAgent(VLLMClient):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.api_base = f"http://{self.host}:{self.server_port}/v1"
         response = self.session.get(f"{self.api_base}/models").json()
-        self.model = f"hosted_vllm/{response['data'][0]['id'].lower()}"
+        self.model = f"hosted_vllm/{response['data'][0]['id']}"
 
     def generate(self, data: list[dict[str, Any]], timeout: int = 300, **kwargs) -> list[GenerationResult]:
         """Deploys parallel agents to process the given data"""
 
-        args_list = [(datum, self.model, self.api_base, kwargs) for datum in data]
+        args_list = [(datum, self.model, self.api_base) for datum in data]
 
         results = []
         start_time = time.time()
         logger.info(f"Starting {len(data)} agent rollouts")
-        with mp.Pool(processes=min(len(data), mp.cpu_count())) as pool:
-            async_results = [pool.apply_async(_process_one, args=args) for args in args_list]
 
-            success_count, timeout_count, error_count = 0, 0, 0
-            for async_result in async_results:
+        ok, tout, err = 0, 0, 0
+        ctx = mp.get_context("fork")  # spawn launches a new, clean process every instance, so it needs to all the imports again.
+        with ctx.Pool(processes=min(len(data), ctx.cpu_count())) as pool:
+            futures = [pool.apply_async(_process_one, args=a) for a in args_list]
+
+            for fut in futures:
                 try:
-                    result = async_result.get(timeout=timeout)
-                    success_count += 1
-                except mp.TimeoutError:
-                    result = GenerationResult(prompt=[], completion=[], tools=[], generated_diff="")
-                    timeout_count += 1
+                    results.append(fut.get(timeout=timeout))
+                    ok += 1
+                except ctx.TimeoutError:
+                    results.append(GenerationResult(prompt=[], completion=[], tools=[], generated_diff=""))
+                    tout += 1
                 except Exception as e:
-                    result = GenerationResult(prompt=[], completion=[], tools=[], generated_diff="")
-                    error_count += 1
-                results.append(result)
+                    results.append(GenerationResult(prompt=[], completion=[], tools=[], generated_diff=""))
+                    err += 1
 
         logger.info(f"Finished rollouts {len(data)} in {time.time() - start_time:.2f}s")
-        logger.info(f"Success: {success_count}, Timeout: {timeout_count}, Error: {error_count}")
+        logger.info(f"Success: {ok}, Timeout: {tout}, Error: {err}")
         return results
+
+if __name__ == "__main__":
+    from src.data.swe_gym import get_swe_gym_repo_repair_dataset
+
+    client = NanoAgent(connection_timeout=240)
+    data = get_swe_gym_repo_repair_dataset().shuffle(seed=42).select(range(4))
+
+    results = client.generate(data, timeout=120, max_tool_calls=30, thinking=True, verbose=True)
+    print("-" * 100)
+    for result in results:
+        print(result["generated_diff"] or "No diff produced")
+        print("-" * 100)

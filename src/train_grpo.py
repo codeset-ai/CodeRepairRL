@@ -55,7 +55,6 @@ class ModelConfig:
     # Transformers configuration
     model_name: str = "Qwen/Qwen3-8B"
     attn_implementation: str = "flash_attention_3"  # only on >Hopper GPUs
-    load_in_8bit: bool = True  # bitsandbytes quantization
     # LoRA configuration
     lora: bool = True
     # only used if run.lora is true
@@ -125,10 +124,7 @@ def main(cfg: Config) -> None:
     precision_mode = "BF16" if cfg.grpo.bf16 else "FP16" if cfg.grpo.fp16 else "FP32"
     logger.info(f"Training with {precision_mode} precision based on GPU architecture")
     
-    model = AutoModelForCausalLM.from_pretrained(
-        cfg.model.model_name,
-        quantization_config=BitsAndBytesConfig(load_in_8bit=cfg.model.load_in_8bit) if cfg.model.load_in_8bit else None
-    )
+    model = AutoModelForCausalLM.from_pretrained(cfg.model.model_name)
     tokenizer = AutoTokenizer.from_pretrained(cfg.model.model_name)
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "left"  # by padding a batch of prompts on the left side we can generate many completions in parallel (padding tokens are masked away)
