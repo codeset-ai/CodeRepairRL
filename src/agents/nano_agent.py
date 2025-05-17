@@ -68,7 +68,7 @@ class NanoAgent(VLLMClient):
         ok, tout, err = 0, 0, 0
         ctx = mp.get_context("fork")  # spawn launches a new, clean process every instance, so it needs to all the imports again.
         with ctx.Pool(processes=min(len(data), ctx.cpu_count())) as pool:
-            futures = [pool.apply_async(_process_one, args=a) for a in args_list]
+            futures = [pool.apply_async(_process_one, args=a, kwds=kwargs) for a in args_list]
 
             for fut in futures:
                 try:

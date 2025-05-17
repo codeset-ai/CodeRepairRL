@@ -26,8 +26,13 @@ from src.rewards import (
 from src.data import get_stack_repair_dataset, get_primevul_repair_dataset, get_primevul_detection_dataset, get_swe_gym_repo_repair_dataset
 from src.utils.git import resolve_git_commit_hash
 
+logging.basicConfig(level=logging.CRITICAL)
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+logger.propagate = False
 
+for noisy in ("httpx", "LiteLLM"):
+    logging.getLogger(noisy).setLevel(logging.CRITICAL)
 
 @dataclass
 class RunConfig:
