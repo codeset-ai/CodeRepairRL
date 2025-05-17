@@ -18,6 +18,7 @@ apptainer exec --nv crrl.sif \
     python -m src.train_grpo \
     run=repair \
     model=small_qwen \
+    grpo.use_vllm=false \
     grpo.max_steps=2 \
     grpo.logging_steps=1 \
     grpo.per_device_train_batch_size=1 \
