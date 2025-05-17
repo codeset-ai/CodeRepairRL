@@ -26,10 +26,10 @@ From: pytorch/pytorch:2.6.0-cuda12.4-cudnn9-devel
     python -m pip install --upgrade pip setuptools wheel
 
     # install your package *and* its dependencies
-    pip install --no-cache-dir .[dev]        # add extras group if you need it
+    pip install --no-cache-dir .[vllm, dev, nano]        # add extras group if you need it
 
     # flash-attn after torch is present
-    pip install --no-cache-dir flash-attn --no-build-isolation
+    # pip install --no-cache-dir flash-attn --no-build-isolation
 
     rm -rf /root/.cache/pip
 
