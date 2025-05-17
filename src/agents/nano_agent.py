@@ -28,7 +28,7 @@ def _process_one(data: dict[str, Any], model: str, api_base: str, **kwargs) -> G
             model=model,
             api_base=api_base,
             thinking=kwargs.get("thinking", False),
-            max_tool_calls=kwargs.get("max_tool_calls", 20),
+            max_tool_calls=kwargs.get("max_tool_calls", 5),
             temperature=kwargs.get("temperature", 0.7),
             top_p=kwargs.get("top_p", 0.8),
             top_k=kwargs.get("top_k", 20),

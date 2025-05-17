@@ -4,9 +4,9 @@
 #SBATCH --error=logs/small_%j.err
 #SBATCH --gpus 2
 #SBATCH --time=24:00:00
-#SBATCH -C "thin"
+#SBATCH -C "fat"
 
-# Small train job, 2 thin GPUs, 1 running vLLM, 1 training
+# Small train job, 2 fat GPUs, 1 running vLLM, 1 training
 
 # Configuration
 MODEL_CONFIG="small_qwen"
@@ -27,7 +27,7 @@ NCCL_DEBUG=INFO CUDA_VISIBLE_DEVICES=0 apptainer exec --nv crrl.sif \
     run=repo_repair \
     model=$MODEL_CONFIG \
     grpo.vllm_mode=async_server \
-    grpo.per_device_train_batch_size=2 \
+    grpo.per_device_train_batch_size=1 \
     grpo.gradient_accumulation_steps=4 \
     grpo.num_generations=4 \
     "$@"  # pass any additional arguments
