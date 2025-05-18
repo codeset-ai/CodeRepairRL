@@ -16,25 +16,32 @@ def _process_one(data: dict[str, Any], model: str, api_base: str, **kwargs) -> d
 
     logger.info(f"[START] {data['repo']} @ {data['base_commit'][:7]}")
 
+    agent = Agent(
+        model=model,
+        api_base=api_base,
+        thinking=kwargs.get("thinking", False),
+        max_tool_calls=kwargs.get("max_tool_calls", 5),
+        temperature=kwargs.get("temperature", 0.7),
+        top_p=kwargs.get("top_p", 0.8),
+        top_k=kwargs.get("top_k", 20),
+        verbose=kwargs.get("verbose", False)
+    )
+
     try:
         temp_folder = clone_repo_at_commit(handle_to_url(data["repo"]), data["base_commit"])
-
-        agent = Agent(
-            model=model,
-            api_base=api_base,
-            thinking=kwargs.get("thinking", False),
-            max_tool_calls=kwargs.get("max_tool_calls", 5),
-            temperature=kwargs.get("temperature", 0.7),
-            top_p=kwargs.get("top_p", 0.8),
-            top_k=kwargs.get("top_k", 20),
-            verbose=kwargs.get("verbose", False)
-        )
         diff = agent.run(task=data["problem_statement"], repo_root=temp_folder)
+    except:
+        return dict(
+            prompt=agent.messages[:2],
+            completion=agent.messages[2:],
+            tools=agent.tools,
+            generated_diff="",
+        ) # Grab context window errors here and return partial results
 
     finally:
         clean_repo_dir(temp_folder)
+        logger.info(f"[FINISH] {data['repo']} @ {data['base_commit'][:7]}")
 
-    logger.info(f"[FINISH] {data['repo']} @ {data['base_commit'][:7]}")
     return dict(
         prompt=agent.messages[:2],
         completion=agent.messages[2:],

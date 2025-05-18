@@ -1,5 +1,4 @@
 version = 1
-revision = 1
 requires-python = ">=3.11, <3.13"
 resolution-markers = [
     "python_full_version >= '3.12' and platform_machine == 'aarch64' and sys_platform == 'linux'",
@@ -513,11 +512,10 @@ requires-dist = [
     { name = "setuptools", specifier = ">=75.8.0" },
     { name = "sweagent", marker = "extra == 'sweagent'", git = "https://github.com/BjarniHaukur/SWE-agent.git" },
     { name = "transformers" },
-    { name = "trl", git = "https://github.com/ASSERT-KTH/trl.git" },
+    { name = "trl", git = "https://github.com/ASSERT-KTH/trl.git?rev=dev" },
     { name = "vllm", marker = "sys_platform != 'darwin' and extra == 'vllm'", specifier = ">=0.8.5" },
     { name = "wandb", specifier = ">=0.19.6" },
 ]
-provides-extras = ["vllm", "dev", "nano", "aider", "sweagent"]
 
 [[package]]
 name = "cupy-cuda12x"
@@ -3540,7 +3538,7 @@ wheels = [
 [[package]]
 name = "trl"
 version = "0.18.0.dev0"
-source = { git = "https://github.com/ASSERT-KTH/trl.git#207ab2f6dddd2dfc3cbb02aac56d985849911ff8" }
+source = { git = "https://github.com/ASSERT-KTH/trl.git?rev=dev#80617ecccd30f8c927a409a64607e75525e07e3c" }
 dependencies = [
     { name = "accelerate" },
     { name = "datasets" },
