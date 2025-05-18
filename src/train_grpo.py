@@ -6,11 +6,11 @@ from dataclasses import dataclass, field
 import hydra
 from omegaconf import OmegaConf
 from hydra.core.config_store import ConfigStore
-from peft import LoraConfig as PEFTLoraConfig, get_peft_model
+from peft import LoraConfig as PEFTLoraConfig
 from trl import GRPOConfig as HFGRPOConfig, GRPOTrainer as HFGRPOTrainer
-from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from src.agents import NanoAgent, SimpleAgent
+from src.agents import nano_rollout_func
 from src.rewards import (
     # reasoning rewards
     partial_reasoning_format_reward_func,
@@ -152,7 +152,6 @@ def main(cfg: Config) -> None:
         lora_config = None
 
     rollout_func = None
-
     # Get dataset based on the task
     if cfg.run.task_type == "repair":
         get_repair_dataset = get_stack_repair_dataset if cfg.run.dataset_type == "stack" else get_primevul_repair_dataset
@@ -182,7 +181,7 @@ def main(cfg: Config) -> None:
         reward_weights = [0.1, 0.2, 0.7]
     elif cfg.run.task_type == "repo_repair":
         dataset = get_swe_gym_repo_repair_dataset()
-        client = NanoAgent if cfg.run.agent_type == "nano" else SimpleAgent
+        rollout_func = nano_rollout_func  #if cfg.run.agent_type == "nano" else None
         reward_functions = [
             unified_diff_similarity_reward_func,
         ]
