@@ -109,6 +109,9 @@ class GRPOConfig:
     output_dir: str = "outputs"
     log_completions: bool = True
 
+    # silence peft warnings
+    label_names: list[str] = field(default_factory=lambda: ["labels"])
+
 @dataclass
 class Config:
     run: RunConfig = field(default_factory=RunConfig)
@@ -145,12 +148,10 @@ def main(cfg: Config) -> None:
             target_modules=lora_params["target_modules"],
             task_type="CAUSAL_LM"
         )
-        model = get_peft_model(model, lora_config)
+    else:
+        lora_config = None
 
-    model.print_trainable_parameters()
-
-    # Only repo repair requires a specialized client, the others can use batched vllm
-    client = None
+    rollout_func = None
 
     # Get dataset based on the task
     if cfg.run.task_type == "repair":
@@ -197,11 +198,12 @@ def main(cfg: Config) -> None:
     # Initialize trainer with task-specific reward functions
     trainer = HFGRPOTrainer(
         model=model,
-        vllm_client_cls=client,  # defaults to Synchronous VLLM client if not specified and grpo_config.use_vllm is True
         processing_class=tokenizer,
         reward_funcs=reward_functions,
+        rollout_func=rollout_func,
         args=training_args,
         train_dataset=dataset,
+        peft_config=lora_config
     )
 
     trainer.train(resume_from_checkpoint=cfg.run.resume_training)

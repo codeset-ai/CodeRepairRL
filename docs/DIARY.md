@@ -45,13 +45,17 @@ Entries got deleted, did A LOT more
   - Post: Qwen3's jinja template is bugged
 - [ ] Bugfix - robustly parse .generate, if something goes wrong we should not crash in the trainer
   - We should always have a prompt at least, but perhaps not generations
+- [ ] Change it from vllm_client_cls to rollout_func?
+  - rollout_fn is not as clear that it should do the entire batch
+  - but it removes the unneeded complexity of having to extend VLLMClient for no reason except inheriting the vLLM url
+  - it has the same "signiture" as reward_func which is good
 - [ ] Update GitHub issue, @ the maintainer
 - [ ]  
 
 ### nano
 - [x] Fix issue with logging and multiprocess (same timestamp)
 - [x] Added failure handling for subprocess commands to show raw terminal output
-- [ ] Now the feedback from the `shell` tool isn't "verbose" enough.
+- [x] Update the feedback from the `shell` tool isn't "verbose" enough.
 
 ### CodeRepairRL
 - [x] Update config files
@@ -66,7 +70,7 @@ Entries got deleted, did A LOT more
 - [x] Add FlashInfer
 - [ ] Bugfix - tokenizer parallelism
   - huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks... To disable this warning, you can either: Avoid using `tokenizers` before the fork if possible. Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
-- [ ] Bugfix - No label_names provided for model class `PeftModelForCausalLM`
+- [x] Bugfix - No label_names provided for model class `PeftModelForCausalLM`
 - [x] **Smol training run**  
 - [ ] **8B training run**
 
