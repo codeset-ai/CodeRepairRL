@@ -79,3 +79,43 @@ def nano_rollout_func(data: list[dict[str, Any]], timeout: int = 300, **kwargs) 
     logger.info(f"Success: {ok}, Timeout: {tout}, Error: {err}")
     return results
 
+
+if __name__ == "__main__":
+    import time
+    from src.data.swe_gym import get_swe_gym_repo_repair_dataset
+    from matplotlib import pyplot as plt
+
+    from src.agents.nano_agent import nano_rollout_func
+
+    # Test different batch sizes for parallel throughput
+    batch_sizes = [1, 2, 4, 8, 16, 32, 64]
+    runs = 3
+    data = get_swe_gym_repo_repair_dataset().shuffle(seed=42)
+
+    throughputs = {size: [] for size in batch_sizes}
+
+    for size in batch_sizes:
+        print(f"Testing batch size {size}")
+        subset = data.select(range(size))
+        subset_dicts = [dict(x) for x in subset]
+        for i in range(runs):
+            start_time = time.time()
+            results = nano_rollout_func(subset_dicts, timeout=120)
+            elapsed = time.time() - start_time
+            throughput = size / elapsed if elapsed > 0 else 0
+            throughputs[size].append(throughput)
+            print(f"  Run {i+1}: {elapsed:.2f}s, {throughput:.2f} samples/sec")
+
+    avg_throughputs = [sum(throughputs[size])/runs for size in batch_sizes]
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(batch_sizes, avg_throughputs, 'bo-', linewidth=2)
+    plt.xlabel('Batch Size (Parallel Samples)')
+    plt.ylabel('Average Throughput (samples/sec)')
+    plt.title('Nano Agent Parallel Throughput Scaling')
+    plt.grid(True, linestyle='--', alpha=0.7)
+    plt.tight_layout()
+    for i, size in enumerate(batch_sizes):
+        plt.annotate(f'{avg_throughputs[i]:.2f}', (size, avg_throughputs[i]), textcoords="offset points", xytext=(0,10), ha='center')
+    plt.savefig('nano_agent_parallel_throughput.png', dpi=300, bbox_inches='tight')
+    plt.close()
