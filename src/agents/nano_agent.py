@@ -2,6 +2,7 @@ import time
 import logging
 from typing import Any
 import multiprocessing as mp
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import requests
 from nano import Agent
@@ -20,7 +21,7 @@ def _process_one(data: dict[str, Any], model: str, api_base: str, **kwargs) -> d
         model=model,
         api_base=api_base,
         thinking=kwargs.get("thinking", False),
-        max_tool_calls=kwargs.get("max_tool_calls", 5),
+        max_tool_calls=kwargs.get("max_tool_calls", 30),
         temperature=kwargs.get("temperature", 0.7),
         top_p=kwargs.get("top_p", 0.8),
         top_k=kwargs.get("top_k", 20),
@@ -55,20 +56,21 @@ def nano_rollout_func(data: list[dict[str, Any]], timeout: int = 300, **kwargs) 
 
     api_base = "http://localhost:8000/v1"
     model = requests.get(f"{api_base}/models").json()["data"][0]["id"]
+    model = f"hosted_vllm/{model}"
 
     results = []
     ok, tout, err = 0, 0, 0
 
     logger.info(f"Starting {len(data)} agent rollouts")
     start_time = time.time()
-    with mp.Pool(processes=min(len(data), mp.cpu_count())) as pool:
-        futures = [pool.apply_async(_process_one, args=(datum, model, api_base), kwds=kwargs) for datum in data]
+    with ThreadPoolExecutor(max_workers=min(len(data), mp.cpu_count())) as executor:
+        futures = [executor.submit(_process_one, datum, model, api_base, **kwargs) for datum in data]
 
-        for fut in futures:
+        for fut in as_completed(futures):
             try:
-                results.append(fut.get(timeout=timeout))
+                results.append(fut.result(timeout=timeout))
                 ok += 1
-            except mp.TimeoutError:
+            except TimeoutError:
                 results.append(dict(prompt=[], completion=[], tools=[], generated_diff=""))
                 tout += 1
             except:
@@ -89,7 +91,7 @@ if __name__ == "__main__":
 
     # Test different batch sizes for parallel timing
     batch_sizes = [1, 2, 4, 8, 16]
-    runs = 3
+    runs = 2
     data = get_swe_gym_repo_repair_dataset().shuffle(seed=42)
 
     avg_times = []

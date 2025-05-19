@@ -57,6 +57,7 @@ Entries got deleted, did A LOT more
 - [x] Added failure handling for subprocess commands to show raw terminal output
 - [x] Update the feedback from the `shell` tool isn't "verbose" enough.
 - [ ] Add max tokens
+  - after _tool_reply we call litellm.token_counter, if < context_window - TOKEN_THRESHOLD then append system warning to finish now, then do 1 more _chat with completion tokens configured correctly (-epsilon), then break 
 
 ### CodeRepairRL
 - [x] Update config files
@@ -72,7 +73,9 @@ Entries got deleted, did A LOT more
 - [ ] Bugfix - tokenizer parallelism
   - huggingface/tokenizers: The current process just got forked, after parallelism has already been used. Disabling parallelism to avoid deadlocks... To disable this warning, you can either: Avoid using `tokenizers` before the fork if possible. Explicitly set the environment variable TOKENIZERS_PARALLELISM=(true | false)
 - [x] Bugfix - No label_names provided for model class `PeftModelForCausalLM`
-- [x] **Smol training run**  
+- [x] **Smol training run**
+- [x] nano_rollout_func throughput testing
+  - ThreadPool seems to be faster
 - [ ] **8B training run**
 
 ## May 5 - May 12
