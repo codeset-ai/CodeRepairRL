@@ -11,19 +11,30 @@ warmup_ratio: 0.1
 lr_scheduler_type: "constant_with_warmup"  # cosine is empirically bad for GRPO
 optim: "paged_adamw_8bit"
 
-# Reward settings
-scale_rewards: false  # from Dr. GRPO, reward scaling introduces question-level difficulty bias
-
 # Model settings
-bf16: true  # we will almost assuredly always use bf16
+bf16: true
 fp16: false
 
 # Generation and Training settings
 per_device_train_batch_size: 4
-gradient_accumulation_steps: 2
+gradient_accumulation_steps: 1
 num_generations: 4
-max_prompt_length: 512  # will be decreased if the longest sequence in the dataset is shorter
-max_completion_length: 256  # will be increased by the complement of the above (max of model)
+max_prompt_length: 256
+max_completion_length: 256
+
+# Reward settings
+scale_rewards: false
+
+# Loss type
+loss_type: "dr_grpo"
+
+# Attention kernel
+use_liger_loss: true
+
+# Gradient checkpointing
+gradient_checkpointing: true
+gradient_checkpointing_kwargs:
+  use_reentrant: true
 
 # Training loop settings
 logging_steps: 1
@@ -32,7 +43,11 @@ save_steps: 50
 max_grad_norm: 0.1
 
 # Logging settings
-log_completions: true
 report_to: "wandb"
 run_name: "${model.model_name}-GRPO-${run.dataset_type}-${run.task_type}"
-output_dir: "outputs" 
+output_dir: "outputs"
+log_completions: true
+
+# silence peft warnings
+label_names:
+  - "labels" 

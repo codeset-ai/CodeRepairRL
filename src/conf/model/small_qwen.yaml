@@ -1,9 +1,9 @@
 # Model configuration
-model_name: "Qwen/Qwen3-1.7B"
-attn_implementation: "flash_attention_2"
+model_name: "Qwen/Qwen3-8B"
+attn_implementation: "flash_attention_3"
+context_window: 8192
 # LoRA configuration
 lora: true
-# only used if run.lora is true
 r: 32
 lora_alpha: 64  # lora paper describes 2x the r
 target_modules:

@@ -59,7 +59,6 @@ class ModelConfig:
     context_window: int = 8192
     # LoRA configuration
     lora: bool = True
-    # only used if run.lora is true
     r: int = 32
     lora_alpha: int = 64
     target_modules: tuple[str] = ("q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj")
@@ -69,7 +68,7 @@ class GRPOConfig:
     # vLLM generation settings
     use_vllm: bool = True
     vllm_mode: str = "async_server"
-    
+
     # Optimizer settings
     learning_rate: float = 5e-6
     adam_beta1: float = 0.9
@@ -102,6 +101,7 @@ class GRPOConfig:
 
     # Gradient checkpointing
     gradient_checkpointing: bool = True  # offload gradient to CPU for better memory utilization
+    gradient_checkpointing_kwargs: dict = field(default_factory=lambda: {"use_reentrant": True})
 
     # Training loop settings
     logging_steps: int = 1
