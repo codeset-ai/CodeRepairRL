@@ -9,27 +9,12 @@ From: pytorch/pytorch:2.6.0-cuda12.4-cudnn9-devel
     export HF_DATASETS_CACHE=$PROJECT_DIR/.cache/huggingface/datasets
 
 %files
-    .
+    pyproject.toml
+    src/
 
 %post
-    # This can probably be simplified a great deal
-    # I think I only need apptainer to get ripgrep
-    # I could just let uv install everything on every run due to caching
-    # But this works as is
+    # nano uses ripgrep and git so we ensure they are installed
+    apt-get update
+    apt-get install -y --no-install-recommends git curl ca-certificates ripgrep
 
-    set -eux
-
-    apt-get update && \
-    apt-get install -y --no-install-recommends git curl ca-certificates ripgrep && \
-    rm -rf /var/lib/apt/lists/*
-
-    python -m pip install --upgrade pip setuptools wheel
-
-    # install your package *and* its dependencies
-    pip install --no-cache-dir ".[vllm, dev, nano]"        # add extras group if you need it
-
-    rm -rf /root/.cache/pip
-
-%runscript
-    #!/bin/bash
-    exec "$@"
+    pip install ".[vllm, dev]"

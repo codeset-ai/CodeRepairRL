@@ -10,12 +10,13 @@
 
 # Configuration
 MODEL_CONFIG="small_qwen"
+MAX_MODEL_LEN=8192
 MODEL_NAME=$(grep -Po 'model_name: "\K[^"]*' src/conf/model/${MODEL_CONFIG}.yaml)
 
 CUDA_VISIBLE_DEVICES=1 apptainer exec --nv crrl.sif \
     trl vllm-serve-async \
     --model "$MODEL_NAME" \
-    --max_model_len 8192 \
+    --max_model_len $MAX_MODEL_LEN \
     --enable-auto-tool-choice \
     --reasoning_parser deepseek_r1 \
     --tool-call-parser hermes \
@@ -26,6 +27,7 @@ CUDA_VISIBLE_DEVICES=0 apptainer exec --nv crrl.sif \
     python -m src.train_grpo \
     run=repo_repair \
     model=$MODEL_CONFIG \
+    model.context_window=$MAX_MODEL_LEN \
     grpo.vllm_mode=async_server \
     grpo.gradient_accumulation_steps=4 \
     grpo.per_device_train_batch_size=1 \
