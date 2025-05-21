@@ -1,7 +1,7 @@
 defaults:
   - small_qwen
 
-model_name: "Qwen/Qwen3-14B"
+model_name: "Qwen/Qwen3-8B"
 # only used if run.lora is true
 r: 64
 lora_alpha: 128

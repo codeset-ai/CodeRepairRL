@@ -22,6 +22,7 @@ dependencies = [
     "gitpython>=3.1.44",
     # Is required BEFORE the package manager considers vLLM flash-attn
     "setuptools>=75.8.0",
+    "liger-kernel>=0.5.9",
 ]
 
 [project.optional-dependencies]

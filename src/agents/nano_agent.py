@@ -17,11 +17,14 @@ def _process_one(data: dict[str, Any], model: str, api_base: str, **kwargs) -> d
 
     logger.info(f"[START] {data['repo']} @ {data['base_commit'][:7]}")
 
+    import litellm
+    litellm._turn_on_debug()
+
     agent = Agent(
         model=model,
         api_base=api_base,
         thinking=kwargs.get("thinking", False),
-        context_window=kwargs.get("context_window", 8192),
+        context_window=kwargs.get("context_window", 8192)-512,
         max_tool_calls=kwargs.get("max_tool_calls", 20),
         temperature=kwargs.get("temperature", 0.7),
         top_p=kwargs.get("top_p", 0.8),
@@ -85,10 +88,12 @@ def nano_rollout_func(data: list[dict[str, Any]], timeout: int = 300, **kwargs) 
 
 if __name__ == "__main__":
     import time
-    from src.data.swe_gym import get_swe_gym_repo_repair_dataset
     from matplotlib import pyplot as plt
 
-    from src.agents.nano_agent import nano_rollout_func
+    import litellm
+    litellm._turn_on_debug()
+
+    from src.data.swe_gym import get_swe_gym_repo_repair_dataset
 
     # Test different batch sizes for parallel timing
     batch_sizes = [1, 2, 4, 8, 16]
