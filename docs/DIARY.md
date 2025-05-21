@@ -29,10 +29,16 @@
 
 ### CodeRepairRL
 - [ ] Add unsloth FastLanguageModel
-- [ ] Enable gradient checkpointing
-- [ ] Understand and configure grad_accum_steps
-- [ ] liger loss?
+  - can't, unsloth doesn't support latest trl
+  - and a large portion of their performance gains are through quantization which I'm not sure I can support
+- [x] Enable gradient checkpointing
+- [x] Understand and configure grad_accum_steps
+- [x] liger loss?
 - [ ] Tune all the scripts
+  - 4B, 14B, 32B
+  - 8k context minimum
+  - 1 inference server gets us really far
+  - we need way more training compute
 
 ### Nano
 - [x] Set no_logs flag or similar
