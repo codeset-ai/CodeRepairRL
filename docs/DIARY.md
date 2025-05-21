@@ -17,12 +17,32 @@
   - annoying to have to scroll throught those statistics when all I want is the actual value
 </details>
 
+## May 19 - May 26
+
+### Writing
+- [ ] Write a lot while berzileus is down (BREAK INTO TASKS)
+
+### TRL
+- [x] Create a PR and @ maintainer
+- [ ] Update email and issue when good training run is going
+- [ ] 
+
+### CodeRepairRL
+- [ ] Add unsloth FastLanguageModel
+- [ ] Enable gradient checkpointing
+- [ ] Understand and configure grad_accum_steps
+- [ ] liger loss?
+- [ ] Tune all the scripts
+
+### Nano
+- [x] Set no_logs flag or similar
+- [x] Ensure context utilization
+- [ ] Make a strucured tool call log
+  - Could be useful to penalize commands like cat and reward rg
+
 
 ## May 12 - May 19
 Entries got deleted, did A LOT more
-
-### Writing
-- [ ] Start writing this weekend
 
 ### trl
 - [x] Update to latest
