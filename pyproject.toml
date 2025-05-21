@@ -7,6 +7,8 @@ requires-python = ">=3.11,<3.13"
 dependencies = [
     # Our fork of trl
     "trl @ git+https://github.com/ASSERT-KTH/trl.git@dev",
+    # The agent we use for rollout generation,
+    "nano-agent @ git+https://github.com/ASSERT-KTH/nano-agent.git",
     # Other HF stuff
     "transformers",
     "huggingface-hub",
@@ -27,9 +29,8 @@ dependencies = [
 vllm = ["vllm>=0.8.5; platform_system != 'Darwin'", "flash-attn>=2.6.0; platform_system != 'Darwin'", "flashinfer-python>=0.2.5; platform_system != 'Darwin'"]
 dev = ["pytest>=8.3.4", "matplotlib>=3.10.0", "scikit-learn>=1.6.1"]
 # Different agents
-nano = ["nano-agent @ git+https://github.com/ASSERT-KTH/nano-agent.git"]
-aider = ["aider-chat @ git+https://github.com/BjarniHaukur/aider.git"]
-sweagent = ["sweagent @ git+https://github.com/BjarniHaukur/SWE-agent.git"]
+# aider = ["aider-chat @ git+https://github.com/BjarniHaukur/aider.git"]
+# sweagent = ["sweagent @ git+https://github.com/BjarniHaukur/SWE-agent.git"]
 
 [tool.uv]
 no-build-isolation-package = ["flash-attn", "flashinfer-python"]  

@@ -1,6 +1,7 @@
 import os
 import logging
 from typing import Optional
+from functools import partial
 from dataclasses import dataclass, field
 
 import hydra
@@ -39,7 +40,6 @@ class RunConfig:
     wandb_project: str = "TTC"
     task_type: str = "repo_repair"
     dataset_type: str = "stack"
-    agent_type: Optional[str] = None  # for repo repair, either "nano" or "simple"
     context_lines: int = 0  # number of context lines to include in diffs
     commit_hash: str = ""  # added at runtime
     resume_training: bool = False
@@ -49,17 +49,14 @@ class RunConfig:
             raise ValueError("task_type must be either 'detection' or 'repair'")
         if self.dataset_type not in ["primevul", "stack", "swe_gym"]:
             raise ValueError("dataset_type must be either 'stack', 'primevul' or 'swe_gym'")
-        if self.agent_type:
-            if self.task_type != "repo_repair":
-                raise ValueError("agent_type must be None for non-repo repair tasks")
-            if self.agent_type not in ["nano", "simple"]:
-                raise ValueError("agent_type must be either 'nano' or 'simple'")
 
 @dataclass
 class ModelConfig:
     # Transformers configuration
     model_name: str = "Qwen/Qwen3-8B"
     attn_implementation: str = "flash_attention_3"  # only on >Hopper GPUs
+    # Context window
+    context_window: int = 8192
     # LoRA configuration
     lora: bool = True
     # only used if run.lora is true
@@ -97,12 +94,21 @@ class GRPOConfig:
     # Reward settings
     scale_rewards: bool = False  # from Dr. GRPO, reward scaling introduces question-level difficulty bias
     
+    # Loss type
+    loss_type: str = "dr_grpo"  # been shown to have less sequence-length bias
+    
+    # Attention kernel
+    use_liger_loss: bool = True  # should cut memory footprint
+
+    # Gradient checkpointing
+    gradient_checkpointing: bool = True  # offload gradient to CPU for better memory utilization
+
     # Training loop settings
     logging_steps: int = 1
     max_steps: int = 250
     save_steps: int = 250
     max_grad_norm: float = 0.1
-    
+
     # Logging settings
     report_to: str = "wandb"
     run_name: Optional[str] = None
@@ -181,7 +187,8 @@ def main(cfg: Config) -> None:
         reward_weights = [0.1, 0.2, 0.7]
     elif cfg.run.task_type == "repo_repair":
         dataset = get_swe_gym_repo_repair_dataset()
-        rollout_func = nano_rollout_func  #if cfg.run.agent_type == "nano" else None
+        # Nano is context-window-aware so we pass in the model's context window
+        rollout_func = partial(nano_rollout_func, context_window=cfg.model.context_window)
         reward_functions = [
             unified_diff_similarity_reward_func,
         ]

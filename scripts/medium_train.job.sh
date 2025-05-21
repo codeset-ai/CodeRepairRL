@@ -15,7 +15,7 @@ MODEL_NAME=$(grep -Po 'model_name: "\K[^"]*' src/conf/model/${MODEL_CONFIG}.yaml
 CUDA_VISIBLE_DEVICES=1 apptainer exec --nv crrl.sif \
     trl vllm-serve-async \
     --model "$MODEL_NAME" \
-    --max_model_len 8129 \
+    --max_model_len 8192 \
     --enable-auto-tool-choice \
     --reasoning_parser deepseek_r1 \
     --tool-call-parser hermes \
