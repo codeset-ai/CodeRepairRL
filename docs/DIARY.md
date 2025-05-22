@@ -28,7 +28,7 @@
 - [ ] Paranoia: check that the completions are being masked correctly 
 
 ### CodeRepairRL
-- [ ] Add unsloth FastLanguageModel
+- [x] Add unsloth FastLanguageModel?
   - can't, unsloth doesn't support latest trl
   - and a large portion of their performance gains are through quantization which I'm not sure I can support
 - [x] Enable gradient checkpointing
