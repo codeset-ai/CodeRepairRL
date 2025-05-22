@@ -3,4 +3,3 @@ defaults:
 
 task_type: "repo_repair"
 dataset_type: "swe_gym"
-agent_type: "nano"
