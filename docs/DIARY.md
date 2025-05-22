@@ -25,7 +25,7 @@
 ### TRL
 - [x] Create a PR and @ maintainer
 - [ ] Update email and issue when good training run is going
-- [ ] 
+- [ ] Paranoia: check that the completions are being masked correctly 
 
 ### CodeRepairRL
 - [ ] Add unsloth FastLanguageModel
@@ -44,7 +44,13 @@
 - [x] Set no_logs flag or similar
 - [x] Ensure context utilization
 - [ ] Make a strucured tool call log
-  - Could be useful to penalize commands like cat and reward rg
+  - Could be useful to penalize commands downstream during training
+  - like cat (token expensive and "narrow) and reward rg (token efficient)
+  - make each tool return an output dict instead
+- [x] Return final token count
+  - if log mode active, print in end
+- [x] Make __version__ accessible without complicating the build process and without having to write it in two places
+- [x] Make a minimal yet nice looking print in the beginning of a session if verbose
 
 
 ## May 12 - May 19
