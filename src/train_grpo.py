@@ -55,8 +55,6 @@ class ModelConfig:
     # Transformers configuration
     model_name: str = "Qwen/Qwen3-8B"
     attn_implementation: str = "flash_attention_3"  # only on >Hopper GPUs
-    # Context window
-    context_window: int = 8192
     # LoRA configuration
     lora: bool = True
     r: int = 32
@@ -188,7 +186,8 @@ def main(cfg: Config) -> None:
     elif cfg.run.task_type == "repo_repair":
         dataset = get_swe_gym_repo_repair_dataset()
         # Nano is context-window-aware so we pass in the model's context window
-        rollout_func = partial(nano_rollout_func, context_window=cfg.model.context_window)
+        context_window = cfg.grpo.max_prompt_length + cfg.grpo.max_completion_length
+        rollout_func = partial(nano_rollout_func, context_window=context_window)
         reward_functions = [
             unified_diff_similarity_reward_func,
         ]
