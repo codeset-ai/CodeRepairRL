@@ -1,7 +1,6 @@
 # Model configuration
 model_name: "Qwen/Qwen3-4B"
 attn_implementation: "flash_attention_3"
-context_window: 8192
 # LoRA configuration
 lora: true
 r: 32
