@@ -32,8 +32,12 @@
   - can't, unsloth doesn't support latest trl
   - and a large portion of their performance gains are through quantization which I'm not sure I can support
 - [x] Enable gradient checkpointing
-- [x] Understand and configure grad_accum_steps
-- [x] liger loss?
+- [x] liger loss
+- [x] Completion length bug 
+- [ ] Understand and configure grad_accum_steps / similar
+  - Do some debug prints to figure out where and how they impact VRAM utilization
+- [ ] Setup two grpo.yaml files, one for short context / single turn, another for long context
+- [ ] Setup deepspeed 
 - [ ] Tune all the scripts
   - 4B, 14B, 32B
   - 8k context minimum
@@ -43,7 +47,7 @@
 ### Nano
 - [x] Set no_logs flag or similar
 - [x] Ensure context utilization
-- [ ] Make a strucured tool call log
+- [x] Make a strucured tool call log
   - Could be useful to penalize commands downstream during training
   - like cat (token expensive and "narrow) and reward rg (token efficient)
   - make each tool return an output dict instead
@@ -51,6 +55,9 @@
   - if log mode active, print in end
 - [x] Make __version__ accessible without complicating the build process and without having to write it in two places
 - [x] Make a minimal yet nice looking print in the beginning of a session if verbose
+- [ ] Test on SWE-Gym, see how often Nano manages to produce a diff
+  - With small models
+  - With varying context
 
 
 ## May 12 - May 19
