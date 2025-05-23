@@ -25,7 +25,9 @@
 ### TRL
 - [x] Create a PR and @ maintainer
 - [ ] Update email and issue when good training run is going
-- [ ] Paranoia: check that the completions are being masked correctly 
+- [ ] Bug?
+  - /home/ubuntu/CodeRepairRL/.venv/lib/python3.11/site-packages/torch/utils/checkpoint.py:87: UserWarning: None of the None of the inputs have inputs have requires_grad=True. Gradients will be None
+- [x] Bug: multi_turn is_eos
 
 ### CodeRepairRL
 - [x] Add unsloth FastLanguageModel?
@@ -34,15 +36,22 @@
 - [x] Enable gradient checkpointing
 - [x] liger loss
 - [x] Completion length bug 
-- [ ] Understand and configure grad_accum_steps / similar
+- [x] Understand and configure grad_accum_steps / similar
   - Do some debug prints to figure out where and how they impact VRAM utilization
-- [ ] Setup two grpo.yaml files, one for short context / single turn, another for long context
-- [ ] Setup deepspeed 
-- [ ] Tune all the scripts
-  - 4B, 14B, 32B
+- [x] Setup two grpo.yaml files, one for short context / single turn, another for long context
+- [x] Setup deepspeed
+  - zero 2 is our best option
+- [x] Tune the scripts
+  - 8B, 14B, 32B
   - 8k context minimum
   - 1 inference server gets us really far
   - we need way more training compute
+- [ ] See if aggressively clipping the grad helps
+- [ ] Why is Nano not producing a diff? Skill issue or context_window issue?
+- [ ] SFT stage?
+  - I believe my use falls under the academic section of their clause
+  - Generate N completions per SWE-GYM[:32]
+  - Train on best-of-N if diff similarity > 0.8?
 
 ### Nano
 - [x] Set no_logs flag or similar
@@ -55,6 +64,12 @@
   - if log mode active, print in end
 - [x] Make __version__ accessible without complicating the build process and without having to write it in two places
 - [x] Make a minimal yet nice looking print in the beginning of a session if verbose
+- [x] Modularization
+  - simple and a bit easier to read
+- [x] Create tool
+  - disabled by default
+- [x] Deepwiki mcp tool
+  - disabled by default, would be cool to see if Nano "reward" hacks with this.
 - [ ] Test on SWE-Gym, see how often Nano manages to produce a diff
   - With small models
   - With varying context
