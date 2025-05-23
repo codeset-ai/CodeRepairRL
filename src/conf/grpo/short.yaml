@@ -26,15 +26,13 @@ max_completion_length: 256
 scale_rewards: false
 
 # Loss type
-loss_type: "dr_grpo"
+loss_type: "grpo"
 
 # Attention kernel
 use_liger_loss: true
 
 # Gradient checkpointing
-gradient_checkpointing: true
-gradient_checkpointing_kwargs:
-  use_reentrant: true
+gradient_checkpointing: false
 
 # Training loop settings
 logging_steps: 1
