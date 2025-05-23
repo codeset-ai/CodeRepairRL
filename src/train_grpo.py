@@ -5,6 +5,7 @@ from functools import partial
 from dataclasses import dataclass, field
 
 import hydra
+import torch
 from omegaconf import OmegaConf
 from hydra.core.config_store import ConfigStore
 from peft import LoraConfig as PEFTLoraConfig
@@ -90,6 +91,9 @@ class GRPOConfig:
 
     # Reward settings
     scale_rewards: bool = False  # from Dr. GRPO, reward scaling introduces question-level difficulty bias
+
+    # whether completions are multi-turn or single-turn
+    multi_turn: bool = True
     
     # Loss type
     loss_type: str = "dr_grpo"  # been shown to have less sequence-length bias
@@ -133,10 +137,10 @@ def main(cfg: Config) -> None:
     os.environ["WANDB_PROJECT"] = cfg.run.wandb_project
 
     # Log precision settings
-    precision_mode = "BF16" if cfg.grpo.bf16 else "FP16" if cfg.grpo.fp16 else "FP32"
+    precision_mode = torch.bfloat16 if cfg.grpo.bf16 else torch.float16 if cfg.grpo.fp16 else torch.float32
     logger.info(f"Training with {precision_mode} precision based on GPU architecture")
     
-    model = AutoModelForCausalLM.from_pretrained(cfg.model.model_name)
+    model = AutoModelForCausalLM.from_pretrained(cfg.model.model_name, torch_dtype=precision_mode)
     if "Qwen3" in cfg.model.model_name:  # Qwen3's jinja template is bugged
         tokenizer = AutoTokenizer.from_pretrained(cfg.model.model_name, chat_template=open("fixed_qwen3.jinja").read())
     else:
@@ -186,8 +190,8 @@ def main(cfg: Config) -> None:
     elif cfg.run.task_type == "repo_repair":
         dataset = get_swe_gym_repo_repair_dataset()
         # Nano is context-window-aware so we pass in the model's context window
-        context_window = cfg.grpo.max_prompt_length + cfg.grpo.max_completion_length
-        rollout_func = partial(nano_rollout_func, context_window=context_window)
+        token_limit = cfg.grpo.max_prompt_length + cfg.grpo.max_completion_length
+        rollout_func = partial(nano_rollout_func, token_limit=token_limit)
         reward_functions = [
             unified_diff_similarity_reward_func,
         ]

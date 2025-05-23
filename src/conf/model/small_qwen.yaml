@@ -1,5 +1,5 @@
 # Model configuration
-model_name: "Qwen/Qwen3-4B"
+model_name: "Qwen/Qwen3-8B"
 attn_implementation: "flash_attention_3"
 # LoRA configuration
 lora: true
