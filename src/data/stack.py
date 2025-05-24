@@ -13,7 +13,7 @@ implementations, and prepares them as tasks for LLM generation.
 """
 import ast
 import re
-from typing import Dict, List, Tuple, Optional
+from typing import Optional
 from dataclasses import dataclass
 
 from tqdm import tqdm
@@ -212,7 +212,7 @@ def is_quality_docstring(docstring: str, node=None, code: str = None, min_length
     
     return has_descriptive_section or len(meaningful_sentences) >= 3
 
-def is_quality_code(node: ast.AST, code: str, max_vars: int = 15) -> Tuple[bool, str]:
+def is_quality_code(node: ast.AST, code: str, max_vars: int = 15) -> tuple[bool, str]:
     """
     Analyze whether code meets quality standards.
     
@@ -287,7 +287,7 @@ def is_quality_code(node: ast.AST, code: str, max_vars: int = 15) -> Tuple[bool,
     
     return True, "Passed quality checks"
 
-def extract_functions_with_docstrings(code: str, min_docstring_length: int = 50) -> List[Dict]:
+def extract_functions_with_docstrings(code: str, min_docstring_length: int = 50) -> list[dict]:
     """
     Extract functions with good docstrings from Python code.
     
@@ -376,7 +376,7 @@ def extract_functions_with_docstrings(code: str, min_docstring_length: int = 50)
     
     return functions
 
-def create_docstring_tasks(max_samples: int = 100, min_docstring_length: int = 50) -> List[DocstringTask]:
+def create_docstring_tasks(max_samples: int = 100, min_docstring_length: int = 50) -> list[DocstringTask]:
     """
     Process samples from The Stack dataset to create docstring tasks.
     
@@ -433,7 +433,7 @@ def display_task_sample(task: DocstringTask):
     print(task.implementation)
     print("="*80)
 
-def display_task_stats(tasks: List[DocstringTask]):
+def display_task_stats(tasks: list[DocstringTask]):
     """Display statistics about the generated tasks."""
     if not tasks:
         print("No tasks generated!")

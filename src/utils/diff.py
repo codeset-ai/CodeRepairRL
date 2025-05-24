@@ -1,6 +1,5 @@
 import re
 import difflib
-from typing import List, Tuple
 
 
 class SearchReplaceDiff:
@@ -13,7 +12,7 @@ class SearchReplaceDiff:
     - Missing or malformed block separators
     """
     
-    def __init__(self, blocks: List[Tuple[str, str]]):
+    def __init__(self, blocks: list[tuple[str, str]]):
         """
         Initialize with a list of (search, replace) tuples.
         
@@ -482,7 +481,7 @@ class SearchReplaceDiff:
         return sum(block_similarities) / (len(block_similarities) or 1)
 
     @staticmethod
-    def from_unified_diff(diff_text: str) -> List['SearchReplaceDiff']:
+    def from_unified_diff(diff_text: str) -> list['SearchReplaceDiff']:
         """
         Parse a unified git diff format into a list of SearchReplaceDiff objects.
         

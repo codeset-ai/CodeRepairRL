@@ -1,6 +1,6 @@
 import time
 import logging
-from typing import Any
+from typing import Any, Optional
 import multiprocessing as mp
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -52,17 +52,16 @@ def _process_one(data: dict[str, Any], model: str, api_base: str, **kwargs) -> d
     )
 
 
-def nano_rollout_func(data: list[dict[str, Any]], timeout: int = 300, model: str = None, api_base: str = None, **kwargs) -> list[dict[str, Any]]:
+def nano_rollout_func(data: list[dict[str, Any]], timeout: int = 300, model: Optional[str] = None, **kwargs) -> list[dict[str, Any]]:
     """Deploys parallel Nano agents talking to our trl vllm-serve-async endpoint to process the given data"""
 
-    # Use provided model/api_base or default to local vLLM server
-    if api_base is None:
-        api_base = "http://localhost:8000/v1"
-    
+    api_base = None
     if model is None:
         # Auto-detect model from local vLLM server
+        api_base = "http://localhost:8000/v1"
         model = requests.get(f"{api_base}/models").json()["data"][0]["id"]
         model = f"hosted_vllm/{model}"
+    
 
     results = []
     ok, tout, err = 0, 0, 0

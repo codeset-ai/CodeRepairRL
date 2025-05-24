@@ -1,5 +1,5 @@
 import logging
-from typing import List, Optional
+from typing import Optional
 
 from datasets import Dataset
 from transformers import PreTrainedTokenizer
@@ -88,10 +88,10 @@ def filter_by_length(data, tokenizer, system_prompt, max_prompt_length: int, use
 
 
 def create_classification_dataset(
-    codes: List[str],
-    labels: List[str],
+    codes: list[str],
+    labels: list[str],
     tokenizer: PreTrainedTokenizer,
-    descriptions: Optional[List[str]] = None,
+    descriptions: Optional[list[str]] = None,
     max_prompt_length: int = 512,
     system_prompt: Optional[str] = None
 ) -> Dataset:

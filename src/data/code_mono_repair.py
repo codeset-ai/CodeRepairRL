@@ -1,5 +1,5 @@
 import logging
-from typing import List, Optional
+from typing import Optional
 
 from datasets import Dataset
 from transformers import PreTrainedTokenizer
@@ -114,10 +114,10 @@ def filter_by_length(data, tokenizer, system_prompt, max_prompt_length: int, use
 
 
 def create_mono_repair_dataset(
-    before_codes: List[str],
-    after_codes: List[str],
+    before_codes: list[str],
+    after_codes: list[str],
     tokenizer: PreTrainedTokenizer,
-    descriptions: Optional[List[str]] = None,
+    descriptions: Optional[list[str]] = None,
     max_prompt_length: int = 512,
     system_prompt: Optional[str] = None,
     context_lines: int = 0
