@@ -1,4 +1,4 @@
-wandb_project: "TTC"
+wandb_project: "SWE-Gym-GRPO"
 
 task_type: "repair"  # detection, repair or repo_repair
 dataset_type: "stack"  # primevul or stack

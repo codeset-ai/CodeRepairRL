@@ -8,9 +8,13 @@
 
 # Small train job, 2 fat GPUs, 1 running vLLM, 1 training
 
-# Model configuration
+# Model configuration - use SFT model if available, otherwise base model
 MODEL_CONFIG="small_qwen"
-MODEL_NAME=$(grep -Po 'model_name: "\K[^"]*' src/conf/model/${MODEL_CONFIG}.yaml)
+SFT_MODEL_NAME="bjarni/qwen3-8b-swe-gym-sft"
+BASE_MODEL_NAME=$(grep -Po 'model_name: "\K[^"]*' src/conf/model/${MODEL_CONFIG}.yaml)
+
+# Try to use SFT model, fall back to base model if not available
+MODEL_NAME="$SFT_MODEL_NAME"
 
 # Context window configuration
 MAX_PROMPT_LENGTH=1024
