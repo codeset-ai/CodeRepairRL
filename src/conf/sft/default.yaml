@@ -1,0 +1,33 @@
+# TrainingArguments parameters
+output_dir: "outputs/sft_model"
+num_train_epochs: 3
+per_device_train_batch_size: 4
+gradient_accumulation_steps: 4
+learning_rate: 2e-5
+warmup_ratio: 0.1
+lr_scheduler_type: "cosine"
+max_grad_norm: 1.0
+weight_decay: 0.01
+
+# Model settings
+bf16: true
+fp16: false
+gradient_checkpointing: true
+
+# Logging
+logging_steps: 10
+save_steps: 500
+eval_steps: 500
+report_to: "wandb"
+run_name: "${model.model_name}-SFT-${run.dataset_name}"
+
+# Additional TrainingArguments settings
+remove_unused_columns: false
+dataloader_pin_memory: false
+
+# SFT-specific parameters
+dataset_text_field: "text"
+max_length: 8192
+packing: false
+dataset_num_proc: 4
+dataset_kwargs: {} 

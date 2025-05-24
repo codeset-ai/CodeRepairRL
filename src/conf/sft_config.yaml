@@ -1,0 +1,16 @@
+defaults:
+  - _self_
+  - model: small_qwen
+  - sft: default
+
+# Run configuration (parameters not in SFTConfig)
+run:
+  wandb_project: "SWE-Gym-SFT"
+  dataset_name: "bjarni/swe-gym-lite-sft"
+  max_seq_length: 8192
+  output_model_name: "bjarni/qwen3-8b-swe-gym-sft"
+  push_to_hub: true
+
+hydra:
+  job:
+    chdir: false # Prevents Hydra from changing the working directory 

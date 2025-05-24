@@ -22,6 +22,7 @@ def _process_one(data: dict[str, Any], model: str, api_base: str, **kwargs) -> d
         api_base=api_base,
         thinking=kwargs.get("thinking", False),
         token_limit=kwargs.get("token_limit", 8192),
+        tool_limit=kwargs.get("tool_limit", 20),
         temperature=kwargs.get("temperature", 0.7),
         top_p=kwargs.get("top_p", 0.8),
         min_p=kwargs.get("min_p", 0.01),

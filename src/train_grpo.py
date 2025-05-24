@@ -8,7 +8,7 @@ import hydra
 import torch
 from omegaconf import OmegaConf
 from hydra.core.config_store import ConfigStore
-from peft import LoraConfig as PEFTLoraConfig
+from peft import LoraConfig as PEFTLoraConfig, PeftModel
 from trl import GRPOConfig as HFGRPOConfig, GRPOTrainer as HFGRPOTrainer
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
@@ -55,6 +55,7 @@ class RunConfig:
 class ModelConfig:
     # Transformers configuration
     model_name: str = "Qwen/Qwen3-8B"
+    lora_checkpoint_path: Optional[str] = None  # Path to LoRA adapters from SFT training
     attn_implementation: str = "flash_attention_3"  # only on >Hopper GPUs
     # LoRA configuration
     lora: bool = True
@@ -140,7 +141,21 @@ def main(cfg: Config) -> None:
     precision_mode = torch.bfloat16 if cfg.grpo.bf16 else torch.float16 if cfg.grpo.fp16 else torch.float32
     logger.info(f"Training with {precision_mode} precision based on GPU architecture")
     
+    # Load base model
+    logger.info(f"Loading model: {cfg.model.model_name}")
     model = AutoModelForCausalLM.from_pretrained(cfg.model.model_name, torch_dtype=precision_mode)
+    
+    # If starting from a LoRA checkpoint (e.g., from SFT training), merge the adapters into base model
+    if cfg.model.lora_checkpoint_path:
+        logger.info(f"Loading and merging SFT LoRA adapters from {cfg.model.lora_checkpoint_path}")
+        # Load the SFT LoRA model
+        sft_model = PeftModel.from_pretrained(model, cfg.model.lora_checkpoint_path)
+        # Merge the SFT adapters into the base model permanently
+        model = sft_model.merge_and_unload()
+        logger.info("Successfully merged SFT LoRA adapters into base model")
+        # Now model is a regular AutoModelForCausalLM with SFT knowledge baked in
+    
+    # Load tokenizer
     if "Qwen3" in cfg.model.model_name:  # Qwen3's jinja template is bugged
         tokenizer = AutoTokenizer.from_pretrained(cfg.model.model_name, chat_template=open("fixed_qwen3.jinja").read())
     else:

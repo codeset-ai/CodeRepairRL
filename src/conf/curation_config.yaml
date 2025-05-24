@@ -1,0 +1,32 @@
+# Model configuration
+model: "openrouter/openai/gpt-4.1-mini"
+
+# Rollout configuration
+num_rollouts_per_problem: 8
+max_workers: 32
+timeout: 300
+
+# Filtering configuration
+reward_threshold: 0.4
+min_solutions_per_problem: 1
+max_solutions_per_problem: 3
+
+# Dataset configuration
+input_dataset_name: "SWE-Gym/SWE-Gym"
+output_dataset_name: "ASSERT-KTH/SWE-Gym-Nano-SFT"
+dataset_version: "v1.0"
+push_to_hub: false
+
+# Generation parameters
+temperature: 0.7
+top_p: 0.8
+token_limit: 8192
+tool_limit: 20
+
+# Additional parameters that were in argparse
+max_problems: null  # Maximum number of problems to process (for testing)
+hf_token: null  # HuggingFace token for pushing to hub 
+
+hydra:
+  job:
+    chdir: false # Prevents Hydra from changing the working directory 
