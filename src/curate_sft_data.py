@@ -93,7 +93,6 @@ def curate_problem(problem_data: dict[str, Any], config: CurationConfig) -> list
     # Filter solutions above threshold
     high_quality_solutions = []
     for result, reward in zip(results, rewards):
-        print(reward)
         if reward >= config.reward_threshold and result.get("generated_diff"):
             solution = {
                 "instance_id": problem_data["instance_id"],

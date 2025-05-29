@@ -12,7 +12,7 @@ from peft import LoraConfig as PEFTLoraConfig, PeftModel
 from trl import GRPOConfig as HFGRPOConfig, GRPOTrainer as HFGRPOTrainer
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-from src.agents import nano_rollout_func
+from src.agents.nano_agent import nano_rollout_func, NanoConfig
 from src.rewards import (
     # reasoning rewards
     partial_reasoning_format_reward_func,
@@ -57,6 +57,7 @@ class ModelConfig:
     model_name: str = "Qwen/Qwen3-8B"
     lora_checkpoint_path: Optional[str] = None  # Path to LoRA adapters from SFT training
     attn_implementation: str = "flash_attention_3"  # only on >Hopper GPUs
+    context_window: int = 32768  # Model's context window size
     # LoRA configuration
     lora: bool = True
     r: int = 32
@@ -126,6 +127,7 @@ class Config:
     run: RunConfig = field(default_factory=RunConfig)
     model: ModelConfig = field(default_factory=ModelConfig)
     grpo: GRPOConfig = field(default_factory=GRPOConfig)
+    agent: NanoConfig = field(default_factory=NanoConfig)
 
 # Register the config schema
 cs = ConfigStore.instance()
@@ -204,9 +206,10 @@ def main(cfg: Config) -> None:
         reward_weights = [0.1, 0.2, 0.7]
     elif cfg.run.task_type == "repo_repair":
         dataset = get_swe_gym_repo_repair_dataset()
-        # Nano is context-window-aware so we pass in the model's context window
-        token_limit = cfg.grpo.max_prompt_length + cfg.grpo.max_completion_length
-        rollout_func = partial(nano_rollout_func, token_limit=token_limit)
+        # Update agent config with model and token_limit
+        cfg.agent.model = f"hosted_vllm/{cfg.model.model_name}"
+        cfg.agent.token_limit = min(cfg.model.context_window, cfg.grpo.max_prompt_length + cfg.grpo.max_completion_length)
+        rollout_func = partial(nano_rollout_func, config=cfg.agent)
         reward_functions = [
             unified_diff_similarity_reward_func,
         ]

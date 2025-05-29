@@ -4,6 +4,10 @@
 
 CodeRepairRL leverages recent advancements in applying Reinforcement Learning (RL) to Large Language Models (LLMs) to fine-tune them for domain-specific tasks. Our ultimate goal is to develop models similar to [RepairLLama](https://arxiv.org/pdf/2312.15698) and [Llama-3-SWE-RL](https://arxiv.org/pdf/2502.18449), which "punch above their weight-class" in terms of parameter count, demonstrating exceptional performance in software engineering benchmarks.
 
+The project uses a two-stage training approach:
+1. **Supervised Fine-Tuning (SFT)**: Initial fine-tuning on high-quality code repair demonstrations
+2. **Group Relative Policy Optimization (GRPO)**: Reinforcement learning to further improve performance on specific tasks
+
 For more details on the project's objectives, conceptual background, and implementation specifics, see [docs/PROJECT.md](docs/PROJECT.md).
 
 ## Academic Paper
@@ -23,28 +27,51 @@ apptainer build crrl.sif scripts/train_container.def
 
 (the build process may take several minutes)
 
-#### Running Training Jobs
+### Running Supervised Fine-Tuning (SFT)
+
+Before GRPO training, you can optionally run SFT to create a better starting point:
+
+```bash
+# Run SFT training job
+sbatch scripts/sft_train_job.sh
+
+# Or run locally for testing
+uv run -m src.train_sft
+```
+
+The SFT stage uses curated datasets of high-quality code repair examples to provide the model with a strong foundation before RL training.
+
+### Running GRPO Training Jobs
 
 We provide specialized SLURM scripts for different model sizes, each pre-configured with appropriate compute resource allocations:
 
 ```bash
-# For small models (~1.5B range), defaults to Qwen2.5-Coder-1.5B-Instruct
+# For small models (8B), defaults to Qwen/Qwen3-8B
 sbatch scripts/small_train_job.sh
 
-# For medium models (~7B range), defaults to Qwen2.5-Coder-7B-Instruct
+# For medium models (8B with higher LoRA rank), defaults to Qwen/Qwen3-8B
 sbatch scripts/medium_train_job.sh
 
-# For small models (~32B range), defaults to Qwen2.5-Coder-32B-Instruct
+# For large models (32B), defaults to Qwen/Qwen3-32B
 sbatch scripts/large_train_job.sh
 ```
 
-Each script includes pre-tuned GRPO parameters optimized for the corresponding model size category. You can further customize by adding options:
+Each script includes pre-tuned GRPO parameters optimized for the corresponding model size category. The scripts support three task types:
+- **detection**: Binary vulnerability detection
+- **repair**: Single-file code repair with search-replace diffs
+- **repo_repair**: Repository-level code repair using agentic approaches
+
+You can customize training with Hydra overrides:
 
 ```bash
-sbatch scripts/large_train_job.sh --model google/gemma-3-27b-it
+# Change task type
+sbatch scripts/medium_train_job.sh run.task_type=detection
 
-# This is already a reasoning model so increasing max_completion_length might be necessary
-sbatch scripts/medium_train_job.sh --model deepseek-ai/DeepSeek-R1-Distill-Llama-8B
+# Use a different model
+sbatch scripts/large_train_job.sh model.model_name=meta-llama/Llama-3.1-70B-Instruct
+
+# Start from an SFT checkpoint
+sbatch scripts/medium_train_job.sh model.lora_checkpoint_path=/path/to/sft/checkpoint
 ```
 
 ## Local Development
@@ -88,12 +115,20 @@ This ensures that large model files and datasets are stored in your project dire
 
 `uv` will automatically recognize the Python version specified in `.python-version` and set up a virtual environment accordingly:
 
-To run a training job on a single GPU, we disable vllm. This means that generations take place within the torch environment instead of the highly optimized vllm, making it much slower. A faster (yet unmaintainable) version exists for low resource training utilizing unsloth, that can be found on older commits.
+For local development and testing:
+
 ```bash
-# Run a script using the virtual environment
+# Run GRPO training without vLLM (slower but works on single GPU)
 uv run -m src.train_grpo grpo.use_vllm=false
+
+# Run SFT training
+uv run -m src.train_sft
+
+# Curate SFT datasets
+uv run -m src.curate_sft_data
 ```
-This is useful for quick testing and development, though for larger scale training the distributed SLURM scripts are recommended.
+
+Note: Disabling vLLM means generations happen in the PyTorch environment instead of the highly optimized vLLM server, making it much slower. For production training, use the SLURM scripts with vLLM enabled.
 
 ### Testing
 
@@ -118,3 +153,5 @@ This repository uses several Markdown files to organize information:
 - **docs/AGENT_RL_INTEGRATION.md**: Describes our approach to integrating agent frameworks into RL training loops using OpenAI-compatible API servers.
 - **docs/DATASETS.md**: Describes the datasets used in the project.
 - **docs/RESOURCES.md**: Lists relevant research papers, literature and broader resources reviewed for the project.
+- **docs/VOCABULARY.md**: Defines key terms and concepts used throughout the project.
+- **docs/PAPER.md**: Outlines the structure and key points for the academic paper.

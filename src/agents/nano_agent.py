@@ -3,6 +3,7 @@ import logging
 from typing import Any, Optional
 import multiprocessing as mp
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass
 
 import requests
 from nano import Agent
@@ -12,22 +13,36 @@ from src.utils.git import handle_to_url, clone_repo_at_commit, clean_repo_dir
 logger = logging.getLogger(__name__)
 
 
-def _process_one(data: dict[str, Any], model: str, api_base: str, **kwargs) -> dict[str, Any]:
+@dataclass
+class NanoConfig:
+    model: str
+    api_base: str = "http://localhost:8000/v1"
+    thinking: bool = False
+    token_limit: int = 8192
+    tool_limit: int = 20
+    temperature: float = 0.7
+    top_p: float = 0.8
+    min_p: float = 0.01
+    top_k: int = 20
+    verbose: bool = False
+
+
+def _process_one(data: dict[str, Any], config: NanoConfig) -> dict[str, Any]:
     assert "repo" in data and "base_commit" in data and "problem_statement" in data
 
     logger.info(f"[START] {data['repo']} @ {data['base_commit'][:7]}")
 
     agent = Agent(
-        model=model,
-        api_base=api_base,
-        thinking=kwargs.get("thinking", False),
-        token_limit=kwargs.get("token_limit", 8192),
-        tool_limit=kwargs.get("tool_limit", 20),
-        temperature=kwargs.get("temperature", 0.7),
-        top_p=kwargs.get("top_p", 0.8),
-        min_p=kwargs.get("min_p", 0.01),
-        top_k=kwargs.get("top_k", 20),
-        verbose=kwargs.get("verbose", False)
+        model=config.model,
+        api_base=config.api_base,
+        thinking=config.thinking,
+        token_limit=config.token_limit,
+        tool_limit=config.tool_limit,
+        temperature=config.temperature,
+        top_p=config.top_p,
+        min_p=config.min_p,
+        top_k=config.top_k,
+        verbose=config.verbose
     )
 
     try:
@@ -56,16 +71,8 @@ def _process_one(data: dict[str, Any], model: str, api_base: str, **kwargs) -> d
     )
 
 
-def nano_rollout_func(data: list[dict[str, Any]], timeout: int = 60, model: Optional[str] = None, **kwargs) -> list[dict[str, Any]]:
+def nano_rollout_func(data: list[dict[str, Any]], config: NanoConfig, timeout: int = 120) -> list[dict[str, Any]]:
     """Deploys parallel Nano agents talking to our trl vllm-serve-async endpoint to process the given data"""
-
-    api_base = None
-    if model is None:
-        # Auto-detect model from local vLLM server
-        api_base = "http://localhost:8000/v1"
-        model = requests.get(f"{api_base}/models").json()["data"][0]["id"]
-        model = f"hosted_vllm/{model}"
-    
 
     results = []
     ok, tout, err = 0, 0, 0
@@ -73,7 +80,7 @@ def nano_rollout_func(data: list[dict[str, Any]], timeout: int = 60, model: Opti
     logger.info(f"Starting {len(data)} agent rollouts")
     start_time = time.time()
     with ThreadPoolExecutor(max_workers=min(len(data), mp.cpu_count())) as executor:
-        futures = [executor.submit(_process_one, datum, model, api_base, **kwargs) for datum in data]
+        futures = [executor.submit(_process_one, datum, config) for datum in data]
 
         for fut in as_completed(futures):
             try:

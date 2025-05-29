@@ -3,6 +3,7 @@ defaults:
   - run: repair
   - grpo: short
   - model: small_qwen
+  - agent: nano
 
 hydra:
   job:
