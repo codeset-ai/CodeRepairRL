@@ -1,14 +1,14 @@
 import logging
 from typing import Any, Optional
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from collections import defaultdict
 
 import hydra
-from omegaconf import OmegaConf
 from hydra.core.config_store import ConfigStore
 from tqdm import tqdm
 from datasets import Dataset, DatasetInfo
 from huggingface_hub import login
+from huggingface_hub.utils import get_token
 
 from src.data.swe_gym import get_swe_gym_curation_dataset
 from src.agents.nano_agent import nano_rollout_func
@@ -24,12 +24,11 @@ for noisy in ("httpx", "LiteLLM", "transformers.tokenization_utils_base"):
 @dataclass
 class CurationConfig:
     # Model configuration
-    model: str = "openrouter/openai/gpt-4.1-mini"
+    model_name: str = "openrouter/openai/gpt-4.1-mini"
     
     # Rollout configuration
     num_rollouts_per_problem: int = 8
-    max_workers: int = 32
-    timeout: int = 300
+    timeout: int = 120
     
     # Filtering configuration
     reward_threshold: float = 0.4
@@ -38,6 +37,7 @@ class CurationConfig:
     
     # Dataset configuration
     input_dataset_name: str = "SWE-Gym/SWE-Gym-Lite"
+    curation_ratio: float = 0.2
     output_dataset_name: str = "ASSERT-KTH/SWE-Gym-Nano-SFT"
     dataset_version: str = "v1.0"
     push_to_hub: bool = False
@@ -45,8 +45,8 @@ class CurationConfig:
     # Generation parameters
     temperature: float = 0.7
     top_p: float = 0.8
-    token_limit: int = 8192
-    tool_limit: int = 20
+    token_limit: int = 16384 
+    tool_limit: int = 40  # 20 tool calls ~= 8192 tokens
     
     # Additional parameters that were in argparse
     max_problems: Optional[int] = None  # Maximum number of problems to process (for testing)
@@ -80,7 +80,7 @@ def curate_problem(problem_data: dict[str, Any], config: CurationConfig) -> list
         top_p=config.top_p,
         token_limit=config.token_limit,
         tool_limit=config.tool_limit,
-        model=config.model
+        model=config.model_name
     )
     
     # Extract generated diffs
@@ -123,14 +123,20 @@ def main(config: CurationConfig) -> None:
 
     # Login to HuggingFace if pushing to hub
     if config.push_to_hub:
-        if config.hf_token:
+        # Check if already logged in
+        existing_token = get_token()
+        if existing_token:
+            logger.info("Already authenticated with HuggingFace Hub")
+        elif config.hf_token:
             login(token=config.hf_token)
+            logger.info("Logged in to HuggingFace Hub with provided token")
         else:
-            login()  # Will use token from environment or cache
+            login()  # Will prompt for token
+            logger.info("Logged in to HuggingFace Hub")
     
     # Load SWE-Gym dataset
     logger.info("Loading SWE-Gym dataset...")
-    dataset = get_swe_gym_curation_dataset(config.input_dataset_name)
+    dataset = get_swe_gym_curation_dataset(config.input_dataset_name, config.curation_ratio)
     
     # Limit dataset size for testing
     if config.max_problems:

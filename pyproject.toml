@@ -8,7 +8,7 @@ dependencies = [
     # Our fork of trl
     "trl @ git+https://github.com/ASSERT-KTH/trl.git@dev",
     # The agent we use for rollout generation,
-    "nano-agent>=2.0.0",
+    "nano-agent @ git+https://github.com/ASSERT-KTH/nano-agent.git",
     # Other HF stuff
     "transformers",
     "huggingface-hub",
@@ -23,7 +23,7 @@ dependencies = [
     # Is required BEFORE the package manager considers vLLM flash-attn
     "setuptools>=75.8.0",
     # For better attention kernels
-    "liger-kernel"
+    "liger-kernel",
 ]
 
 [project.optional-dependencies]

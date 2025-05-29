@@ -43,7 +43,10 @@ def _process_one(data: dict[str, Any], model: str, api_base: str, **kwargs) -> d
 
     finally:
         clean_repo_dir(temp_folder)
-        logger.info(f"[FINISH] {data['repo']} @ {data['base_commit'][:7]}")
+
+        token_usage = agent.token_usage
+        tool_usage = agent.tool_usage
+        logger.info(f"[FINISH] {data['repo']} @ {data['base_commit'][:7]} - Tokens: {token_usage}, Tools: {tool_usage}")
 
     return dict(
         prompt=agent.messages[:2],
@@ -53,7 +56,7 @@ def _process_one(data: dict[str, Any], model: str, api_base: str, **kwargs) -> d
     )
 
 
-def nano_rollout_func(data: list[dict[str, Any]], timeout: int = 300, model: Optional[str] = None, **kwargs) -> list[dict[str, Any]]:
+def nano_rollout_func(data: list[dict[str, Any]], timeout: int = 60, model: Optional[str] = None, **kwargs) -> list[dict[str, Any]]:
     """Deploys parallel Nano agents talking to our trl vllm-serve-async endpoint to process the given data"""
 
     api_base = None
