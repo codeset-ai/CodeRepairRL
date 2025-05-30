@@ -396,7 +396,7 @@ requires-dist = [
     { name = "hydra-core", specifier = ">=1.3.2" },
     { name = "liger-kernel" },
     { name = "matplotlib", marker = "extra == 'dev'", specifier = ">=3.10.0" },
-    { name = "nano-agent", git = "https://github.com/ASSERT-KTH/nano-agent.git" },
+    { name = "nano-agent", specifier = ">=3.0.0" },
     { name = "peft", specifier = ">=0.15.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3.4" },
     { name = "scikit-learn", marker = "extra == 'dev'", specifier = ">=1.6.1" },
@@ -1364,9 +1364,13 @@ wheels = [
 [[package]]
 name = "nano-agent"
 version = "3.0.0"
-source = { git = "https://github.com/ASSERT-KTH/nano-agent.git#c7e5b810b4ca13397777cc2758f3c9ff1df226cf" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "litellm" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/44/ba/0c45307fddeb2917d229fbf10225643ed13187ed93a36a530ac7bb56643e/nano_agent-3.0.0.tar.gz", hash = "sha256:c5988a85370ecbc8b1040f33e71a1aa5985ddbe2682f972ddd358f3fd20fd938", size = 13064 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/da/cc/3a45e6080955e0bd8d59bae210fb763740d1519351c20b50edea6d3b3f60/nano_agent-3.0.0-py3-none-any.whl", hash = "sha256:70af47ff5183d94007e375171650e9b4ecf4de4552a086239393521b9e26a533", size = 11963 },
 ]
 
 [[package]]

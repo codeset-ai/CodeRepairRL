@@ -1,6 +1,6 @@
 import logging
 from typing import Any, Optional
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from collections import defaultdict
 
 import hydra
@@ -11,7 +11,7 @@ from huggingface_hub import login
 from huggingface_hub.utils import get_token
 
 from src.data.swe_gym import get_swe_gym_curation_dataset
-from src.agents.nano_agent import nano_rollout_func
+from src.agents.nano_agent import nano_rollout_func, NanoConfig
 from src.rewards.diff import unified_diff_similarity_reward_func
 
 logging.basicConfig(level=logging.INFO)
@@ -23,40 +23,34 @@ for noisy in ("httpx", "LiteLLM", "transformers.tokenization_utils_base"):
 
 @dataclass
 class CurationConfig:
-    # Model configuration
-    model_name: str = "openrouter/openai/gpt-4.1-mini"
-    
-    # Rollout configuration
-    num_rollouts_per_problem: int = 8
-    timeout: int = 120
-    
-    # Filtering configuration
-    reward_threshold: float = 0.4
-    min_solutions_per_problem: int = 1
-    max_solutions_per_problem: int = 3
-    
     # Dataset configuration
     input_dataset_name: str = "SWE-Gym/SWE-Gym-Lite"
     curation_ratio: float = 0.2
     output_dataset_name: str = "ASSERT-KTH/SWE-Gym-Nano-SFT"
     dataset_version: str = "v1.0"
     push_to_hub: bool = False
-    
-    # Generation parameters
-    temperature: float = 0.7
-    top_p: float = 0.8
-    token_limit: int = 16384 
-    tool_limit: int = 40  # 20 tool calls ~= 8192 tokens
-    
-    # Additional parameters that were in argparse
-    max_problems: Optional[int] = None  # Maximum number of problems to process (for testing)
     hf_token: Optional[str] = None  # HuggingFace token for pushing to hub
+    
+    # Rollout configuration
+    num_rollouts_per_problem: int = 8
+    timeout: int = 120
+    max_problems: Optional[int] = None  # Maximum number of problems to process (for testing)
+    
+    # Filtering configuration
+    reward_threshold: float = 0.4
+    min_solutions_per_problem: int = 1
+    max_solutions_per_problem: int = 3
+
+@dataclass
+class Config:
+    curation: CurationConfig = field(default_factory=CurationConfig)
+    agent: NanoConfig = field(default_factory=NanoConfig)
 
 # Register the config schema
 cs = ConfigStore.instance()
-cs.store(name="base_curation_config", node=CurationConfig, group="")
+cs.store(name="base_curation_config", node=Config, group="")
 
-def curate_problem(problem_data: dict[str, Any], config: CurationConfig) -> list[dict]:
+def curate_problem(problem_data: dict[str, Any], config: Config) -> list[dict]:
     """
     Run multiple rollouts for a single problem and filter high-quality solutions.
     
@@ -68,19 +62,15 @@ def curate_problem(problem_data: dict[str, Any], config: CurationConfig) -> list
         List of high-quality solutions with rewards > threshold
     """
     # Create multiple copies of the problem for parallel rollouts
-    rollout_data = [dict(problem_data) for _ in range(config.num_rollouts_per_problem)]
+    rollout_data = [dict(problem_data) for _ in range(config.curation.num_rollouts_per_problem)]
     
-    logger.info(f"Running {config.num_rollouts_per_problem} rollouts for {problem_data['instance_id']}")
+    logger.info(f"Running {config.curation.num_rollouts_per_problem} rollouts for {problem_data['instance_id']}")
     
     # Run parallel rollouts
     results = nano_rollout_func(
         rollout_data,
-        timeout=config.timeout,
-        temperature=config.temperature,
-        top_p=config.top_p,
-        token_limit=config.token_limit,
-        tool_limit=config.tool_limit,
-        model=config.model_name
+        config=config.agent,
+        timeout=config.curation.timeout
     )
     
     # Extract generated diffs
@@ -93,7 +83,7 @@ def curate_problem(problem_data: dict[str, Any], config: CurationConfig) -> list
     # Filter solutions above threshold
     high_quality_solutions = []
     for result, reward in zip(results, rewards):
-        if reward >= config.reward_threshold and result.get("generated_diff"):
+        if reward >= config.curation.reward_threshold and result.get("generated_diff"):
             solution = {
                 "instance_id": problem_data["instance_id"],
                 "problem_statement": problem_data["problem_statement"],
@@ -109,25 +99,24 @@ def curate_problem(problem_data: dict[str, Any], config: CurationConfig) -> list
     
     # Sort by reward (descending) and limit to max_solutions_per_problem
     high_quality_solutions.sort(key=lambda x: x["reward"], reverse=True)
-    high_quality_solutions = high_quality_solutions[:config.max_solutions_per_problem]
+    high_quality_solutions = high_quality_solutions[:config.curation.max_solutions_per_problem]
     
     logger.info(f"Found {len(high_quality_solutions)} high-quality solutions for {problem_data['instance_id']} "
-                f"(threshold: {config.reward_threshold}, max: {config.max_solutions_per_problem})")
+                f"(threshold: {config.curation.reward_threshold}, max: {config.curation.max_solutions_per_problem})")
     
     return high_quality_solutions
 
 
 @hydra.main(version_base="1.1", config_path="conf", config_name="curation_config")
-def main(config: CurationConfig) -> None:
-
+def main(cfg: Config) -> None:
     # Login to HuggingFace if pushing to hub
-    if config.push_to_hub:
+    if cfg.curation.push_to_hub:
         # Check if already logged in
         existing_token = get_token()
         if existing_token:
             logger.info("Already authenticated with HuggingFace Hub")
-        elif config.hf_token:
-            login(token=config.hf_token)
+        elif cfg.curation.hf_token:
+            login(token=cfg.curation.hf_token)
             logger.info("Logged in to HuggingFace Hub with provided token")
         else:
             login()  # Will prompt for token
@@ -135,11 +124,11 @@ def main(config: CurationConfig) -> None:
     
     # Load SWE-Gym dataset
     logger.info("Loading SWE-Gym dataset...")
-    dataset = get_swe_gym_curation_dataset(config.input_dataset_name, config.curation_ratio)
+    dataset = get_swe_gym_curation_dataset(cfg.curation.input_dataset_name, cfg.curation.curation_ratio)
     
     # Limit dataset size for testing
-    if config.max_problems:
-        dataset = dataset.select(range(min(config.max_problems, len(dataset))))
+    if cfg.curation.max_problems:
+        dataset = dataset.select(range(min(cfg.curation.max_problems, len(dataset))))
         logger.info(f"Limited to {len(dataset)} problems for testing")
     
     logger.info(f"Processing {len(dataset)} problems from SWE-Gym-Lite")
@@ -150,7 +139,7 @@ def main(config: CurationConfig) -> None:
     
     for problem_data in tqdm(dataset, desc="Curating problems"):
         try:
-            solutions = curate_problem(dict(problem_data), config)
+            solutions = curate_problem(dict(problem_data), cfg)
             all_solutions.extend(solutions)
             
             # Track statistics
@@ -192,35 +181,35 @@ to navigate repositories and solve software engineering problems from the SWE-Gy
 - `repo`: Repository information
 - `base_commit`: Base commit hash
 - `solution_diff`: Generated solution diff
-- `reward`: Solution quality score (>= {config.reward_threshold})
+- `reward`: Solution quality score (>= {cfg.curation.reward_threshold})
 - `messages`: Agent conversation with problem and solution
 - `tools`: Shell and navigation tools used by the agent
 
 ## Generation Process
-- {config.num_rollouts_per_problem} rollouts per problem using Nano agent
-- Solutions filtered by reward threshold of {config.reward_threshold}
-- Top {config.max_solutions_per_problem} solutions kept per problem
-- Generated with temperature {config.temperature}, top-p {config.top_p}
+- {cfg.curation.num_rollouts_per_problem} rollouts per problem using Nano agent
+- Solutions filtered by reward threshold of {cfg.curation.reward_threshold}
+- Top {cfg.curation.max_solutions_per_problem} solutions kept per problem
+- Generated with temperature {cfg.agent.temperature}, top-p {cfg.agent.top_p}
         """
     )
     
     curated_dataset = Dataset.from_list(all_solutions, info=info)
     
     # Save dataset locally first
-    local_path = f"data/{config.output_dataset_name.replace('/', '-')}-{config.dataset_version}"
+    local_path = f"data/{cfg.curation.output_dataset_name.replace('/', '-')}-{cfg.curation.dataset_version}"
     curated_dataset.save_to_disk(local_path)
     logger.info(f"Dataset saved locally to {local_path}")
     
     # Push to HuggingFace Hub if requested
-    if config.push_to_hub:
-        logger.info(f"Pushing dataset to HuggingFace Hub: {config.output_dataset_name}")
+    if cfg.curation.push_to_hub:
+        logger.info(f"Pushing dataset to HuggingFace Hub: {cfg.curation.output_dataset_name}")
         try:
             curated_dataset.push_to_hub(
-                config.output_dataset_name,
-                commit_message=f"Curated Nano SFT data v{config.dataset_version} with {len(all_solutions)} solutions"
+                cfg.curation.output_dataset_name,
+                commit_message=f"Curated Nano SFT data v{cfg.curation.dataset_version} with {len(all_solutions)} solutions"
             )
             logger.info("Successfully pushed dataset to HuggingFace Hub")
-            logger.info(f"Dataset URL: https://huggingface.co/datasets/{config.output_dataset_name}")
+            logger.info(f"Dataset URL: https://huggingface.co/datasets/{cfg.curation.output_dataset_name}")
         except Exception as e:
             logger.error(f"Failed to push dataset to Hub: {e}")
             logger.info(f"Dataset is still available locally at {local_path}")

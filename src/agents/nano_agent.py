@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class NanoConfig:
-    model: str
+    model: Optional[str] = None
     api_base: str = "http://localhost:8000/v1"
     thinking: bool = False
     token_limit: int = 8192
@@ -32,36 +32,23 @@ def _process_one(data: dict[str, Any], config: NanoConfig) -> dict[str, Any]:
 
     logger.info(f"[START] {data['repo']} @ {data['base_commit'][:7]}")
 
-    agent = Agent(
-        model=config.model,
-        api_base=config.api_base,
-        thinking=config.thinking,
-        token_limit=config.token_limit,
-        tool_limit=config.tool_limit,
-        temperature=config.temperature,
-        top_p=config.top_p,
-        min_p=config.min_p,
-        top_k=config.top_k,
-        verbose=config.verbose
-    )
+    agent = Agent(**dict(config))
 
+    diff = ""
+    temp_folder = None
     try:
         temp_folder = clone_repo_at_commit(handle_to_url(data["repo"]), data["base_commit"])
         diff = agent.run(task=data["problem_statement"], repo_root=temp_folder)
-    except:
-        return dict(
-            prompt=agent.messages[:2],
-            completion=agent.messages[2:],
-            tools=agent.tools,
-            generated_diff="",
-        ) # Grab context window errors here and return partial results
-
+    except Exception as e:
+        logger.error(f"Error in _process_one: {type(e).__name__}: {e}")
+        diff = ""
     finally:
-        clean_repo_dir(temp_folder)
+        if temp_folder: clean_repo_dir(temp_folder)
 
         token_usage = agent.token_usage
         tool_usage = agent.tool_usage
-        logger.info(f"[FINISH] {data['repo']} @ {data['base_commit'][:7]} - Tokens: {token_usage}, Tools: {tool_usage}")
+        diff_success = diff != ""
+        logger.info(f"[FINISH] {data['repo']} @ {data['base_commit'][:7]} - Tokens: {token_usage}, Tools: {tool_usage}, Diff Success: {diff_success}")
 
     return dict(
         prompt=agent.messages[:2],
@@ -87,9 +74,11 @@ def nano_rollout_func(data: list[dict[str, Any]], config: NanoConfig, timeout: i
                 results.append(fut.result(timeout=timeout))
                 ok += 1
             except TimeoutError:
+                logger.warning(f"Rollout timed out after {timeout}s")
                 results.append(dict(prompt=[], completion=[], tools=[], generated_diff=""))
                 tout += 1
-            except:
+            except Exception as e:
+                logger.error(f"Rollout error: {type(e).__name__}: {e}")
                 results.append(dict(prompt=[], completion=[], tools=[], generated_diff=""))
                 err += 1
 
