@@ -24,7 +24,6 @@ from src.rewards import (
     sr_diff_similarity_reward_func,
     # repo repair rewards
     unified_diff_similarity_reward_func,
-    unified_diff_test_similarity_reward_func,
     unified_diff_file_match_reward_func,
 )
 from src.data import get_stack_repair_dataset, get_primevul_repair_dataset, get_primevul_detection_dataset, get_swe_gym_repo_repair_dataset
