@@ -89,10 +89,12 @@ def nano_rollout_func(data: list[dict[str, Any]], config: NanoConfig, timeout: i
 
 if __name__ == "__main__":
     import time
-    from src.data.swe_gym import get_swe_gym_repo_repair_dataset
     from matplotlib import pyplot as plt
 
-    from src.agents.nano_agent import nano_rollout_func
+    import litellm
+    litellm._turn_on_debug()
+
+    from src.data.swe_gym import get_swe_gym_repo_repair_dataset
 
     # Test different batch sizes for parallel timing
     batch_sizes = [1, 2, 4, 8, 16]
