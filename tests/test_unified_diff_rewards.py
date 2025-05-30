@@ -1,5 +1,11 @@
 import unittest
-from src.rewards.diff import split_diff_by_files, normalize_file_diffs, unified_diff_similarity_reward_func, unified_diff_file_match_reward_func
+from src.rewards.diff import (
+    split_diff_by_files,
+    extract_filename_from_diff,
+    unified_diff_similarity_reward_func,
+    unified_diff_file_match_reward_func,
+    unified_diff_similarity_reward_func_test,
+)
 
 
 class TestUnifiedDiffRewards(unittest.TestCase):
@@ -27,23 +33,19 @@ diff --git a/file2.py b/file2.py
         self.assertTrue(files[0].startswith("diff --git a/file1.py"))
         self.assertTrue(files[1].startswith("diff --git a/file2.py"))
     
-    def test_normalize_file_diffs(self):
-        """Test extracting filenames and changes from file diffs."""
-        file_diffs = ["""diff --git a/src/example.py b/src/example.py
+    def test_extract_filename_from_diff(self):
+        """Test extracting filename from a file diff."""
+        file_diff = """diff --git a/src/example.py b/src/example.py
 --- a/src/example.py
 +++ b/src/example.py
 @@ -1,3 +1,3 @@
  def hello():
 -    print("hello")
 +    print("hello world")
- return None"""]
+ return None"""
         
-        normalized = normalize_file_diffs(file_diffs)
-        self.assertIn("src/example.py", normalized)
-        changes = normalized["src/example.py"]
-        self.assertEqual(len(changes), 2)
-        self.assertIn('-    print("hello")', changes)
-        self.assertIn('+    print("hello world")', changes)
+        filename = extract_filename_from_diff(file_diff)
+        self.assertEqual(filename, "src/example.py")
     
     def test_unified_diff_similarity_same_order(self):
         """Test that identical diffs in same order get perfect score."""
@@ -61,7 +63,7 @@ diff --git a/file2.py b/file2.py
 -    another old
 +    another new"""
         
-        scores = unified_diff_similarity_reward_func([diff1], [""], [diff1])
+        scores = unified_diff_similarity_reward_func([diff1], [diff1])
         self.assertEqual(scores[0], 1.0)
     
     def test_unified_diff_similarity_different_order(self):
@@ -94,7 +96,7 @@ diff --git a/file1.py b/file1.py
 -    old line
 +    new line"""
         
-        scores = unified_diff_similarity_reward_func([diff1], [""], [diff2])
+        scores = unified_diff_similarity_reward_func([diff1], [diff2])
         self.assertEqual(scores[0], 1.0)
     
     def test_unified_diff_similarity_partial_match(self):
@@ -120,7 +122,7 @@ diff --git a/file2.py b/file2.py
 -    old line
 +    new line"""
         
-        scores = unified_diff_similarity_reward_func([diff1], [""], [diff2])
+        scores = unified_diff_similarity_reward_func([diff1], [diff2])
         # Should be 0.5 since 1 out of 2 files match
         self.assertEqual(scores[0], 0.5)
     
@@ -140,7 +142,7 @@ diff --git a/file2.py b/file2.py
 -    different old
 +    different new"""
         
-        scores = unified_diff_similarity_reward_func([diff1], [""], [diff2])
+        scores = unified_diff_similarity_reward_func([diff1], [diff2])
         self.assertEqual(scores[0], 0.0)
     
     def test_unified_diff_similarity_empty_generated(self):
@@ -152,7 +154,7 @@ diff --git a/file2.py b/file2.py
 -    old line
 +    new line"""
         
-        scores = unified_diff_similarity_reward_func([diff1], [""], [""])
+        scores = unified_diff_similarity_reward_func([diff1], [""])
         self.assertEqual(scores[0], 0.0)
     
     def test_unified_diff_similarity_batch(self):
@@ -173,7 +175,7 @@ diff --git a/file2.py b/file2.py
         
         # First pair: identical
         # Second pair: different files
-        scores = unified_diff_similarity_reward_func([diff1, diff1], ["", ""], [diff1, diff2])
+        scores = unified_diff_similarity_reward_func([diff1, diff1], [diff1, diff2])
         self.assertEqual(len(scores), 2)
         self.assertEqual(scores[0], 1.0)
         self.assertEqual(scores[1], 0.0)
@@ -205,7 +207,7 @@ diff --git a/file2.py b/file2.py
 -    x = 1
 +    x = 2"""
         
-        scores = unified_diff_similarity_reward_func([diff1], [""], [diff2])
+        scores = unified_diff_similarity_reward_func([diff1], [diff2])
         # Should get a high score since most changes match
         self.assertGreater(scores[0], 0.6)
         self.assertLess(scores[0], 1.0)
@@ -227,9 +229,10 @@ diff --git a/file2.py b/file2.py
 -    x = 1
 +    x = 2"""
         
-        scores = unified_diff_similarity_reward_func([diff1], [""], [diff2])
-        # Should get zero since changes are completely different
-        self.assertEqual(scores[0], 0.0)
+        scores = unified_diff_similarity_reward_func([diff1], [diff2])
+        # Should get moderate score since same file but different line numbers and content
+        self.assertGreater(scores[0], 0.7)
+        self.assertLess(scores[0], 0.9)
     
     def test_unified_diff_similarity_multiple_files_partial_match(self):
         """Test multiple files with partial matches."""
@@ -269,7 +272,7 @@ diff --git a/file2.py b/file2.py
 -    old2
 +    new2"""
         
-        scores = unified_diff_similarity_reward_func([diff1], [""], [diff2])
+        scores = unified_diff_similarity_reward_func([diff1], [diff2])
         # Should be 2/3 since 2 out of 3 files match perfectly
         self.assertAlmostEqual(scores[0], 2/3, places=2)
     
@@ -290,10 +293,10 @@ diff --git a/file2.py b/file2.py
 -    def foo():
 +    def  bar():"""  # Note extra space
         
-        scores = unified_diff_similarity_reward_func([diff1], [""], [diff2])
-        # SequenceMatcher gives partial match for similar strings with whitespace diff
-        self.assertGreater(scores[0], 0.4)
-        self.assertLess(scores[0], 0.7)
+        scores = unified_diff_similarity_reward_func([diff1], [diff2])
+        # SequenceMatcher gives very high match for similar strings with minor whitespace diff
+        self.assertGreater(scores[0], 0.95)
+        self.assertLess(scores[0], 1.0)
     
     def test_unified_diff_similarity_line_number_differences(self):
         """Test that same changes at different line numbers still match."""
@@ -312,9 +315,10 @@ diff --git a/file2.py b/file2.py
 -    old line
 +    new line"""
         
-        scores = unified_diff_similarity_reward_func([diff1], [""], [diff2])
-        # Should be perfect match since changes are identical
-        self.assertEqual(scores[0], 1.0)
+        scores = unified_diff_similarity_reward_func([diff1], [diff2])
+        # Should be high but not perfect since line numbers differ in raw diff comparison
+        self.assertGreater(scores[0], 0.8)
+        self.assertLess(scores[0], 1.0)
     
     def test_unified_diff_similarity_context_differences(self):
         """Test that different context lines don't affect change matching."""
@@ -339,9 +343,10 @@ diff --git a/file2.py b/file2.py
 +    new code
      # another context"""
         
-        scores = unified_diff_similarity_reward_func([diff1], [""], [diff2])
-        # Should be perfect since we only compare +/- lines
-        self.assertEqual(scores[0], 1.0)
+        scores = unified_diff_similarity_reward_func([diff1], [diff2])
+        # Should be high but not perfect since context differs in raw diff comparison
+        self.assertGreater(scores[0], 0.8)
+        self.assertLess(scores[0], 1.0)
     
     def test_unified_diff_similarity_with_test_patch(self):
         """Test when both patch and test_patch are provided."""
@@ -374,8 +379,15 @@ diff --git a/tests/test_main.py b/tests/test_main.py
 -    assert result == False
 +    assert result == True"""
         
-        scores = unified_diff_similarity_reward_func([patch], [test_patch], [generated_diff])
-        self.assertEqual(scores[0], 1.0)
+        oracle_combined = patch + "\n" + test_patch
+        
+        # Test similarity scoring
+        sim_scores = unified_diff_similarity_reward_func([oracle_combined], [generated_diff])
+        self.assertEqual(sim_scores[0], 1.0)
+        
+        # Test file matching
+        match_scores = unified_diff_file_match_reward_func([oracle_combined], [generated_diff])
+        self.assertEqual(match_scores[0], 1.0)
     
     def test_unified_diff_similarity_partial_test_patch(self):
         """Test when generated diff only contains patch but not test_patch."""
@@ -401,9 +413,16 @@ diff --git a/tests/test_main.py b/tests/test_main.py
 -    return False
 +    return True"""
         
-        scores = unified_diff_similarity_reward_func([patch], [test_patch], [generated_diff])
+        oracle_combined = patch + "\n" + test_patch
+        
+        # Test similarity scoring
+        sim_scores = unified_diff_similarity_reward_func([oracle_combined], [generated_diff])
         # Should be 0.5 since only 1 out of 2 files match
-        self.assertEqual(scores[0], 0.5)
+        self.assertEqual(sim_scores[0], 0.5)
+        
+        # Test file matching
+        match_scores = unified_diff_file_match_reward_func([oracle_combined], [generated_diff])
+        self.assertEqual(match_scores[0], 0.5)
     
     def test_unified_diff_similarity_reversed_patch_order(self):
         """Test when generated diff has patch and test_patch in reversed order."""
@@ -436,9 +455,16 @@ diff --git a/src/main.py b/src/main.py
 -    return False
 +    return True"""
         
-        scores = unified_diff_similarity_reward_func([patch], [test_patch], [generated_diff])
+        oracle_combined = patch + "\n" + test_patch
+        
+        # Test similarity scoring
+        sim_scores = unified_diff_similarity_reward_func([oracle_combined], [generated_diff])
         # Should be 1.0 since both files match regardless of order
-        self.assertEqual(scores[0], 1.0)
+        self.assertEqual(sim_scores[0], 1.0)
+        
+        # Test file matching
+        match_scores = unified_diff_file_match_reward_func([oracle_combined], [generated_diff])
+        self.assertEqual(match_scores[0], 1.0)
     
     def test_unified_diff_similarity_extra_files_in_generated(self):
         """Test when generated diff contains extra files beyond patch and test_patch."""
@@ -478,9 +504,16 @@ diff --git a/docs/README.md b/docs/README.md
 -    Old docs
 +    New docs"""
         
-        scores = unified_diff_similarity_reward_func([patch], [test_patch], [generated_diff])
-        # Should be 2/3 since 2 out of 3 files match the oracle
-        self.assertAlmostEqual(scores[0], 2/3, places=2)
+        oracle_combined = patch + "\n" + test_patch
+        
+        # Test similarity scoring - generated has patch, test_patch, and extra file
+        sim_scores = unified_diff_similarity_reward_func([oracle_combined], [generated_diff])
+        # Should be 1.0 since both oracle files match (oracle normalizes by oracle count)
+        self.assertEqual(sim_scores[0], 1.0)
+        
+        # Test file matching - should be 1.0 since all oracle files are found
+        match_scores = unified_diff_file_match_reward_func([oracle_combined], [generated_diff])
+        self.assertEqual(match_scores[0], 1.0)
     
     def test_unified_diff_similarity_multiple_batches(self):
         """Test batch processing with different patch and test_patch combinations."""
@@ -538,10 +571,19 @@ diff --git a/test_a.py b/test_a.py
 +new_b"""
         ]
         
-        scores = unified_diff_similarity_reward_func(patches, test_patches, generated_diffs)
-        self.assertEqual(len(scores), 2)
-        self.assertEqual(scores[0], 1.0)  # Perfect match
-        self.assertEqual(scores[1], 0.5)  # Half match
+        oracle_diffs = [patches[0] + "\n" + test_patches[0], patches[1] + "\n" + test_patches[1]]
+        
+        # Test similarity scoring
+        sim_scores = unified_diff_similarity_reward_func(oracle_diffs, generated_diffs)
+        self.assertEqual(len(sim_scores), 2)
+        self.assertEqual(sim_scores[0], 1.0)  # Perfect match
+        self.assertEqual(sim_scores[1], 0.5)  # Half match
+        
+        # Test file matching
+        match_scores = unified_diff_file_match_reward_func(oracle_diffs, generated_diffs)
+        self.assertEqual(len(match_scores), 2)
+        self.assertEqual(match_scores[0], 1.0)  # Perfect match
+        self.assertEqual(match_scores[1], 0.5)  # Half match
     
     def test_unified_diff_similarity_realistic_similar_structure(self):
         """Test with realistic diffs that have similar structure but different specifics."""
@@ -636,7 +678,13 @@ diff --git a/tests/test_api_handler.py b/tests/test_api_handler.py
 +        response = self.handler.process_request(None)
 +        self.assertFalse(response['success'])"""
         
-        scores = unified_diff_similarity_reward_func([patch], [test_patch], [generated_diff])
+        oracle_combined = patch + "\n" + test_patch
+        
+        # Test similarity scoring
+        sim_scores = unified_diff_similarity_reward_func([oracle_combined], [generated_diff])
+        
+        # Test file matching  
+        match_scores = unified_diff_file_match_reward_func([oracle_combined], [generated_diff])
         
         # The score should be moderate because:
         # - Both files are modified (2/2 files match)
@@ -648,8 +696,11 @@ diff --git a/tests/test_api_handler.py b/tests/test_api_handler.py
         # - Different response format (status/message vs success/error)
         # - Different test assertions and method names
         # - The actual text content of most lines is quite different
-        self.assertGreater(scores[0], 0.30, "Score should be moderate due to similar structure")
-        self.assertLess(scores[0], 0.60, "Score should not be too high due to different specifics")
+        self.assertGreater(sim_scores[0], 0.30, "Score should be moderate due to similar structure")
+        self.assertLess(sim_scores[0], 0.60, "Score should not be too high due to different specifics")
+        
+        # File matching should be 1.0 since both files are modified
+        self.assertEqual(match_scores[0], 1.0, "Both oracle files should be found in generated diff")
 
 
 class TestUnifiedDiffFileMatchReward(unittest.TestCase):
@@ -898,6 +949,91 @@ diff --git a/a.py b/a.py
         scores = unified_diff_file_match_reward_func([diff1], [diff2])
         self.assertEqual(scores[0], 1.0)
 
+    def test_unified_diff_similarity_cognitoidp_domain_feature(self):
+        """Test unified diff similarity with realistic cognitoidp domain feature implementation."""
+        # Oracle patch - the "correct" implementation
+        oracle_patch = """diff --git a/moto/cognitoidp/models.py b/moto/cognitoidp/models.py
+--- a/moto/cognitoidp/models.py
++++ b/moto/cognitoidp/models.py
+@@ -443,6 +443,21 @@ def __init__(self, region, name, extended_config):
+         ) as f:
+             self.json_web_key = json.loads(f.read())
+
++    @property
++    def backend(self):
++        return cognitoidp_backends[self.region]
++
++    @property
++    def domain(self):
++        return next(
++            (
++                upd
++                for upd in self.backend.user_pool_domains.values()
++                if upd.user_pool_id == self.id
++            ),
++            None,
++        )
++
+     def _account_recovery_setting(self):
+         # AccountRecoverySetting is not present in DescribeUserPool response if the pool was created without
+         # specifying it, ForgotPassword works on default settings nonetheless
+@@ -483,7 +498,8 @@ def to_json(self, extended=False):
+             user_pool_json["LambdaConfig"] = (
+                 self.extended_config.get("LambdaConfig") or {}
+             )
+-
++        if self.domain:
++            user_pool_json["Domain"] = self.domain.domain
+         return user_pool_json
+
+     def _get_user(self, username):"""
+
+        oracle_test_patch = """diff --git a/tests/test_cognitoidp/test_cognitoidp.py b/tests/test_cognitoidp/test_cognitoidp.py
+--- a/tests/test_cognitoidp/test_cognitoidp.py
++++ b/tests/test_cognitoidp/test_cognitoidp.py
+@@ -870,6 +870,8 @@ def test_describe_user_pool_domain():
+     result["DomainDescription"]["Domain"].should.equal(domain)
+     result["DomainDescription"]["UserPoolId"].should.equal(user_pool_id)
+     result["DomainDescription"]["AWSAccountId"].should_not.equal(None)
++    result = conn.describe_user_pool(UserPoolId=user_pool_id)
++    result["UserPool"]["Domain"].should.equal(domain)
+
+
+@mock_cognitoidp"""
+
+        # Generated patch - an alternative implementation approach
+        generated_patch = """diff --git a/moto/cognitoidp/models.py b/moto/cognitoidp/models.py
+index 87f8239..1f15657 100644
+--- a/moto/cognitoidp/models.py
++++ b/moto/cognitoidp/models.py
+@@ -484,6 +484,14 @@ class CognitoIdpUserPool(BaseModel):
+                 self.extended_config.get("LambdaConfig") or {}
+             )
+
++        # Attach the domain if it exists
++        domain = None
++        for user_pool_domain in getattr(self, 'backend', None).user_pool_domains.values() if hasattr(self, 'backend') else []:
++            if user_pool_domain.user_pool_id == self.id:
++                domain = user_pool_domain.domain
++                break
++        if domain:
++            user_pool_json["Domain"] = domain
+         return user_pool_json
+
+     def _get_user(self, username):"""
+
+        # Test similarity scoring with main patch - how similar is the generated implementation approach
+        sim_scores = unified_diff_similarity_reward_func([oracle_patch], [generated_patch])
+        self.assertGreater(sim_scores[0], 0.30, "Similarity score should reflect partial similarity in approach")
+        self.assertLess(sim_scores[0], 0.40, "Similarity score should be moderate due to different implementation")
+        
+        # Test similarity scoring with test patch - generated patch has no test changes
+        test_sim_scores = unified_diff_similarity_reward_func_test([oracle_test_patch], [generated_patch])
+        self.assertEqual(test_sim_scores[0], 0.0, "Test similarity should be 0.0 since generated has no test changes")
+        
+        # Test file matching - which oracle files were attempted in the generated patch
+        match_scores = unified_diff_file_match_reward_func([oracle_patch], [generated_patch])
+        self.assertEqual(match_scores[0], 1.0, "File match score should be 1.0 since the main oracle file was modified")
 
 if __name__ == "__main__":
     unittest.main()

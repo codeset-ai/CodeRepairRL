@@ -19,12 +19,9 @@ curation:
   # Rollout configuration
   num_rollouts_per_problem: 8
   timeout: 120
+  max_workers: 4  # ThreadPoolExecutor max workers
   max_problems: null  # Maximum number of problems to process (for testing)
   
-  # Filtering configuration
-  reward_threshold: 0.4
-  min_solutions_per_problem: 1
-  max_solutions_per_problem: 3
 
 agent:
   model: "openai/gpt-4.1"

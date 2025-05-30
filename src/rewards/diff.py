@@ -33,50 +33,45 @@ def split_diff_by_files(diff_text):
     parts = re.split(r'(?=^diff --git)', diff_text, flags=re.MULTILINE)
     return [part.strip() for part in parts if part.strip()]
 
-def normalize_file_diffs(file_diffs):
-    """Extract filename and changed lines for comparison."""
-    normalized_file_diffs = {}
-    for file_diff in file_diffs:
-        lines = file_diff.splitlines()
-        # Extract filename from first line
-        match = re.search(r'diff --git a/(.*) b/', lines[0]) if lines else None
-        filename = match.group(1) if match else ""
-        # Get only the actual changes (+ and - lines)
-        changes = [l for l in lines if l.startswith(('+', '-')) and not l.startswith(('+++', '---'))]
-        normalized_file_diffs[filename] = tuple(changes)
-    return normalized_file_diffs
+def extract_filename_from_diff(file_diff):
+    """Extract filename from a file diff."""
+    lines = file_diff.splitlines()
+    match = re.search(r'diff --git a/(.*) b/', lines[0]) if lines else None
+    return match.group(1) if match else ""
 
-def unified_diff_similarity_reward_func(patch, test_patch, generated_diff, **kwargs) -> list[float]:
+def unified_diff_similarity_reward_func(patch, generated_diff, **kwargs) -> list[float]:
     """Unified diff specific reward function that compares file changes regardless of order."""
     assert len(patch) == len(generated_diff), "Patch and generated diff must have the same length"
-    assert len(test_patch) == len(generated_diff), "Test patch and generated diff must have the same length"
     
-    # ultimately, we want the agent to produce both the fix to the test patch and the diff
-    oracle_diff = [p + "\n" + t for p, t in zip(patch, test_patch)]
+
     scores = []
-    for o, g in zip(oracle_diff, generated_diff):
-        # Parse files from both diffs into dictionaries
-        oracle_files = normalize_file_diffs(split_diff_by_files(o))
-        gen_files = normalize_file_diffs(split_diff_by_files(g))
+    for p, g in zip(patch, generated_diff):
+        # Split into individual file diffs
+        oracle_file_diffs = split_diff_by_files(p)
+        gen_file_diffs = split_diff_by_files(g)
         
-        if not gen_files:
-            scores.append(0.0)
-            continue
-            
-        # Calculate similarity for each file
+        # Create filename to diff mapping
+        oracle_files = {extract_filename_from_diff(diff): diff for diff in oracle_file_diffs}
+        gen_files = {extract_filename_from_diff(diff): diff for diff in gen_file_diffs}
+        
+        # Calculate similarity for each oracle file
         file_scores = []
-        for filename in set(oracle_files) | set(gen_files):
-            if filename in oracle_files and filename in gen_files:
-                # Use SequenceMatcher to compare the changes
+        for filename in oracle_files:
+            if filename in gen_files:
+                # Use SequenceMatcher to compare the raw file diffs
                 matcher = SequenceMatcher(None, oracle_files[filename], gen_files[filename])
                 file_scores.append(matcher.ratio())
             else:
-                # File exists in only one diff
+                # Oracle file not attempted in generated diff
                 file_scores.append(0.0)
         
-        scores.append(sum(file_scores) / len(file_scores) if file_scores else 0.0)
+        # Normalize by number of oracle files to prevent reward hacking
+        scores.append(sum(file_scores) / len(oracle_files))
     
     return scores
+
+def unified_diff_similarity_reward_func_test(test_patch, generated_diff, **kwargs) -> list[float]:
+    return unified_diff_similarity_reward_func(patch=test_patch, generated_diff=generated_diff, **kwargs)
 
 def unified_diff_file_match_reward_func(patch, generated_diff, **kwargs) -> list[float]:
     """Reward function that returns the fraction of patch files correctly identified in generated diff."""
@@ -84,12 +79,16 @@ def unified_diff_file_match_reward_func(patch, generated_diff, **kwargs) -> list
     
     scores = []
     for p, g in zip(patch, generated_diff):
-        patch_files = normalize_file_diffs(split_diff_by_files(p))
-        gen_files = normalize_file_diffs(split_diff_by_files(g))
+        # Split into individual file diffs and extract filenames
+        oracle_file_diffs = split_diff_by_files(p)
+        gen_file_diffs = split_diff_by_files(g)
         
-        if not patch_files:
-            scores.append(1.0 if not gen_files else 0.0)
+        oracle_filenames = {extract_filename_from_diff(diff) for diff in oracle_file_diffs}
+        gen_filenames = {extract_filename_from_diff(diff) for diff in gen_file_diffs}
+        
+        if not oracle_filenames:
+            scores.append(1.0 if not gen_filenames else 0.0)
         else:
-            scores.append(len(set(patch_files.keys()) & set(gen_files.keys())) / len(patch_files))
+            scores.append(len(oracle_filenames & gen_filenames) / len(oracle_filenames))
     
     return scores

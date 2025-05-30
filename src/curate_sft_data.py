@@ -1,7 +1,7 @@
 import logging
 from typing import Any, Optional
 from dataclasses import dataclass, field
-from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import hydra
 from hydra.core.config_store import ConfigStore
@@ -11,7 +11,7 @@ from huggingface_hub import login
 from huggingface_hub.utils import get_token
 
 from src.data.swe_gym import get_swe_gym_curation_dataset
-from src.agents.nano_agent import nano_rollout_func, NanoConfig
+from src.agents.nano_agent import _process_one, NanoConfig
 from src.rewards.diff import unified_diff_similarity_reward_func
 
 logging.basicConfig(level=logging.INFO)
@@ -34,12 +34,9 @@ class CurationConfig:
     # Rollout configuration
     num_rollouts_per_problem: int = 8
     timeout: int = 120
+    max_workers: int = 4  # ThreadPoolExecutor max workers
     max_problems: Optional[int] = None  # Maximum number of problems to process (for testing)
     
-    # Filtering configuration
-    reward_threshold: float = 0.4
-    min_solutions_per_problem: int = 1
-    max_solutions_per_problem: int = 3
 
 @dataclass
 class Config:
@@ -50,61 +47,31 @@ class Config:
 cs = ConfigStore.instance()
 cs.store(name="base_curation_config", node=Config, group="")
 
-def curate_problem(problem_data: dict[str, Any], config: Config) -> list[dict]:
+def process_one_with_reward(problem_data: dict[str, Any], config: NanoConfig) -> dict[str, Any]:
     """
-    Run multiple rollouts for a single problem and filter high-quality solutions.
-    
-    Args:
-        problem_data: Single problem from SWE-Gym dataset
-        config: Curation configuration
-        
-    Returns:
-        List of high-quality solutions with rewards > threshold
+    Helper function that wraps _process_one and calculates reward.
     """
-    # Create multiple copies of the problem for parallel rollouts
-    rollout_data = [dict(problem_data) for _ in range(config.curation.num_rollouts_per_problem)]
+    result = _process_one(problem_data, config)
     
-    logger.info(f"Running {config.curation.num_rollouts_per_problem} rollouts for {problem_data['instance_id']}")
+    # Calculate reward (unified_diff_similarity_reward_func can handle empty diffs)
+    generated_diff = result["generated_diff"]
+    reward = unified_diff_similarity_reward_func(
+        [problem_data["patch"]], 
+        [problem_data["test_patch"]], 
+        [generated_diff]
+    )[0]
     
-    # Run parallel rollouts
-    results = nano_rollout_func(
-        rollout_data,
-        config=config.agent,
-        timeout=config.curation.timeout
-    )
+    # Add reward and problem data to result
+    result["reward"] = reward
+    result["instance_id"] = problem_data["instance_id"]
+    result["problem_statement"] = problem_data["problem_statement"]
+    result["repo"] = problem_data["repo"]
+    result["base_commit"] = problem_data["base_commit"]
+    result["oracle_diff"] = problem_data["patch"]
+    result["oracle_test_diff"] = problem_data["test_patch"]
     
-    # Extract generated diffs
-    generated_diffs = [result["generated_diff"] for result in results]
-    
+    return result
 
-    patch_list = [problem_data["patch"]] * len(generated_diffs)
-    rewards = unified_diff_similarity_reward_func(patch_list, generated_diffs)
-
-    # Filter solutions above threshold
-    high_quality_solutions = []
-    for result, reward in zip(results, rewards):
-        if reward >= config.curation.reward_threshold and result.get("generated_diff"):
-            solution = {
-                "instance_id": problem_data["instance_id"],
-                "problem_statement": problem_data["problem_statement"],
-                "repo": problem_data["repo"],
-                "base_commit": problem_data["base_commit"],
-                "oracle_diff": problem_data["patch"],
-                "generated_diff": result["generated_diff"],
-                "reward": reward,
-                "messages": result["prompt"] + result["completion"],
-                "tools": result["tools"]
-            }
-            high_quality_solutions.append(solution)
-    
-    # Sort by reward (descending) and limit to max_solutions_per_problem
-    high_quality_solutions.sort(key=lambda x: x["reward"], reverse=True)
-    high_quality_solutions = high_quality_solutions[:config.curation.max_solutions_per_problem]
-    
-    logger.info(f"Found {len(high_quality_solutions)} high-quality solutions for {problem_data['instance_id']} "
-                f"(threshold: {config.curation.reward_threshold}, max: {config.curation.max_solutions_per_problem})")
-    
-    return high_quality_solutions
 
 
 @hydra.main(version_base="1.1", config_path="conf", config_name="curation_config")
@@ -133,38 +100,45 @@ def main(cfg: Config) -> None:
     
     logger.info(f"Processing {len(dataset)} problems from SWE-Gym-Lite")
     
-    # Process each problem
+    # Create all rollout tasks upfront
+    all_rollout_tasks = []
+    for problem_data in dataset:
+        for _ in range(cfg.curation.num_rollouts_per_problem):
+            all_rollout_tasks.append(dict(problem_data))
+    
+    logger.info(f"Created {len(all_rollout_tasks)} total rollout tasks")
+    
+    # Process all rollouts using single ThreadPoolExecutor
     all_solutions = []
-    problem_stats = defaultdict(int)
     
-    for problem_data in tqdm(dataset, desc="Curating problems"):
-        try:
-            solutions = curate_problem(dict(problem_data), cfg)
-            all_solutions.extend(solutions)
-            
-            # Track statistics
-            problem_stats['total_problems'] += 1
-            if solutions:
-                problem_stats['problems_with_solutions'] += 1
-                problem_stats['total_solutions'] += len(solutions)
-                problem_stats['max_solutions_per_problem'] = max(
-                    problem_stats['max_solutions_per_problem'], len(solutions)
-                )
+    with ThreadPoolExecutor(max_workers=cfg.curation.max_workers) as executor:
+        futures = [executor.submit(process_one_with_reward, task, cfg.agent) for task in all_rollout_tasks]
         
-        except Exception as e:
-            logger.error(f"Failed to process problem {problem_data.get('instance_id', 'unknown')}: {e}")
-            continue
+        for future in tqdm(as_completed(futures), total=len(futures), desc="Processing rollouts"):
+            try:
+                result = future.result(timeout=cfg.curation.timeout)
+                solution = {
+                    "instance_id": result["instance_id"],
+                    "problem_statement": result["problem_statement"],
+                    "repo": result["repo"],
+                    "base_commit": result["base_commit"],
+                    "oracle_diff": result["oracle_diff"],
+                    "oracle_test_diff": result["oracle_test_diff"],
+                    "generated_diff": result["generated_diff"],
+                    "reward": result["reward"],
+                    "messages": result["prompt"] + result["completion"],
+                    "tools": result["tools"]
+                }
+                all_solutions.append(solution)
+            except Exception as e:
+                logger.error(f"Rollout failed: {e}")
+                # Skip failed rollouts
+                continue
     
-    # Log statistics
-    logger.info(f"Curation completed:")
-    logger.info(f"  Total problems processed: {problem_stats['total_problems']}")
-    logger.info(f"  Problems with solutions: {problem_stats['problems_with_solutions']}")
-    logger.info(f"  Total high-quality solutions: {problem_stats['total_solutions']}")
-    logger.info(f"  Average solutions per successful problem: "
-                f"{problem_stats['total_solutions'] / max(problem_stats['problems_with_solutions'], 1):.2f}")
+    logger.info(f"Curation completed: {len(all_solutions)} solutions from {len(dataset)} problems")
     
     if not all_solutions:
-        logger.warning("No high-quality solutions found! Check your reward threshold and model setup.")
+        logger.warning("No solutions found! Check your model setup.")
         return
     
     # Create HuggingFace dataset
@@ -181,14 +155,13 @@ to navigate repositories and solve software engineering problems from the SWE-Gy
 - `repo`: Repository information
 - `base_commit`: Base commit hash
 - `solution_diff`: Generated solution diff
-- `reward`: Solution quality score (>= {cfg.curation.reward_threshold})
+- `reward`: Solution quality score (0.0 to 1.0)
 - `messages`: Agent conversation with problem and solution
 - `tools`: Shell and navigation tools used by the agent
 
 ## Generation Process
 - {cfg.curation.num_rollouts_per_problem} rollouts per problem using Nano agent
-- Solutions filtered by reward threshold of {cfg.curation.reward_threshold}
-- Top {cfg.curation.max_solutions_per_problem} solutions kept per problem
+- All solutions included with reward scores for post-processing filtering
 - Generated with temperature {cfg.agent.temperature}, top-p {cfg.agent.top_p}
         """
     )
