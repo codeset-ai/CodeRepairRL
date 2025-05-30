@@ -74,3 +74,20 @@ def unified_diff_similarity_reward_func(patch, generated_diff, **kwargs) -> list
         scores.append(sum(file_scores) / len(file_scores) if file_scores else 0.0)
     
     return scores
+
+
+def unified_diff_file_match_reward_func(patch, generated_diff, **kwargs) -> list[float]:
+    """Reward function that returns the fraction of patch files correctly identified in generated diff."""
+    assert len(patch) == len(generated_diff), "Patch and generated diff must have the same length"
+    
+    scores = []
+    for p, g in zip(patch, generated_diff):
+        patch_files = set(normalize_file_diff(f)[0] for f in split_diff_by_files(p))
+        gen_files = set(normalize_file_diff(f)[0] for f in split_diff_by_files(g))
+        
+        if not patch_files:
+            scores.append(1.0 if not gen_files else 0.0)
+        else:
+            scores.append(len(patch_files & gen_files) / len(patch_files))
+    
+    return scores

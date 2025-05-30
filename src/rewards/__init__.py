@@ -3,6 +3,7 @@ from .diff import (
     sr_diff_format_reward_func,
     sr_diff_similarity_reward_func,
     unified_diff_similarity_reward_func,
+    unified_diff_file_match_reward_func,
 )
 from .categorical import categorical_correctness_reward_func
 from .reasoning import (

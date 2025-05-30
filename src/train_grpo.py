@@ -24,6 +24,7 @@ from src.rewards import (
     sr_diff_similarity_reward_func,
     # repo repair rewards
     unified_diff_similarity_reward_func,
+    unified_diff_file_match_reward_func,
 )
 from src.data import get_stack_repair_dataset, get_primevul_repair_dataset, get_primevul_detection_dataset, get_swe_gym_repo_repair_dataset
 from src.utils.git import resolve_git_commit_hash
@@ -211,9 +212,10 @@ def main(cfg: Config) -> None:
         cfg.agent.token_limit = min(cfg.model.context_window, cfg.grpo.max_prompt_length + cfg.grpo.max_completion_length)
         rollout_func = partial(nano_rollout_func, config=cfg.agent)
         reward_functions = [
+            unified_diff_file_match_reward_func,
             unified_diff_similarity_reward_func,
         ]
-        reward_weights = [1.0]
+        reward_weights = [0.3, 0.7]
     else:
         raise ValueError(f"Unknown task: {cfg.run.task_type}")  # can't happen but looks nice
 

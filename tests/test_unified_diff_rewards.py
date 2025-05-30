@@ -1,5 +1,5 @@
 import unittest
-from src.rewards.diff import split_diff_by_files, normalize_file_diff, unified_diff_similarity_reward_func
+from src.rewards.diff import split_diff_by_files, normalize_file_diff, unified_diff_similarity_reward_func, unified_diff_file_match_reward_func
 
 
 class TestUnifiedDiffRewards(unittest.TestCase):
@@ -340,6 +340,253 @@ diff --git a/file2.py b/file2.py
         
         scores = unified_diff_similarity_reward_func([diff1], [diff2])
         # Should be perfect since we only compare +/- lines
+        self.assertEqual(scores[0], 1.0)
+
+
+class TestUnifiedDiffFileMatchReward(unittest.TestCase):
+    
+    def test_file_match_perfect_match(self):
+        """Test that all files matching gives score of 1.0."""
+        diff1 = """diff --git a/file1.py b/file1.py
+--- a/file1.py
++++ b/file1.py
+@@ -1,3 +1,3 @@
+-    old
++    new
+
+diff --git a/file2.py b/file2.py
+--- a/file2.py
++++ b/file2.py
+@@ -1,3 +1,3 @@
+-    old2
++    new2"""
+        
+        # Different content but same files
+        diff2 = """diff --git a/file1.py b/file1.py
+--- a/file1.py
++++ b/file1.py
+@@ -5,3 +5,3 @@
+-    completely different
++    changes here
+
+diff --git a/file2.py b/file2.py
+--- a/file2.py
++++ b/file2.py
+@@ -10,3 +10,3 @@
+-    also different
++    content"""
+        
+        scores = unified_diff_file_match_reward_func([diff1], [diff2])
+        self.assertEqual(scores[0], 1.0)
+    
+    def test_file_match_partial_match(self):
+        """Test partial file matching."""
+        # Patch touches 3 files
+        diff1 = """diff --git a/file1.py b/file1.py
+--- a/file1.py
++++ b/file1.py
+@@ -1,3 +1,3 @@
+-    old
++    new
+
+diff --git a/file2.py b/file2.py
+--- a/file2.py
++++ b/file2.py
+@@ -1,3 +1,3 @@
+-    old2
++    new2
+
+diff --git a/file3.py b/file3.py
+--- a/file3.py
++++ b/file3.py
+@@ -1,3 +1,3 @@
+-    old3
++    new3"""
+        
+        # Generated touches 2 out of 3 files
+        diff2 = """diff --git a/file1.py b/file1.py
+--- a/file1.py
++++ b/file1.py
+@@ -1,3 +1,3 @@
+-    old
++    new
+
+diff --git a/file3.py b/file3.py
+--- a/file3.py
++++ b/file3.py
+@@ -1,3 +1,3 @@
+-    old3
++    new3"""
+        
+        scores = unified_diff_file_match_reward_func([diff1], [diff2])
+        self.assertAlmostEqual(scores[0], 2/3, places=2)
+    
+    def test_file_match_no_match(self):
+        """Test completely different files."""
+        diff1 = """diff --git a/file1.py b/file1.py
+--- a/file1.py
++++ b/file1.py
+@@ -1,3 +1,3 @@
+-    old
++    new"""
+        
+        diff2 = """diff --git a/completely_different.py b/completely_different.py
+--- a/completely_different.py
++++ b/completely_different.py
+@@ -1,3 +1,3 @@
+-    old
++    new"""
+        
+        scores = unified_diff_file_match_reward_func([diff1], [diff2])
+        self.assertEqual(scores[0], 0.0)
+    
+    def test_file_match_empty_generated(self):
+        """Test when generated diff is empty."""
+        diff1 = """diff --git a/file1.py b/file1.py
+--- a/file1.py
++++ b/file1.py
+@@ -1,3 +1,3 @@
+-    old
++    new"""
+        
+        scores = unified_diff_file_match_reward_func([diff1], [""])
+        self.assertEqual(scores[0], 0.0)
+    
+    def test_file_match_empty_patch(self):
+        """Test when patch is empty but generated is not."""
+        diff2 = """diff --git a/file1.py b/file1.py
+--- a/file1.py
++++ b/file1.py
+@@ -1,3 +1,3 @@
+-    old
++    new"""
+        
+        scores = unified_diff_file_match_reward_func([""], [diff2])
+        self.assertEqual(scores[0], 0.0)
+    
+    def test_file_match_both_empty(self):
+        """Test when both patch and generated are empty."""
+        scores = unified_diff_file_match_reward_func([""], [""])
+        self.assertEqual(scores[0], 1.0)  # Both empty = perfect match
+    
+    def test_file_match_single_file(self):
+        """Test single file matching."""
+        diff1 = """diff --git a/single.py b/single.py
+--- a/single.py
++++ b/single.py
+@@ -1,3 +1,3 @@
+-    old
++    new"""
+        
+        # Same file
+        diff2 = """diff --git a/single.py b/single.py
+--- a/single.py
++++ b/single.py
+@@ -10,3 +10,3 @@
+-    different content
++    but same file"""
+        
+        scores = unified_diff_file_match_reward_func([diff1], [diff2])
+        self.assertEqual(scores[0], 1.0)
+    
+    def test_file_match_batch_processing(self):
+        """Test batch processing of multiple diffs."""
+        diff1 = """diff --git a/file1.py b/file1.py
+--- a/file1.py
++++ b/file1.py
+@@ -1,3 +1,3 @@
+-    old
++    new"""
+        
+        diff2 = """diff --git a/file2.py b/file2.py
+--- a/file2.py
++++ b/file2.py
+@@ -1,3 +1,3 @@
+-    old
++    new"""
+        
+        # First pair: same file
+        # Second pair: different files
+        scores = unified_diff_file_match_reward_func([diff1, diff1], [diff1, diff2])
+        self.assertEqual(len(scores), 2)
+        self.assertEqual(scores[0], 1.0)
+        self.assertEqual(scores[1], 0.0)
+    
+    def test_file_match_superset_files(self):
+        """Test when generated diff has more files than patch."""
+        # Patch touches 2 files
+        diff1 = """diff --git a/file1.py b/file1.py
+--- a/file1.py
++++ b/file1.py
+@@ -1,3 +1,3 @@
+-    old
++    new
+
+diff --git a/file2.py b/file2.py
+--- a/file2.py
++++ b/file2.py
+@@ -1,3 +1,3 @@
+-    old2
++    new2"""
+        
+        # Generated touches the same 2 files plus an extra one
+        diff2 = """diff --git a/file1.py b/file1.py
+--- a/file1.py
++++ b/file1.py
+@@ -1,3 +1,3 @@
+-    old
++    new
+
+diff --git a/file2.py b/file2.py
+--- a/file2.py
++++ b/file2.py
+@@ -1,3 +1,3 @@
+-    old2
++    new2
+
+diff --git a/extra_file.py b/extra_file.py
+--- a/extra_file.py
++++ b/extra_file.py
+@@ -1,3 +1,3 @@
+-    extra
++    changes"""
+        
+        scores = unified_diff_file_match_reward_func([diff1], [diff2])
+        # Should be 1.0 since all patch files are found
+        self.assertEqual(scores[0], 1.0)
+    
+    def test_file_match_different_order(self):
+        """Test that file order doesn't matter."""
+        diff1 = """diff --git a/a.py b/a.py
+--- a/a.py
++++ b/a.py
+@@ -1,3 +1,3 @@
+-    old
++    new
+
+diff --git a/b.py b/b.py
+--- a/b.py
++++ b/b.py
+@@ -1,3 +1,3 @@
+-    old
++    new"""
+        
+        # Same files but reversed order
+        diff2 = """diff --git a/b.py b/b.py
+--- a/b.py
++++ b/b.py
+@@ -1,3 +1,3 @@
+-    old
++    new
+
+diff --git a/a.py b/a.py
+--- a/a.py
++++ b/a.py
+@@ -1,3 +1,3 @@
+-    old
++    new"""
+        
+        scores = unified_diff_file_match_reward_func([diff1], [diff2])
         self.assertEqual(scores[0], 1.0)
 
 
