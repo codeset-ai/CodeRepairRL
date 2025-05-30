@@ -1,3 +1,4 @@
+import re
 from difflib import SequenceMatcher
 
 from src.utils.diff import SearchReplaceDiff
@@ -26,26 +27,50 @@ def sr_diff_similarity_reward_func(completions, diffs, **kwargs) -> list[float]:
 
 # Unified diff specific reward functions
 
+def split_diff_by_files(diff_text):
+    """Split unified diff into individual file diffs."""
+    # Split on "diff --git" but keep the delimiter
+    parts = re.split(r'(?=^diff --git)', diff_text, flags=re.MULTILINE)
+    return [part.strip() for part in parts if part.strip()]
+
+def normalize_file_diff(file_diff):
+    """Extract filename and changed lines for comparison."""
+    import re
+    lines = file_diff.splitlines()
+    # Extract filename from first line
+    match = re.search(r'diff --git a/(.*) b/', lines[0]) if lines else None
+    filename = match.group(1) if match else ""
+    # Get only the actual changes (+ and - lines)
+    changes = [l for l in lines if l.startswith(('+', '-')) and not l.startswith(('+++', '---'))]
+    return (filename, tuple(changes))
+
 def unified_diff_similarity_reward_func(patch, generated_diff, **kwargs) -> list[float]:
-    """Unified diff specific reward function that checks if the sequence of search/replace diffs matches the reference diffs."""
-
+    """Unified diff specific reward function that compares file changes regardless of order."""
     assert len(patch) == len(generated_diff), "Patch and generated diff must have the same length"
-
-    patch_lines = [p.splitlines() for p in patch]
-    generated_lines = [g.splitlines() for g in generated_diff]
-
-    return [SequenceMatcher(None, p, g).ratio() for p, g in zip(patch_lines, generated_lines)]
-
-def unified_diff_similarity_reward_func_filtered(patch, generated_diff, **kwargs) -> list[float]:
-    """Unified diff specific reward function that removes unchanged lines and checks if the sequence of search/replace diffs matches the reference diffs."""
-
-    assert len(patch) == len(generated_diff), "Patch and generated diff must have the same length"
-
-    def changed_lines(diff_str: str) -> list[str]:
-        lines = diff_str.splitlines()
-        return [l for l in lines if l.startswith("+") or l.startswith("-")]
-
-    patch_lines = [changed_lines(p) for p in patch]
-    generated_lines = [changed_lines(g) for g in generated_diff]
-
-    return [SequenceMatcher(None, p, g).ratio() for p, g in zip(patch_lines, generated_lines)]
+    
+    scores = []
+    for p, g in zip(patch, generated_diff):
+        # Parse files from both diffs into dictionaries
+        patch_files = {normalize_file_diff(f)[0]: normalize_file_diff(f)[1] 
+                      for f in split_diff_by_files(p)}
+        gen_files = {normalize_file_diff(f)[0]: normalize_file_diff(f)[1] 
+                    for f in split_diff_by_files(g)}
+        
+        if not gen_files:
+            scores.append(0.0)
+            continue
+            
+        # Calculate similarity for each file
+        file_scores = []
+        for filename in set(patch_files) | set(gen_files):
+            if filename in patch_files and filename in gen_files:
+                # Use SequenceMatcher to compare the changes
+                matcher = SequenceMatcher(None, patch_files[filename], gen_files[filename])
+                file_scores.append(matcher.ratio())
+            else:
+                # File exists in only one diff
+                file_scores.append(0.0)
+        
+        scores.append(sum(file_scores) / len(file_scores) if file_scores else 0.0)
+    
+    return scores

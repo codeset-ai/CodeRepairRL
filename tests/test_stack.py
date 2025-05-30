@@ -9,7 +9,6 @@ from unittest.mock import patch, MagicMock
 # Add the src directory to the Python path
 sys.path.append(str(Path(__file__).parent.parent))
 
-
 from src.data.stack import extract_functions_with_docstrings, create_docstring_tasks, is_quality_docstring, is_quality_code
 
 

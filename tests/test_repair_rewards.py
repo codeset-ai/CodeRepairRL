@@ -6,8 +6,8 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 
 from src.rewards import (
-    diff_format_reward_func,
-    diff_similarity_reward_func
+    sr_diff_format_reward_func,
+    sr_diff_similarity_reward_func
 )
 
 
@@ -53,7 +53,7 @@ class TestRepairRewards(unittest.TestCase):
         ]
         
         # Test for search_replace diff type
-        sr_rewards = diff_format_reward_func(completions=completions)
+        sr_rewards = sr_diff_format_reward_func(completions=completions)
         self.assertEqual(len(sr_rewards), 2)
         
         # First completion has perfect format, should get exactly 1.0
@@ -166,7 +166,7 @@ class TestRepairRewards(unittest.TestCase):
         ]
         
         # Test for format adherence quality
-        format_rewards = diff_format_reward_func(completions=completions)
+        format_rewards = sr_diff_format_reward_func(completions=completions)
         self.assertEqual(len(format_rewards), 5)
         
         # Perfect format should get exactly 1.0
@@ -189,7 +189,7 @@ class TestRepairRewards(unittest.TestCase):
         # (penalty of at least 0.8 for missing both markers)
         self.assertAlmostEqual(format_rewards[4], 0.0, "Wrong format missing all markers should be heavily penalized")
 
-    def test_diff_similarity_reward_func(self):
+    def test_sr_diff_similarity_reward_func(self):
         # First completion matches reference exactly
         exact_match_completion = {
             "content": (
@@ -270,7 +270,7 @@ class TestRepairRewards(unittest.TestCase):
         ] * 3  # Same reference for all completions
         
         # Test similarities
-        sr_rewards = diff_similarity_reward_func(completions=completions, diffs=reference_diff)
+        sr_rewards = sr_diff_similarity_reward_func(completions=completions, diffs=reference_diff)
         self.assertEqual(len(sr_rewards), 3)
         
         # Exact match should be 1.0
@@ -394,7 +394,7 @@ class TestRepairRewards(unittest.TestCase):
         ] * 4  # Same reference for all completions
         
         # Test similarity correlation
-        similarity_rewards = diff_similarity_reward_func(completions=completions, diffs=reference_diff)
+        similarity_rewards = sr_diff_similarity_reward_func(completions=completions, diffs=reference_diff)
         self.assertEqual(len(similarity_rewards), 4)
         
         # Base case compared with itself should be exactly 1.0
@@ -424,8 +424,8 @@ class TestRepairRewards(unittest.TestCase):
         empty_completions = []
         empty_diff = []
         
-        self.assertEqual(diff_format_reward_func(completions=empty_completions), [])
-        self.assertEqual(diff_similarity_reward_func(completions=empty_completions, diffs=empty_diff), [])
+        self.assertEqual(sr_diff_format_reward_func(completions=empty_completions), [])
+        self.assertEqual(sr_diff_similarity_reward_func(completions=empty_completions, diffs=empty_diff), [])
 
 
 if __name__ == "__main__":

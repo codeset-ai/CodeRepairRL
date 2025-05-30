@@ -215,8 +215,8 @@ class TestSearchReplaceDiff(unittest.TestCase):
         
         # Check second diff
         self.assertEqual(len(diffs[1].blocks), 1)
-        self.assertEqual(diffs[1].blocks[0][0], "    return value + 10")
-        self.assertEqual(diffs[1].blocks[0][1], "    if value < 0:\n        value = 0\n    return value + 10")
+        self.assertEqual(diffs[1].blocks[0][0], "return value + 10")
+        self.assertEqual(diffs[1].blocks[0][1], "if value < 0:\n        value = 0\n    return value + 10")
 
     def test_extract_from_llm_response_without_code_fences(self):
         """Test extracting diffs from an LLM response without code fences."""

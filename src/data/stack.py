@@ -13,11 +13,14 @@ implementations, and prepares them as tasks for LLM generation.
 """
 import ast
 import re
+import logging
 from typing import Optional
 from dataclasses import dataclass
 
 from tqdm import tqdm
 from datasets import load_dataset, Dataset, DatasetInfo, Features, Value
+
+logger = logging.getLogger(__name__)
 from transformers import PreTrainedTokenizer
 
 
