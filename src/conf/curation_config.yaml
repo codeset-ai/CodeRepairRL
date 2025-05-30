@@ -17,9 +17,9 @@ curation:
   hf_token: null  # HuggingFace token for pushing to hub
   
   # Rollout configuration
-  num_rollouts_per_problem: 8
+  num_rollouts_per_problem: 2
   timeout: 120
-  max_workers: 4  # ThreadPoolExecutor max workers
+  max_workers: 8  # ThreadPoolExecutor max workers
   max_problems: null  # Maximum number of problems to process (for testing)
   
 

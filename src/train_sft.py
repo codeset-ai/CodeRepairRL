@@ -33,6 +33,7 @@ class RunConfig:
     wandb_project: str = "SWE-Gym-SFT"
     dataset_name: str = "bjarni/swe-gym-lite-sft"
     max_seq_length: int = 8192
+    reward_min: float = 0.2
     output_model_name: str = "bjarni/qwen3-8b-swe-gym-sft"
     push_to_hub: bool = True
     commit_hash: str = ""  # added at runtime
@@ -134,7 +135,8 @@ def main(cfg: Config) -> None:
     train_dataset = get_swe_gym_formatted_sft_dataset(
         dataset_name=cfg.run.dataset_name,
         tokenizer=tokenizer,
-        max_seq_length=cfg.run.max_seq_length
+        max_seq_length=cfg.run.max_seq_length,
+        reward_min=cfg.run.reward_min
     )
     
     if len(train_dataset) == 0:

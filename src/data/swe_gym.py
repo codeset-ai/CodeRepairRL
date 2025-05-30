@@ -47,7 +47,7 @@ def _get_swe_gym_split(dataset_name: str, curation_partition: bool, curation_rat
 # mirroring the other data methods though not strictly doing much
 def get_swe_gym_repo_repair_dataset(
     dataset_name: str = "SWE-Gym/SWE-Gym-Lite",
-    curation_ratio: float = 0.8,
+    curation_ratio: float = 0.2,
     **kwargs  # absorbs additional arguments required by the other get functions
 ) -> Dataset:
     """
@@ -91,7 +91,7 @@ def format_conversation_for_sft(example: dict[str, Any], tokenizer) -> dict[str,
     # Apply chat template with messages and tools - FAIL if these don't exist
     formatted_text = tokenizer.apply_chat_template(
         example["messages"], 
-        tools=example.get("tools"),
+        tools=example["tools"],
         tokenize=False,
         add_generation_prompt=False
     )
@@ -102,6 +102,7 @@ def get_swe_gym_formatted_sft_dataset(
     dataset_name: str,
     tokenizer,
     max_seq_length: int = 8192,
+    reward_min: float = 0.2,
     **kwargs
 ) -> Dataset:
     """
@@ -137,6 +138,7 @@ def get_swe_gym_formatted_sft_dataset(
     
     original_size = len(dataset)
     dataset = dataset.filter(filter_length, desc="Filtering by length")
+    dataset = dataset.filter(lambda x: x["reward"] > reward_min)
     logger.info(f"Filtered dataset from {original_size} to {len(dataset)} examples "
                 f"(max_seq_length={max_seq_length})")
     

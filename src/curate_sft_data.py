@@ -12,7 +12,7 @@ from huggingface_hub.utils import get_token
 
 from src.data.swe_gym import get_swe_gym_curation_dataset
 from src.agents.nano_agent import _process_one, NanoConfig
-from src.rewards.diff import unified_diff_similarity_reward_func
+from src.rewards.diff import unified_diff_similarity_reward_func, unified_diff_file_match_reward_func, unified_diff_similarity_reward_func_test
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -53,16 +53,22 @@ def process_one_with_reward(problem_data: dict[str, Any], config: NanoConfig) ->
     """
     result = _process_one(problem_data, config)
     
-    # Calculate reward (unified_diff_similarity_reward_func can handle empty diffs)
+    # Calculate rewards using same approach as train_grpo
     generated_diff = result["generated_diff"]
-    reward = unified_diff_similarity_reward_func(
-        [problem_data["patch"]], 
-        [problem_data["test_patch"]], 
-        [generated_diff]
-    )[0]
     
-    # Add reward and problem data to result
-    result["reward"] = reward
+    # Calculate individual rewards (keeping patch and test_patch separate)
+    file_match_reward = unified_diff_file_match_reward_func([problem_data["patch"]], [generated_diff])[0]
+    similarity_reward = unified_diff_similarity_reward_func([problem_data["patch"]], [generated_diff])[0]
+    test_similarity_reward = unified_diff_similarity_reward_func_test([problem_data["test_patch"]], [generated_diff])[0]
+    
+    # Combine rewards with same weights as train_grpo (0.2 file_match + 0.4 similarity + 0.4 test_similarity)
+    combined_reward = 0.2 * file_match_reward + 0.4 * similarity_reward + 0.4 * test_similarity_reward
+    
+    # Add all rewards to result
+    result["file_match_reward"] = file_match_reward
+    result["similarity_reward"] = similarity_reward
+    result["test_similarity_reward"] = test_similarity_reward
+    result["reward"] = combined_reward
     result["instance_id"] = problem_data["instance_id"]
     result["problem_statement"] = problem_data["problem_statement"]
     result["repo"] = problem_data["repo"]
@@ -114,7 +120,7 @@ def main(cfg: Config) -> None:
     with ThreadPoolExecutor(max_workers=cfg.curation.max_workers) as executor:
         futures = [executor.submit(process_one_with_reward, task, cfg.agent) for task in all_rollout_tasks]
         
-        for future in tqdm(as_completed(futures), total=len(futures), desc="Processing rollouts"):
+        for future in as_completed(futures):
             try:
                 result = future.result(timeout=cfg.curation.timeout)
                 solution = {
@@ -126,9 +132,15 @@ def main(cfg: Config) -> None:
                     "oracle_test_diff": result["oracle_test_diff"],
                     "generated_diff": result["generated_diff"],
                     "reward": result["reward"],
+                    "file_match_reward": result["file_match_reward"],
+                    "similarity_reward": result["similarity_reward"],
+                    "test_similarity_reward": result["test_similarity_reward"],
                     "messages": result["prompt"] + result["completion"],
                     "tools": result["tools"]
                 }
+                if solution["generated_diff"] == "":
+                    logger.warning(f"Generated diff is empty for problem {solution['instance_id']}")
+                    continue
                 all_solutions.append(solution)
             except Exception as e:
                 logger.error(f"Rollout failed: {e}")
@@ -154,8 +166,13 @@ to navigate repositories and solve software engineering problems from the SWE-Gy
 - `problem_statement`: Description of the coding problem
 - `repo`: Repository information
 - `base_commit`: Base commit hash
-- `solution_diff`: Generated solution diff
-- `reward`: Solution quality score (0.0 to 1.0)
+- `oracle_diff`: Ground truth patch diff
+- `oracle_test_diff`: Ground truth test diff
+- `generated_diff`: Agent-generated solution diff
+- `reward`: Combined weighted reward score (0.0 to 1.0)
+- `file_match_reward`: File matching reward (0.0 to 1.0, weight: 0.2)
+- `similarity_reward`: Patch similarity reward (0.0 to 1.0, weight: 0.4)
+- `test_similarity_reward`: Test similarity reward (0.0 to 1.0, weight: 0.4)
 - `messages`: Agent conversation with problem and solution
 - `tools`: Shell and navigation tools used by the agent
 

@@ -23,8 +23,9 @@ from src.rewards import (
     sr_diff_format_reward_func,
     sr_diff_similarity_reward_func,
     # repo repair rewards
-    unified_diff_similarity_reward_func,
     unified_diff_file_match_reward_func,
+    unified_diff_similarity_reward_func,
+    unified_diff_similarity_reward_func_test,
 )
 from src.data import get_stack_repair_dataset, get_primevul_repair_dataset, get_primevul_detection_dataset, get_swe_gym_repo_repair_dataset
 from src.utils.git import resolve_git_commit_hash
@@ -214,8 +215,9 @@ def main(cfg: Config) -> None:
         reward_functions = [
             unified_diff_file_match_reward_func,
             unified_diff_similarity_reward_func,
+            unified_diff_similarity_reward_func_test,
         ]
-        reward_weights = [0.2, 0.8]
+        reward_weights = [0.2, 0.4, 0.4]
     else:
         raise ValueError(f"Unknown task: {cfg.run.task_type}")  # can't happen but looks nice
 
