@@ -14,7 +14,7 @@ dependencies = [
     "huggingface-hub",
     "datasets>=3.3.0",
     "peft>=0.15.0",
-    "bitsandbytes>=0.44.1",
+    "bitsandbytes>=0.44.1; platform_system != 'Darwin'",
     # Logging
     "wandb>=0.19.6",
     # Config
@@ -23,7 +23,7 @@ dependencies = [
     # Is required BEFORE the package manager considers vLLM flash-attn
     "setuptools>=75.8.0",
     # For better attention kernels
-    "liger-kernel",
+    "liger-kernel; platform_system != 'Darwin'",
 ]
 
 [project.optional-dependencies]
