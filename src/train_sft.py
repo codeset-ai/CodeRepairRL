@@ -7,11 +7,7 @@ import hydra
 import torch
 from omegaconf import OmegaConf
 from hydra.core.config_store import ConfigStore
-from transformers import (
-    AutoModelForCausalLM, 
-    AutoTokenizer, 
-    DataCollatorForLanguageModeling
-)
+from transformers import AutoModelForCausalLM, AutoTokenizer
 from trl import SFTTrainer, SFTConfig as HFSFTConfig
 from peft import LoraConfig as PEFTLoraConfig
 from huggingface_hub import login
@@ -49,7 +45,7 @@ class SFTConfig:
     gradient_accumulation_steps: int = 4
     learning_rate: float = 2e-5
     warmup_ratio: float = 0.1
-    lr_scheduler_type: str = "cosine"
+    lr_scheduler_type: str = "linear"
     max_grad_norm: float = 1.0
     weight_decay: float = 0.01
     bf16: bool = True
@@ -156,19 +152,12 @@ def main(cfg: Config) -> None:
     # Create SFTConfig instance
     training_args = HFSFTConfig(**sft_params)
     
-    # Create data collator
-    data_collator = DataCollatorForLanguageModeling(
-        tokenizer=tokenizer,
-        mlm=False,  # We're doing causal LM, not masked LM
-    )
-    
     # Initialize trainer
     trainer = SFTTrainer(
         model=model,
         args=training_args,
         train_dataset=train_dataset,
         processing_class=tokenizer,
-        data_collator=data_collator,
         peft_config=peft_config,
     )
     

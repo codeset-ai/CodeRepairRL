@@ -147,7 +147,7 @@ def main(cfg: Config) -> None:
     
     # Load base model
     logger.info(f"Loading model: {cfg.model.model_name}")
-    model = AutoModelForCausalLM.from_pretrained(cfg.model.model_name, torch_dtype=precision_mode)
+    model = AutoModelForCausalLM.from_pretrained(cfg.model.model_name, torch_dtype=precision_mode, attn_implementation=cfg.model.attn_implementation)
     
     # If starting from a LoRA checkpoint (e.g., from SFT training), merge the adapters into base model
     if cfg.model.lora_checkpoint_path:
