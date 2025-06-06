@@ -7,14 +7,14 @@
 #SBATCH -C "thin"
 
 echo "CUDA availability:"
-apptainer exec --nv crrl.sif python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
-apptainer exec --nv crrl.sif python -c "import torch; print(f'CUDA device count: {torch.cuda.device_count()}')"
+apptainer run --nv crrl.sif python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
+apptainer run --nv crrl.sif python -c "import torch; print(f'CUDA device count: {torch.cuda.device_count()}')"
 
 # Assuming device 0 is used if CUDA_VISIBLE_DEVICES is not set or only 1 GPU is available
 apptainer exec --nv crrl.sif python -c "import torch; print(f'CUDA device name: {torch.cuda.get_device_name(0)}')" 
 
 echo "\nRunning test job: small repair task on stack dataset..."
-apptainer exec --nv crrl.sif \
+apptainer run --nv crrl.sif \
     python -m src.train_grpo \
     run=repair \
     model=small_qwen \
