@@ -10,21 +10,14 @@
 
 # Model configuration - use SFT model if available, otherwise base model
 MODEL_CONFIG="small_qwen"
-SFT_MODEL_NAME="bjarni/qwen3-8b-swe-gym-sft"
-BASE_MODEL_NAME=$(grep -Po 'model_name: "\K[^"]*' src/conf/model/${MODEL_CONFIG}.yaml)
-
-# Try to use SFT model, fall back to base model if not available
-MODEL_NAME="$SFT_MODEL_NAME"
+MODEL_NAME=$(grep -Po 'model_name: "\K[^"]*' src/conf/model/${MODEL_CONFIG}.yaml)
 
 # Context window configuration
 MAX_PROMPT_LENGTH=1024
 MAX_COMPLETION_LENGTH=7168
 MAX_CONTEXT_LENGTH=$((MAX_PROMPT_LENGTH + MAX_COMPLETION_LENGTH))
 
-# Install flash-attn with GPU support
-apptainer run --nv crrl.sif install-flash-attn
-
-CUDA_VISIBLE_DEVICES=1 apptainer run --nv crrl.sif \
+CUDA_VISIBLE_DEVICES=1 apptainer exec --nv crrl.sif \
     trl vllm-serve-async \
     --model "$MODEL_NAME" \
     --max_model_len $MAX_CONTEXT_LENGTH \
@@ -34,8 +27,8 @@ CUDA_VISIBLE_DEVICES=1 apptainer run --nv crrl.sif \
     &  # & makes it run in the background
 
 # IMPORTANT: train job should include DEVICE 0
-CUDA_VISIBLE_DEVICES=0 apptainer run --nv crrl.sif \
-    accelerate launch src/train_grpo.py \
+CUDA_VISIBLE_DEVICES=0 apptainer exec --nv crrl.sif \
+    python -m src.train_grpo \
     run=repo_repair \
     model=$MODEL_CONFIG \
     grpo=long \

@@ -34,11 +34,8 @@ if [ -z "$HF_TOKEN" ]; then
     exit 1
 fi
 
-# Install flash-attn with GPU support
-apptainer run --nv crrl.sif install-flash-attn
-
 # Run SFT training with DeepSpeed using Hydra config overrides
-CUDA_VISIBLE_DEVICES=0,1 apptainer run --nv crrl.sif \
+CUDA_VISIBLE_DEVICES=0,1 apptainer exec --nv crrl.sif \
     accelerate launch \
     --config_file scripts/deepspeed/zero2.yaml \
     src/train_sft.py \

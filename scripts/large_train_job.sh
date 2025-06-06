@@ -13,10 +13,7 @@ MODEL_CONFIG="large_qwen"
 MODEL_NAME=$(grep -Po 'model_name: "\K[^"]*' src/conf/model/${MODEL_CONFIG}.yaml)
 TP_SIZE=2
 
-# Install flash-attn with GPU support
-apptainer run --nv crrl.sif install-flash-attn
-
-CUDA_VISIBLE_DEVICES=2,3 apptainer run --nv crrl.sif \
+CUDA_VISIBLE_DEVICES=2,3 apptainer exec --nv crrl.sif \
     trl vllm-serve-async \
     --model "$MODEL_NAME" \
     --max_model_len 8192 \
@@ -27,7 +24,7 @@ CUDA_VISIBLE_DEVICES=2,3 apptainer run --nv crrl.sif \
     &  # & makes it run in the background
 
 # IMPORTANT: train job should include DEVICE 0
-CUDA_VISIBLE_DEVICES=0,1 apptainer run --nv crrl.sif \
+CUDA_VISIBLE_DEVICES=0,1 apptainer exec --nv crrl.sif \
     python -m src.train_grpo \
     run=repo_repair \
     model=$MODEL_CONFIG \

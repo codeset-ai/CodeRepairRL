@@ -1,7 +1,7 @@
 # Model configuration
 model_name: "Qwen/Qwen3-8B"
 lora_checkpoint_path: null  # Path to SFT LoRA adapters - will be merged into base model
-attn_implementation: "flash_attention_3"
+attn_implementation: "flash_attention_2"  #  flash attention 3 is only supported on >= H100
 # LoRA configuration
 lora: true
 r: 32

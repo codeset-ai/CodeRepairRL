@@ -17,10 +17,7 @@ MAX_PROMPT_LENGTH=1024
 MAX_COMPLETION_LENGTH=7168
 MAX_CONTEXT_LENGTH=$((MAX_PROMPT_LENGTH + MAX_COMPLETION_LENGTH))
 
-# Install flash-attn with GPU support
-apptainer run --nv crrl.sif install-flash-attn
-
-CUDA_VISIBLE_DEVICES=1 apptainer run --nv crrl.sif \
+CUDA_VISIBLE_DEVICES=1 apptainer exec --nv crrl.sif \
     trl vllm-serve-async \
     --model "$MODEL_NAME" \
     --max_model_len $MAX_CONTEXT_LENGTH \
@@ -30,7 +27,7 @@ CUDA_VISIBLE_DEVICES=1 apptainer run --nv crrl.sif \
     &  # & makes it run in the background
 
 # IMPORTANT: train job should include DEVICE 0
-CUDA_VISIBLE_DEVICES=0 apptainer run --nv crrl.sif \
+CUDA_VISIBLE_DEVICES=0 apptainer exec --nv crrl.sif \
     accelerate launch src/train_grpo.py \
     run=repo_repair \
     model=$MODEL_CONFIG \
