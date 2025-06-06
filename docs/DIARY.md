@@ -17,6 +17,22 @@
   - annoying to have to scroll throught those statistics when all I want is the actual value
 </details>
 
+## June 2 - June 9
+
+### Nano
+- [ ] Use litellm.token_counter
+  - B.c. otherwise support any type of reasoning is unfeasible, every endpoint handles it differently
+  - It does not use the same template as we will have in training (or in inference)
+
+### CodeRepairRL
+- [ ] Handle token mismatch
+  - Make nano's token_limit lower (litellm underestimates)
+  - Should only very rarely exceed what we set out.
+
+## May 26 - June 9
+bunch of random smaller tasks
+
+
 ## May 19 - May 26
 
 ### Writing

@@ -113,7 +113,22 @@ This ensures that large model files and datasets are stored in your project dire
 
 ### Setting Up Development Environment
 
-`uv` will automatically recognize the Python version specified in `.python-version` and set up a virtual environment accordingly:
+`uv` will automatically recognize the Python version specified in `.python-version` and set up a virtual environment accordingly.
+
+#### Installing Dependencies
+
+Flash-attn and vLLM require PyTorch to be installed before compilation. Install in this order:
+
+```bash
+# Step 1: Install base dependencies (includes PyTorch)
+uv sync
+
+# Step 2: Install GPU packages after PyTorch is ready
+uv sync --extra vllm --extra flash
+
+# Step 3 (optional): Install developmental dependencies
+uv sync --extra dev
+```
 
 For local development and testing:
 
