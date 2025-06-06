@@ -35,7 +35,7 @@ if [ -z "$HF_TOKEN" ]; then
 fi
 
 # Run SFT training with DeepSpeed using Hydra config overrides
-CUDA_VISIBLE_DEVICES=0,1 apptainer exec --nv crrl.sif \
+CUDA_VISIBLE_DEVICES=0,1 apptainer run --nv crrl.sif \
     accelerate launch \
     --config_file scripts/deepspeed/zero2.yaml \
     src/train_sft.py \

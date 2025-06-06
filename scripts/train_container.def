@@ -23,8 +23,10 @@ From: pytorch/pytorch:2.6.0-cuda12.4-cudnn9-devel
 %runscript
     # Install flash-attn at runtime when GPU is available
     # This is fast if already installed (pip checks and skips)
-    pip install flash-attn>=2.6.0 --no-build-isolation
-    pip install flashinfer-python>=0.2.5
+    echo "Installing flash-attn at runtime..."
+    pip install flash-attn>=2.6.0 --no-build-isolation || echo "flash-attn installation failed"
+    pip install flashinfer-python>=0.2.5 || echo "flashinfer installation failed"
+    echo "Starting command: $@"
     
     # Execute the command passed to the container
     exec "$@"
