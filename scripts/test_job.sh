@@ -13,6 +13,9 @@ apptainer run --nv crrl.sif python -c "import torch; print(f'CUDA device count: 
 # Assuming device 0 is used if CUDA_VISIBLE_DEVICES is not set or only 1 GPU is available
 apptainer exec --nv crrl.sif python -c "import torch; print(f'CUDA device name: {torch.cuda.get_device_name(0)}')" 
 
+# Install flash-attn with GPU support
+apptainer run --nv crrl.sif install-flash-attn
+
 echo "\nRunning test job: small repair task on stack dataset..."
 apptainer run --nv crrl.sif \
     python -m src.train_grpo \

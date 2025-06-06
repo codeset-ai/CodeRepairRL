@@ -17,6 +17,8 @@ MAX_PROMPT_LENGTH=1024
 MAX_COMPLETION_LENGTH=7168
 MAX_CONTEXT_LENGTH=$((MAX_PROMPT_LENGTH + MAX_COMPLETION_LENGTH))
 
+# Install flash-attn with GPU support
+apptainer run --nv crrl.sif install-flash-attn
 
 CUDA_VISIBLE_DEVICES=1 apptainer run --nv crrl.sif \
     trl vllm-serve-async \

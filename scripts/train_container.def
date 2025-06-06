@@ -17,16 +17,20 @@ From: pytorch/pytorch:2.6.0-cuda12.4-cudnn9-devel
     apt-get update
     apt-get install -y --no-install-recommends git curl ca-certificates ripgrep
 
-    # Install base dependencies and vLLM (without flash-attn)
-    pip install ".[dev,vllm]"
+    # Install base dependencies and vLLM
+    # Use --find-links to avoid reinstalling pre-installed PyTorch/CUDA packages  
+    pip install --find-links /opt/conda/lib/python3.11/site-packages ".[dev,vllm]"
+    
+    # Create script to install flash-attn with GPU at runtime
+    cat > /usr/local/bin/install-flash-attn << 'EOF'
+#!/bin/bash
+echo "Installing flash-attn with GPU support..."
+pip install flash-attn>=2.6.0 --no-build-isolation --force-reinstall
+pip install flashinfer-python>=0.2.5 --force-reinstall
+echo "Flash-attn installation complete"
+EOF
+    chmod +x /usr/local/bin/install-flash-attn
 
 %runscript
-    # Install flash-attn at runtime when GPU is available
-    # This is fast if already installed (pip checks and skips)
-    echo "Installing flash-attn at runtime..."
-    pip install flash-attn>=2.6.0 --no-build-isolation || echo "flash-attn installation failed"
-    pip install flashinfer-python>=0.2.5 || echo "flashinfer installation failed"
-    echo "Starting command: $@"
-    
     # Execute the command passed to the container
     exec "$@"
