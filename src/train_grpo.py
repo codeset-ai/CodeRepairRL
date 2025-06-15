@@ -59,7 +59,6 @@ class ModelConfig:
     model_name: str = "Qwen/Qwen3-8B"
     lora_checkpoint_path: Optional[str] = None  # Path to LoRA adapters from SFT training
     attn_implementation: str = "flash_attention_3"  # only on >Hopper GPUs
-    context_window: int = 32768  # Model's context window size
     # LoRA configuration
     lora: bool = True
     r: int = 32
@@ -147,7 +146,7 @@ def main(cfg: Config) -> None:
     
     # Load base model
     logger.info(f"Loading model: {cfg.model.model_name}")
-    model = AutoModelForCausalLM.from_pretrained(cfg.model.model_name, torch_dtype=precision_mode, attn_implementation=cfg.model.attn_implementation)
+    model = AutoModelForCausalLM.from_pretrained(cfg.model.model_name, attn_implementation=cfg.model.attn_implementation, torch_dtype=precision_mode)
     
     # If starting from a LoRA checkpoint (e.g., from SFT training), merge the adapters into base model
     if cfg.model.lora_checkpoint_path:
@@ -210,8 +209,10 @@ def main(cfg: Config) -> None:
         dataset = get_swe_gym_repo_repair_dataset()
         # Update agent config with model and token_limit
         cfg.agent.model = f"hosted_vllm/{cfg.model.model_name}"
-        cfg.agent.token_limit = min(cfg.model.context_window, cfg.grpo.max_prompt_length + cfg.grpo.max_completion_length)
-        rollout_func = partial(nano_rollout_func, config=cfg.agent)
+        cfg.agent.token_limit = cfg.grpo.max_prompt_length + cfg.grpo.max_completion_length - 512
+        # Convert OmegaConf to NanoConfig dataclass
+        agent_config = NanoConfig(**OmegaConf.to_container(cfg.agent, resolve=True))
+        rollout_func = partial(nano_rollout_func, config=agent_config)
         reward_functions = [
             unified_diff_file_match_reward_func,
             unified_diff_similarity_reward_func,

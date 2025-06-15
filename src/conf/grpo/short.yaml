@@ -3,7 +3,7 @@ use_vllm: true
 vllm_mode: "async_server"
 
 # Optimizer settings
-learning_rate: 5e-6
+learning_rate: 5e-5
 adam_beta1: 0.9
 adam_beta2: 0.99
 weight_decay: 0.1

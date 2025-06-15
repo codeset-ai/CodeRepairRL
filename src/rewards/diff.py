@@ -71,7 +71,7 @@ def unified_diff_similarity_reward_func(patch, generated_diff, **kwargs) -> list
     return scores
 
 def unified_diff_similarity_reward_func_test(test_patch, generated_diff, **kwargs) -> list[float]:
-    return unified_diff_similarity_reward_func(patch=test_patch, generated_diff=generated_diff, **kwargs)
+    return unified_diff_similarity_reward_func(patch=test_patch, generated_diff=generated_diff)
 
 def unified_diff_file_match_reward_func(patch, generated_diff, **kwargs) -> list[float]:
     """Reward function that returns the fraction of patch files correctly identified in generated diff."""

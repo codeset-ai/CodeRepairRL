@@ -1,5 +1,5 @@
 Bootstrap: docker
-From: pytorch/pytorch:2.5.1-cuda12.4-cudnn9-devel
+From: vllm/vllm-openai:v0.8.5.post1
 
 %environment
     export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
@@ -7,21 +7,20 @@ From: pytorch/pytorch:2.5.1-cuda12.4-cudnn9-devel
     export HF_HOME=$PROJECT_DIR/.hf
     export TRANSFORMERS_CACHE=$PROJECT_DIR/.cache/huggingface/transformers
     export HF_DATASETS_CACHE=$PROJECT_DIR/.cache/huggingface/datasets
+    
+    # Keep host-side ~/.local/* from shadowing the image’s wheels
+    export PYTHONNOUSERSITE=1
 
 %files
     pyproject.toml
     src/
 
 %post
-    # nano uses ripgrep and git so we ensure they are installed
-    apt-get update
+    apt-get update && \
     apt-get install -y --no-install-recommends git curl ca-certificates ripgrep
 
     pip install --upgrade pip
-    
-    # Install base dependencies and vLLM
-    pip install ".[vllm]"
+    pip install . --no-deps
 
-%runscript
-    # Execute the command passed to the container
-    exec "$@"
+    pip install --no-build-isolation flash-attn
+    pip install --no-build-isolation flashinfer-python

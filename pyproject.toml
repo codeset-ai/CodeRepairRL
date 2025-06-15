@@ -3,12 +3,12 @@ name = "crrl"
 version = "0.1.0"
 description = "Finetuning LLMs with RL to improve program repair capabilities"
 readme = "README.md"
-requires-python = ">=3.11,<3.13"
+requires-python = ">=3.10,<3.13"
 dependencies = [
     # Our fork of trl
     "trl @ git+https://github.com/ASSERT-KTH/trl.git@dev",
     # The agent we use for rollout generation,
-    "nano-agent>=3.2.0",
+    "nano-agent>=3.2.1",
     # Other HF stuff
     "transformers",
     "huggingface-hub",
@@ -22,13 +22,14 @@ dependencies = [
     "gitpython>=3.1.44",
     # Is required BEFORE the package manager considers vLLM flash-attn
     "setuptools>=75.8.0",
+    "liger-kernel",
 ]
 
 [project.optional-dependencies]
 # vLLM is required, but install is brittle needing torch to be installed first
-vllm = ["vllm>=0.8.5; platform_system != 'Darwin'"]
+vllm = ["vllm==0.8.5; platform_system != 'Darwin'"]
 # Flash attention packages require GPU at compile time, install separately
-flash = ["flash-attn>=2.6.0; platform_system != 'Darwin'", "flashinfer-python>=0.2.5; platform_system != 'Darwin'"]
+# flash = ["flash-attn==2.6.3; platform_system != 'Darwin'", "flashinfer-python==0.2.5; platform_system != 'Darwin'"]
 dev = ["pytest>=8.3.4", "matplotlib>=3.10.0", "scikit-learn>=1.6.1"]
 # Different agents
 # aider = ["aider-chat @ git+https://github.com/BjarniHaukur/aider.git"]

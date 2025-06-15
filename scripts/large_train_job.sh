@@ -34,4 +34,3 @@ CUDA_VISIBLE_DEVICES=0,1 apptainer exec --nv crrl.sif \
     grpo.num_generations=8 \
     "$@"  # pass any additional arguments
     
-wait  # wait for all background processes to finish

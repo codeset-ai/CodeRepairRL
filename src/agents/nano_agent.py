@@ -3,9 +3,8 @@ import logging
 from typing import Any, Optional
 import multiprocessing as mp
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 
-import requests
 from nano import Agent
 
 from src.utils.git import handle_to_url, clone_repo_at_commit, clean_repo_dir
@@ -19,10 +18,10 @@ class NanoConfig:
     api_base: str = "http://localhost:8000/v1"
     thinking: bool = False
     token_limit: int = 8192
-    tool_limit: int = 20
-    temperature: float = 0.7
-    top_p: float = 0.8
-    min_p: float = 0.01
+    tool_limit: int = 100
+    temperature: float = 0.6
+    top_p: float = 0.95
+    min_p: float = 0.05
     top_k: int = 20
     verbose: bool = False
 
@@ -32,12 +31,14 @@ def _process_one(data: dict[str, Any], config: NanoConfig) -> dict[str, Any]:
 
     logger.info(f"[START] {data['repo']} @ {data['base_commit'][:7]}")
 
-    agent = Agent(**dict(config))
+    agent = Agent(**asdict(config))
 
     diff = ""
     temp_folder = None
     try:
-        temp_folder = clone_repo_at_commit(handle_to_url(data["repo"]), data["base_commit"])
+        repo_url = handle_to_url(data["repo"])
+        temp_folder = clone_repo_at_commit(repo_url, data["base_commit"])
+        
         diff = agent.run(task=data["problem_statement"], repo_root=temp_folder)
     except Exception as e:
         logger.error(f"Error in _process_one: {type(e).__name__}: {e}")
@@ -50,15 +51,17 @@ def _process_one(data: dict[str, Any], config: NanoConfig) -> dict[str, Any]:
         diff_success = diff != ""
         logger.info(f"[FINISH] {data['repo']} @ {data['base_commit'][:7]} - Tokens: {token_usage}, Tools: {tool_usage}, Diff Success: {diff_success}")
 
-    return dict(
+    result = dict(
         prompt=agent.messages[:2],
         completion=agent.messages[2:],
         tools=agent.tools,
         generated_diff=diff,
     )
+    print(f"Returning result with {len(result['prompt'])} prompt messages and {len(result['completion'])} completion messages")
+    return result
 
 
-def nano_rollout_func(data: list[dict[str, Any]], config: NanoConfig, timeout: int = 120) -> list[dict[str, Any]]:
+def nano_rollout_func(data: list[dict[str, Any]], config: NanoConfig, timeout: int = 120, **kwargs) -> list[dict[str, Any]]:
     """Deploys parallel Nano agents talking to our trl vllm-serve-async endpoint to process the given data"""
 
     results = []
@@ -89,17 +92,15 @@ def nano_rollout_func(data: list[dict[str, Any]], config: NanoConfig, timeout: i
 
 if __name__ == "__main__":
     import time
-    from matplotlib import pyplot as plt
-
-    import litellm
-    litellm._turn_on_debug()
 
     from src.data.swe_gym import get_swe_gym_repo_repair_dataset
 
     # Test different batch sizes for parallel timing
-    batch_sizes = [1, 2, 4, 8, 16]
-    runs = 2
+    batch_sizes = [2]
+    runs = 1
     data = get_swe_gym_repo_repair_dataset().shuffle(seed=42)
+
+    config = NanoConfig(model="hosted_vllm/Qwen/Qwen3-8B")
 
     avg_times = []
 
@@ -110,20 +111,10 @@ if __name__ == "__main__":
         times = []
         for i in range(runs):
             start_time = time.time()
-            results = nano_rollout_func(subset_dicts, timeout=120)
+            results = nano_rollout_func(subset_dicts, config, timeout=120)
             elapsed = time.time() - start_time
             times.append(elapsed)
             print(f"  Run {i+1}: {elapsed:.2f}s")
         avg_time = sum(times) / runs
         avg_times.append(avg_time)
         print(f"Average time for batch size {size}: {avg_time:.2f}s\n")
-
-    plt.figure(figsize=(10, 6))
-    plt.plot(batch_sizes, avg_times, 'bo-', linewidth=2)
-    plt.xlabel('Batch Size (Parallel Samples)')
-    plt.ylabel('Average Time (seconds)')
-    plt.title('Nano Agent Parallel Batch Timing')
-    plt.grid(True, linestyle='--', alpha=0.7)
-    plt.tight_layout()
-    plt.savefig('nano_agent_parallel_time.png', dpi=300, bbox_inches='tight')
-    plt.close()
