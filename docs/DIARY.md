@@ -17,6 +17,23 @@
   - annoying to have to scroll throught those statistics when all I want is the actual value
 </details>
 
+## June 9 - June 16
+vERL rabbit hole, wouldn't recommend for my type of use-case
+
+- [ ] SFT
+- [x] Modify TRL fork to CLIP overlong generations just in case, better than crashing
+- [ ] Mask out tool output
+  - The results of the tool outputs or "unknowable". We should be training on the *tool calling* tokens and "thinking" 
+- [x] Do one SUPER HIGH LR training run to verify NCCL correctness
+  - Breaks immediately, good sign
+- [x] Increase LR if Lora
+- [x] Non-lora should be feasible.
+- [x] Implement tool response masking
+- [x] Tests for tool repsones masking
+- [ ] Sanity check; see if loss per tool_response token is truly zero
+- [ ] Does liger-kernel do dr.grpo?
+- [ ] Make "inaction" in Nano be "an action", i.e. make it increment the tool call?
+
 ## June 2 - June 9
 
 ### Nano

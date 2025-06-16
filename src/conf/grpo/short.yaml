@@ -25,6 +25,9 @@ max_completion_length: 256
 # whether completions are multi-turn or single-turn
 multi_turn: true
 
+# Tool responses contain "unpredictable" tokens we don't want to include in the loss, also for so that "x_bjabj" won't be trained into the model
+mask_tool_responses: true
+
 # Reward settings
 scale_rewards: false
 
