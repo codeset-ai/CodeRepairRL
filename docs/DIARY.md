@@ -33,6 +33,11 @@ vERL rabbit hole, wouldn't recommend for my type of use-case
 - [ ] Sanity check; see if loss per tool_response token is truly zero
 - [ ] Does liger-kernel do dr.grpo?
 - [ ] Make "inaction" in Nano be "an action", i.e. make it increment the tool call?
+- [ ] Interestiong logging
+  - Compute / Wall time tables
+  - Episodes / hour
+  - Bargraph of types of commands being run
+  - Line plot of percentage distribution of commands, select K toosl of interest
 
 ## June 2 - June 9
 
