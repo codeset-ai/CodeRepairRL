@@ -20,7 +20,9 @@
 ## June 9 - June 16
 vERL rabbit hole, wouldn't recommend for my type of use-case
 
-- [ ] SFT
+- [ ] Fix container.def
+- [ ] SFT data
+- [ ] SFT run
 - [x] Modify TRL fork to CLIP overlong generations just in case, better than crashing
 - [ ] Mask out tool output
   - The results of the tool outputs or "unknowable". We should be training on the *tool calling* tokens and "thinking" 
@@ -30,14 +32,17 @@ vERL rabbit hole, wouldn't recommend for my type of use-case
 - [x] Non-lora should be feasible.
 - [x] Implement tool response masking
 - [x] Tests for tool repsones masking
-- [ ] Sanity check; see if loss per tool_response token is truly zero
-- [ ] Does liger-kernel do dr.grpo?
+- [x] Sanity check; see if loss per tool_response token is truly zero
+  - Verified everything, all tests pass
+- [x] Does liger-kernel do dr.grpo?
+  - Post: Yes, defined by loss_type param
 - [ ] Make "inaction" in Nano be "an action", i.e. make it increment the tool call?
 - [ ] Interestiong logging
   - Compute / Wall time tables
   - Episodes / hour
   - Bargraph of types of commands being run
   - Line plot of percentage distribution of commands, select K toosl of interest
+- [ ] Analyze pplx of model generated tokens vs environment generated tokens
 
 ## June 2 - June 9
 

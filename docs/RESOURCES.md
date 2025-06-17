@@ -2,6 +2,8 @@
 
 ## https://www.primeintellect.ai/blog/intellect-2 (decentralized, crowd sourced, inference rollout for GPRO training)
 
+Kimi-dev
+
 
 # Research Papers
 
