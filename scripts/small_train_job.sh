@@ -36,7 +36,6 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 apptainer exec --nv crrl.sif \
     model=$MODEL_CONFIG \
     model.lora=false \
     grpo=long \
-    grpo.learning_rate=5e-6 \
     grpo.gradient_accumulation_steps=1 \
     grpo.per_device_train_batch_size=4 \
     grpo.num_generations=4 \

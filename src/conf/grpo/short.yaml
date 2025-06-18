@@ -3,7 +3,7 @@ use_vllm: true
 vllm_mode: "async_server"
 
 # Optimizer settings
-learning_rate: 5e-5
+learning_rate: 1e-5  # default value is for non-lora 
 adam_beta1: 0.9
 adam_beta2: 0.99
 weight_decay: 0.1
@@ -25,15 +25,14 @@ max_completion_length: 256
 # whether completions are multi-turn or single-turn
 multi_turn: true
 
-# Tool responses contain "unpredictable" tokens we don't want to include in the loss, also for so that "x_bjabj" won't be trained into the model
-mask_tool_responses: true
 
 # Reward settings
 scale_rewards: false
 
+# Tool responses contain "unpredictable" tokens we don't want to include in the loss
+mask_tool_responses: true
 # Loss type
 loss_type: "grpo"
-
 # Attention kernel
 use_liger_loss: true
 
