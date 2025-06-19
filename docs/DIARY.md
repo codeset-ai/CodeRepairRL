@@ -47,7 +47,14 @@ vERL rabbit hole, wouldn't recommend for my type of use-case
   - Bargraph of types of commands being run
   - Line plot of percentage distribution of commands, select K toosl of interest
 - [x] Make run name required, otherwise models are overwritten by default, always have the same name
-- [ ] Do NxK inference rollouts and K grad accum steps
+- [x] Do NxK inference rollouts and K grad accum steps
+- [ ] Find out why 4 concurrent requests to VLLM is fine but >8 is massively unreliable
+  - Model fails tool calls more frequently
+  - Not a literal threading error, I've seen that before and it looks way different
+  - The model is roughly coherent, but like -50 iq
+- [x] Fix the annoying Pydantic serialization warning
+- [x] Update vllm and flash-attn
+  - Unstable with weird wandb errors, but got it working
 - [ ] Analyze pplx of model generated tokens vs environment generated tokens
 
 ## June 2 - June 9
