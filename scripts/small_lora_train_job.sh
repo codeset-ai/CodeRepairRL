@@ -34,7 +34,7 @@ CUDA_VISIBLE_DEVICES=0 apptainer exec --nv crrl.sif \
     python3 -m src.train_grpo \
     run=repo_repair \
     model=$MODEL_CONFIG \
-    grpo=long \
+    grpo=multi_turn \
     grpo.learning_rate=1e-4 \
     grpo.gradient_accumulation_steps=1 \
     grpo.per_device_train_batch_size=4 \

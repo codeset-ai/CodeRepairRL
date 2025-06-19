@@ -30,16 +30,17 @@ CUDA_VISIBLE_DEVICES=4 apptainer exec --nv crrl.sif \
     &  # & makes it run in the background
 
 # IMPORTANT: train job should include DEVICE 0
-CUDA_VISIBLE_DEVICES=0,1,2,3 apptainer exec --nv crrl.sif \
-    python3 -m src.train_grpo \
-    run=repo_repair \
-    model=$MODEL_CONFIG \
-    model.lora=false \
-    grpo=long \
-    grpo.gradient_accumulation_steps=1 \
-    grpo.per_device_train_batch_size=4 \
-    grpo.num_generations=4 \
-    grpo.max_prompt_length=$MAX_PROMPT_LENGTH \
-    grpo.max_completion_length=$MAX_COMPLETION_LENGTH \
-    "$@"  # pass any additional arguments
+# TODO: configure params
+# CUDA_VISIBLE_DEVICES=0,1,2,3 apptainer exec --nv crrl.sif \
+#     python3 -m src.train_grpo \
+#     run=repo_repair \
+#     model=$MODEL_CONFIG \
+#     model.lora=false \
+#     grpo=multi_turn \
+#     grpo.gradient_accumulation_steps=1 \
+#     grpo.per_device_train_batch_size=4 \
+#     grpo.num_generations=4 \
+#     grpo.max_prompt_length=$MAX_PROMPT_LENGTH \
+#     grpo.max_completion_length=$MAX_COMPLETION_LENGTH \
+#     "$@"  # pass any additional arguments
     

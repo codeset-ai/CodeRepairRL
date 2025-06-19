@@ -1,5 +1,6 @@
 import os
 import logging
+from datetime import datetime
 from typing import Optional, Any
 from dataclasses import dataclass, field
 
@@ -55,7 +56,7 @@ class SFTConfig:
     save_steps: int = 500
     eval_steps: int = 500
     report_to: str = "wandb"
-    run_name: Optional[str] = None
+    run_name: str = ""  # automatically set at runtime
     remove_unused_columns: bool = False
     dataloader_pin_memory: bool = False
     
@@ -78,10 +79,19 @@ class Config:
 cs = ConfigStore.instance()
 cs.store(name="base_sft_config", node=Config, group="")
 OmegaConf.register_new_resolver("resolve_git_commit_hash", resolve_git_commit_hash)
+OmegaConf.register_new_resolver("now", lambda: datetime.now().strftime("%Y%m%d-%H%M%S"))
 
 
 @hydra.main(version_base="1.1", config_path="conf", config_name="sft_config")
 def main(cfg: Config) -> None:
+    # Validate that run_name is provided and not empty
+    if not cfg.sft.run_name or cfg.sft.run_name.strip() == "":
+        raise ValueError(
+            "run_name is required and cannot be empty. "
+            "Please provide a unique run name to prevent model overwriting. "
+            "Example: sft.run_name='my-sft-experiment-v1'"
+        )
+    
     os.environ["WANDB_PROJECT"] = cfg.run.wandb_project
 
     # Login to HuggingFace if pushing to hub

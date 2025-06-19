@@ -72,6 +72,9 @@ sbatch scripts/large_train_job.sh model.model_name=meta-llama/Llama-3.1-70B-Inst
 
 # Start from an SFT checkpoint
 sbatch scripts/medium_train_job.sh model.lora_checkpoint_path=/path/to/sft/checkpoint
+
+# Override the automatic run name with a custom one
+sbatch scripts/medium_train_job.sh grpo.run_name="custom-experiment-name"
 ```
 
 ## Local Development

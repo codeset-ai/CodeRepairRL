@@ -19,7 +19,7 @@ logging_steps: 10
 save_steps: 500
 eval_steps: 500
 report_to: "wandb"
-run_name: "${model.model_name}-SFT-${run.dataset_name}"
+run_name: "${model.model_name}-SFT-${run.dataset_name}-${now:}"
 
 # Additional TrainingArguments settings
 remove_unused_columns: false

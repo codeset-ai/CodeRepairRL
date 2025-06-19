@@ -2,6 +2,7 @@ import os
 import logging
 from typing import Optional
 from functools import partial
+from datetime import datetime
 from dataclasses import dataclass, field
 
 import hydra
@@ -70,6 +71,10 @@ class GRPOConfig:
     # vLLM generation settings
     use_vllm: bool = True
     vllm_mode: str = "async_server"
+    # whether completions are multi-turn or single-turn
+    multi_turn: bool = True
+    # whether to mask tool responses in the loss
+    mask_tool_responses: bool = False
 
     # Optimizer settings
     learning_rate: float = 5e-6
@@ -94,9 +99,6 @@ class GRPOConfig:
 
     # Reward settings
     scale_rewards: bool = False  # from Dr. GRPO, reward scaling introduces question-level difficulty bias
-
-    # whether completions are multi-turn or single-turn
-    multi_turn: bool = True
     
     # Loss type
     loss_type: str = "dr_grpo"  # been shown to have less sequence-length bias
@@ -115,8 +117,8 @@ class GRPOConfig:
     max_grad_norm: float = 0.1
 
     # Logging settings
+    run_name: str = ""  # automatically set at runtime
     report_to: str = "wandb"
-    run_name: Optional[str] = None
     output_dir: str = "outputs"
     log_completions: bool = True
 
@@ -134,10 +136,19 @@ class Config:
 cs = ConfigStore.instance()
 cs.store(name="base_grpo_config", node=Config, group="")
 OmegaConf.register_new_resolver("resolve_git_commit_hash", resolve_git_commit_hash)
+OmegaConf.register_new_resolver("now", lambda: datetime.now().strftime("%Y%m%d-%H%M%S"))
 
 
 @hydra.main(version_base="1.1", config_path="conf", config_name="grpo_config")
 def main(cfg: Config) -> None:
+    # Validate that run_name is provided and not empty
+    if not cfg.grpo.run_name or cfg.grpo.run_name.strip() == "":
+        raise ValueError(
+            "run_name is required and cannot be empty. "
+            "Please provide a unique run name to prevent model overwriting. "
+            "Example: grpo.run_name='my-experiment-v1'"
+        )
+    
     os.environ["WANDB_PROJECT"] = cfg.run.wandb_project
 
     # Log precision settings
