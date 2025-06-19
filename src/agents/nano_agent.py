@@ -1,9 +1,9 @@
+import os
 import time
 import logging
 from typing import Any, Optional
-import multiprocessing as mp
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, asdict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from nano import Agent
 
@@ -56,6 +56,7 @@ def _process_one(data: dict[str, Any], config: NanoConfig) -> dict[str, Any]:
         completion=agent.messages[2:],
         tools=agent.tools,
         generated_diff=diff,
+        **agent.tool_stats
     )
     print(f"Returning result with {len(result['prompt'])} prompt messages and {len(result['completion'])} completion messages")
     return result
@@ -69,7 +70,7 @@ def nano_rollout_func(data: list[dict[str, Any]], config: NanoConfig, timeout: i
 
     logger.info(f"Starting {len(data)} agent rollouts")
     start_time = time.time()
-    with ThreadPoolExecutor(max_workers=min(len(data), mp.cpu_count())) as executor:
+    with ThreadPoolExecutor(max_workers=min(len(data), os.cpu_count())) as executor:
         futures = [executor.submit(_process_one, datum, config) for datum in data]
 
         for fut in as_completed(futures):

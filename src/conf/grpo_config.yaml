@@ -1,9 +1,9 @@
 defaults:
   - _self_
   - run: repair
-  - grpo: short
+  - grpo: single_turn
   - model: small_qwen
-  - agent: nano
+  - agent: nano  # not used unless run.task_type is "repo repair"
 
 hydra:
   job:

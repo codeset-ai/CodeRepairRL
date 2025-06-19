@@ -17,12 +17,15 @@
   - annoying to have to scroll throught those statistics when all I want is the actual value
 </details>
 
-## June 9 - June 16
+## June 9 - June 23
 vERL rabbit hole, wouldn't recommend for my type of use-case
 
-- [ ] SFT
+- [x] Fix container.def
+  - flash-attn pushed a new version a few hours after my code succesfully ran, that version doesn't have prebuilt binaries so it was silently failing
+- [ ] SFT data
+- [ ] SFT run
 - [x] Modify TRL fork to CLIP overlong generations just in case, better than crashing
-- [ ] Mask out tool output
+- [x] Mask out tool output
   - The results of the tool outputs or "unknowable". We should be training on the *tool calling* tokens and "thinking" 
 - [x] Do one SUPER HIGH LR training run to verify NCCL correctness
   - Breaks immediately, good sign
@@ -30,14 +33,29 @@ vERL rabbit hole, wouldn't recommend for my type of use-case
 - [x] Non-lora should be feasible.
 - [x] Implement tool response masking
 - [x] Tests for tool repsones masking
-- [ ] Sanity check; see if loss per tool_response token is truly zero
-- [ ] Does liger-kernel do dr.grpo?
-- [ ] Make "inaction" in Nano be "an action", i.e. make it increment the tool call?
-- [ ] Interestiong logging
+- [x] Sanity check; see if loss per tool_response token is truly zero
+  - Verified everything, all tests pass
+- [x] Does liger-kernel do dr.grpo?
+  - Post: Yes, defined by loss_type param
+- [x] Make "inaction" in Nano be "an action", i.e. make it increment the tool call?
+- [x] Make Nano log tool usage 
+- [x] Log compute stats to wandb
   - Compute / Wall time tables
   - Episodes / hour
+  - Post: Implicitly in the "profiling", we can easily create a table afterwards, mean(vllm.generate()) / mean(...)
+- [x] Log agent stats to wandb
   - Bargraph of types of commands being run
   - Line plot of percentage distribution of commands, select K toosl of interest
+- [x] Make run name required, otherwise models are overwritten by default, always have the same name
+- [x] Do NxK inference rollouts and K grad accum steps
+- [ ] Find out why 4 concurrent requests to VLLM is fine but >8 is massively unreliable
+  - Model fails tool calls more frequently
+  - Not a literal threading error, I've seen that before and it looks way different
+  - The model is roughly coherent, but like -50 iq
+- [x] Fix the annoying Pydantic serialization warning
+- [x] Update vllm and flash-attn
+  - Unstable with weird wandb errors, but got it working
+- [ ] Analyze pplx of model generated tokens vs environment generated tokens
 
 ## June 2 - June 9
 
