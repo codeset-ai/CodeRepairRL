@@ -192,7 +192,7 @@ to navigate repositories and solve software engineering problems from the SWE-Gy
 ## Generation Process
 - {cfg.curation.num_rollouts_per_problem} rollouts per problem using Nano agent
 - Curation ratio: {cfg.curation.curation_ratio} (sampling {cfg.curation.curation_ratio * 100:.0f}% of the dataset)
-- All solutions with any kind of issue resolution is included with reward scores for post-process filtering
+- All solutions with any kind of issue resolution is included with reward scores for post-processq filtering
 - Generated with temperature {cfg.agent.temperature}, top-p {cfg.agent.top_p}
         """
     )
