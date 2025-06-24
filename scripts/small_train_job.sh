@@ -23,24 +23,31 @@ MAX_CONTEXT_LENGTH=$((MAX_PROMPT_LENGTH + MAX_COMPLETION_LENGTH))
 CUDA_VISIBLE_DEVICES=4 apptainer exec --nv crrl.sif \
     trl vllm-serve-async \
     --model "$MODEL_NAME" \
-    --max_model_len $MAX_CONTEXT_LENGTH \
+    --max_model_len $VLLM_CONTEXT_LENGTH \
+    --gpu-memory-utilization 0.94 \
+    --disable-log-stats \
     --enable-auto-tool-choice \
-    --reasoning_parser deepseek_r1 \
+    --reasoning_parser qwen3 \
     --tool-call-parser hermes \
     &  # & makes it run in the background
 
 # IMPORTANT: train job should include DEVICE 0
-# TODO: configure params
-# CUDA_VISIBLE_DEVICES=0,1,2,3 apptainer exec --nv crrl.sif \
-#     python3 -m src.train_grpo \
-#     run=repo_repair \
-#     model=$MODEL_CONFIG \
-#     model.lora=false \
-#     grpo=multi_turn \
-#     grpo.gradient_accumulation_steps=1 \
-#     grpo.per_device_train_batch_size=4 \
-#     grpo.num_generations=4 \
-#     grpo.max_prompt_length=$MAX_PROMPT_LENGTH \
-#     grpo.max_completion_length=$MAX_COMPLETION_LENGTH \
-#     "$@"  # pass any additional arguments
-    
+CUDA_VISIBLE_DEVICES=0,1,2,3 \
+apptainer exec --nv crrl.sif \
+accelerate launch \
+    --multi_gpu \
+    --num_processes 4 \
+    --mixed_precision bf16 \
+    --deepspeed scripts/deepspeed/zero2.yaml \
+    python -m src.train_grpo \
+        run=repo_repair \
+        model=${MODEL_CONFIG} \
+        model.lora=false \
+        grpo=multi_turn \
+        grpo.num_generations=4 \
+        grpo.per_device_train_batch_size=4 \
+        grpo.gradient_accumulation_steps=1 \
+        grpo.generation_batch_size=8 \
+        grpo.max_prompt_length=${MAX_PROMPT_LENGTH} \
+        grpo.max_completion_length=${MAX_COMPLETION_LENGTH} \
+        "$@"  # pass any additional arguments

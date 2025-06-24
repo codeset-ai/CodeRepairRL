@@ -43,7 +43,6 @@ def unified_diff_similarity_reward_func(patch, generated_diff, **kwargs) -> list
     """Unified diff specific reward function that compares file changes regardless of order."""
     assert len(patch) == len(generated_diff), "Patch and generated diff must have the same length"
     
-
     scores = []
     for p, g in zip(patch, generated_diff):
         # Split into individual file diffs

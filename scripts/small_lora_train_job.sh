@@ -6,9 +6,7 @@
 #SBATCH --time=24:00:00
 #SBATCH -C "fat"
 
-export TOKENIZER_PARALLELISM=false  #  Hugging Face's Rust fast tokenizer library still has a few rough in highly-concurrent, fork-happy environments
 export VLLM_ALLOW_INSECURE_SERIALIZATION=1
-export PYDANTIC_WARNINGS=none
 
 # Small train job, 2 fat GPUs, 1 running vLLM, 1 training
 
@@ -28,10 +26,9 @@ CUDA_VISIBLE_DEVICES=1 apptainer exec --nv crrl.sif \
     --model "$MODEL_NAME" \
     --max_model_len $VLLM_CONTEXT_LENGTH \
     --gpu-memory-utilization 0.94 \
-    --tokenizer-pool-size 6 \
     --disable-log-stats \
     --enable-auto-tool-choice \
-    --reasoning_parser deepseek_r1 \
+    --reasoning_parser qwen3 \
     --tool-call-parser hermes \
     &  # & makes it run in the background
 

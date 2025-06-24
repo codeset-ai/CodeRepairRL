@@ -10,8 +10,8 @@ max_completion_length: 7168
 
 num_generations: 4  # group size of GRPO
 per_device_train_batch_size: 4  # we can fit one group per device
-gradient_accumulation_steps: 4  # do that 4 times
-generation_batch_size: 16  # and thus we need 16 roll-outs (inference side is way less computationally expensive)
+gradient_accumulation_steps: 2  # do that 2 times
+generation_batch_size: 8  # and thus we need 8 roll-outs (inference side is way less computationally expensive, could do more but it is a trade-off)
 
 loss_type: "dr_grpo"
 
