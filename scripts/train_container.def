@@ -20,5 +20,5 @@ From: vllm/vllm-openai:v0.9.1
     pip install .
     
     # we pin the version since we need prebuilt binaries to be able to install
-    pip install --no-build-isolation flash-attn==2.8.0.post2
+    pip install --no-build-isolation --prefer-binary flash-attn==2.8.0.post2
     pip install --no-build-isolation flashinfer-python

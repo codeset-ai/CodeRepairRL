@@ -4,15 +4,17 @@
 ## Backlog
 
 ## June 23 - June 30
-- [ ] Non-LoRA 8b run
+- [x] Non-LoRA 8b run
+  - Post: Fesasible but annoying to test since it takes so long to get resource allocations
 - [ ] SFT data
   - Full swe-bench both for sft and rl
 - [ ] SFT run
 - [ ] Update scripts to load SFT lora
 - [ ] Fix extras wandb logging
-- [ ] Add a tool call history log
+- [x] Add a tool call history log
   - Not elegant, but then later we can parse it to create interesting plots
-
+  - Post: can write a simple script to extract this data later on if wanted
+  
 ## June 9 - June 23
 vERL rabbit hole, wouldn't recommend for my type of use-case
 
