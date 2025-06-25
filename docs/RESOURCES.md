@@ -7,6 +7,56 @@ Kimi-dev
 
 # Research Papers
 
+## LORA: LOW-RANK ADAPTATION OF LARGE LANGUAGE MODELS
+
+**Authors:** Edward J. Hu, Yelong Shen, Phillip Wallis, Zeyuan Allen-Zhu, Yuanzhi Li, Zhenyu Wang, Vinodkumar Prabhakaran, Li Henry Wang, Zijian Wang, Weizhu Chen
+**Link:** [https://arxiv.org/pdf/2106.09685](https://arxiv.org/pdf/2106.09685)
+
+<details>
+<summary><b>Summary</b></summary>
+
+**What it introduces.**
+LoRA freezes the pretrained weights of an LLM and learns a *low-rank* update
+$\Delta W = BA^{\top}$ for each chosen weight matrix.
+Only the thin adapters $A\in\mathbb R^{d\times r}, B\in\mathbb R^{d'\times r}$ (typically **0.1 – 2 %** of the original parameters) are trained, yet they can be *merged* back into $W$ for zero-overhead inference.
+
+**Key results.**
+
+* **GPT-3 175 B:** rank-16 LoRA matches or exceeds full fine-tuning on tasks like SQuAD, RACE and SuperGLUE while training \~**10 × fewer** parameters and using **3.3 × less** GPU memory.
+* **RoBERTa-Large (GLUE):** rank-8 trails full FT by < 0.2 pts average.
+* **Scaling law:** accuracy improves almost linearly with rank up to ≈ 64, then plateaus.
+* **Ablations:** adapting only *q, k, v* projections captures most of the gain; adding MLP adapters helps data-scarce tasks.
+* **Regularisation effect:** low-rank constraint often *improves* performance in very small-data settings.
+
+**Implementation niceties.**
+Two hyper-parameters cover the entire method—rank *r* and a scaling factor α (set α ≈ r).
+Because the adapters are additive, a single matrix add fuses them into the base weights for deployment.
+LoRA is orthogonal to quantisation, prefix-tuning, or RL finetuning and can be stacked with them.
+
+</details>
+
+
+## LoRA Learns Less and Forgets Less
+
+**Authors:** Dan Biderman, Jacob Portes, Jose J. Gonzalez Ortiz, Mansheej Paul, Philip Greengard, Connor Jennings *et al.*
+**Link:** [https://arxiv.org/pdf/2405.09673](https://arxiv.org/pdf/2405.09673)
+
+<details>
+<summary><b>Summary</b></summary>
+
+**What it is.**
+A head-to-head comparison of **LoRA vs. full fine-tuning** on two *hard* domains—Python code and grade-school maths—using Llama-2-7B. The study spans both **continued pre-training** (CPT, ≈20 B tokens) and **instruction fine-tuning** (IFT, ≈100 K QA pairs).&#x20;
+
+**Key findings.**
+
+* **Performance gap at standard ranks.** On CPT-code, full FT reaches **0.293 pass\@1** after 20 B tokens, while LoRA-r 64 plateaus at **0.196**; even r 256 only hits **0.224**.&#x20;
+* **IFT can close the gap—if rank is high.** With Magicoder-Evol-110K, LoRA-r 256 climbs to **0.498 pass\@1** after 4 epochs, matching full FT within noise.&#x20;
+* **Forgets less, diversifies more.** Across HellaSwag, WinoGrande and ARC-Challenge, LoRA preserves base-model accuracy better than full FT and than classic regularisers (weight-decay, dropout). LoRA generations also cover a wider set of solution paths.&#x20;
+* **Why the gap?** SVD shows that full FT learns weight perturbations whose *effective rank* is **10-100 ×** larger than r 16–64, contradicting the “updates are low-rank” assumption.&#x20;
+* **Best-practice cheatsheet.** Hyper-parameter sweeps reveal: target *all* QKV + MLP matrices; scale rank with data size; raise `alpha` when r ≥ 64; use small LR warm-ups for CPT.
+
+</details>
+
 ## LLM Post-Training: A Deep Dive into Reasoning Large Language Models  
 **Authors:** Komal Kumar, Tajamul Ashraf, Omkar Thawakar, Rao M. Anwer, Hisham Cholakkal, Mubarak Shah, Ming-Hsuan Yang, Phillip Torr, Fahad S. Khan, Salman Khan  
 **Link:** https://arxiv.org/pdf/2502.21321

@@ -3,21 +3,19 @@
 
 ## Backlog
 
-<details>
-<summary>General Research Tasks</summary>
-- [x] Look at how SWE-Bench works exactly, should we train for that behavior end2end?
-- [ ] Read S∗: Test Time Scaling for Code Generation: https://arxiv.org/pdf/2502.14382
-- [ ] Read MUFIN **paper**
-</details>
-
-<details>
-<summary>Technical, non critical tasks</summary>
-- [ ] Make median/std log to train_median/train_std (WandB)
-  - for convenience
-  - annoying to have to scroll throught those statistics when all I want is the actual value
-</details>
-
-## June 9 - June 16
+## June 23 - June 30
+- [x] Non-LoRA 8b run
+  - Post: Fesasible but annoying to test since it takes so long to get resource allocations
+- [ ] SFT data
+  - Full swe-bench both for sft and rl
+- [ ] SFT run
+- [ ] Update scripts to load SFT lora
+- [ ] Fix extras wandb logging
+- [x] Add a tool call history log
+  - Not elegant, but then later we can parse it to create interesting plots
+  - Post: can write a simple script to extract this data later on if wanted
+  
+## June 9 - June 23
 vERL rabbit hole, wouldn't recommend for my type of use-case
 
 - [x] Fix container.def
@@ -38,14 +36,27 @@ vERL rabbit hole, wouldn't recommend for my type of use-case
   - Verified everything, all tests pass
 - [x] Does liger-kernel do dr.grpo?
   - Post: Yes, defined by loss_type param
-- [ ] Set up GRPO to do NxK inference rollouts, and training side to do K grad accum steps
 - [x] Make "inaction" in Nano be "an action", i.e. make it increment the tool call?
-- [ ] Interestiong logging
+- [x] Make Nano log tool usage 
+- [x] Log compute stats to wandb
   - Compute / Wall time tables
   - Episodes / hour
+  - Post: Implicitly in the "profiling", we can easily create a table afterwards, mean(vllm.generate()) / mean(...)
+- [x] Log agent stats to wandb
   - Bargraph of types of commands being run
   - Line plot of percentage distribution of commands, select K toosl of interest
-- [ ] Analyze pplx of model generated tokens vs environment generated tokens
+- [x] Make run name required, otherwise models are overwritten by default, always have the same name
+- [x] Do NxK inference rollouts and K grad accum steps
+- [x] Find out why 4 concurrent requests to VLLM is fine but >8 is massively unreliable
+  - Model fails tool calls more frequently
+  - Not a literal threading error, I've seen that before and it looks way different
+  - The model is roughly coherent, but like -50 iq
+  - Post: 8 works fine, ignore this unless unavoidable
+- [x] Is seed change in VLLM v0.9.1 bad for us?
+  - Post: Dont think so, keep 
+- [x] Fix the annoying Pydantic serialization warning
+- [x] Update vllm and flash-attn
+  - Unstable with weird wandb errors, but got it working
 
 ## June 2 - June 9
 

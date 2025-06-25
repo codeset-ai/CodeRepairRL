@@ -24,13 +24,14 @@ CUDA_VISIBLE_DEVICES=2,3 apptainer exec --nv crrl.sif \
     &  # & makes it run in the background
 
 # IMPORTANT: train job should include DEVICE 0
-CUDA_VISIBLE_DEVICES=0,1 apptainer exec --nv crrl.sif \
-    python -m src.train_grpo \
-    run=repo_repair \
-    model=$MODEL_CONFIG \
-    grpo.vllm_mode=async_server \
-    grpo.gradient_accumulation_steps=4 \
-    grpo.per_device_train_batch_size=1 \
-    grpo.num_generations=8 \
-    "$@"  # pass any additional arguments
+# TODO: configure params
+# CUDA_VISIBLE_DEVICES=0,1 apptainer exec --nv crrl.sif \
+#     python -m src.train_grpo \
+#     run=repo_repair \
+#     model=$MODEL_CONFIG \
+#     grpo=multi_turn \  
+#     grpo.gradient_accumulation_steps=4 \
+#     grpo.per_device_train_batch_size=1 \
+#     grpo.num_generations=8 \
+#     "$@"  # pass any additional arguments
     

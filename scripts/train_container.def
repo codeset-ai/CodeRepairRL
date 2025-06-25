@@ -1,5 +1,5 @@
 Bootstrap: docker
-From: vllm/vllm-openai:v0.8.5.post1
+From: vllm/vllm-openai:v0.9.1
 
 %environment
     export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
@@ -14,9 +14,10 @@ From: vllm/vllm-openai:v0.8.5.post1
 %post
     apt-get update && \
     apt-get install -y --no-install-recommends git curl ca-certificates ripgrep
-
+    
     pip install --upgrade pip
-    pip install . --no-deps
-
-    pip install --no-build-isolation flash-attn
+    pip install .
+    
+    # we pin the version since we need prebuilt binaries to be able to install
+    pip install --no-build-isolation --prefer-binary flash-attn==2.8.0.post2
     pip install --no-build-isolation flashinfer-python

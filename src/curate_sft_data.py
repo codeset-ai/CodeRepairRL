@@ -5,10 +5,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import hydra
 from hydra.core.config_store import ConfigStore
-from tqdm import tqdm
-from datasets import Dataset, DatasetInfo
 from huggingface_hub import login
 from huggingface_hub.utils import get_token
+from datasets import Dataset, DatasetInfo
 
 from src.data.swe_gym import get_swe_gym_curation_dataset
 from src.agents.nano_agent import _process_one, NanoConfig
@@ -26,7 +25,6 @@ class CurationConfig:
     # Dataset configuration
     input_dataset_name: str = "SWE-Gym/SWE-Gym-Lite"
     curation_ratio: float = 0.2
-    output_dataset_name: str = "ASSERT-KTH/SWE-Gym-Nano-SFT"
     dataset_version: str = "v1.0"
     push_to_hub: bool = False
     hf_token: Optional[str] = None  # HuggingFace token for pushing to hub
@@ -37,6 +35,22 @@ class CurationConfig:
     max_workers: int = 4  # ThreadPoolExecutor max workers
     max_problems: Optional[int] = None  # Maximum number of problems to process (for testing)
     
+
+def get_output_dataset_name(curation_config: CurationConfig, agent_config: NanoConfig) -> str:
+    """Generate output dataset name based on input dataset and model."""
+    # Extract dataset short name (e.g., "SWE-Gym-Lite" from "SWE-Gym/SWE-Gym-Lite")
+    input_short = curation_config.input_dataset_name.split('/')[-1]
+    
+    # Extract model short name (e.g., "gpt4" from "openai/gpt-4.1")
+    model_name = agent_config.model or "local"
+    if '/' in model_name:
+        model_short = model_name.split('/')[-1].replace('.', '').replace('-', '')
+    else:
+        model_short = model_name.replace('.', '').replace('-', '')
+    
+    # Construct output dataset name
+    return f"ASSERT-KTH/{input_short}-{model_short}-SFT"
+
 
 @dataclass
 class Config:
@@ -77,7 +91,6 @@ def process_one_with_reward(problem_data: dict[str, Any], config: NanoConfig) ->
     result["oracle_test_diff"] = problem_data["test_patch"]
     
     return result
-
 
 
 @hydra.main(version_base="1.1", config_path="conf", config_name="curation_config")
@@ -178,7 +191,8 @@ to navigate repositories and solve software engineering problems from the SWE-Gy
 
 ## Generation Process
 - {cfg.curation.num_rollouts_per_problem} rollouts per problem using Nano agent
-- All solutions included with reward scores for post-processing filtering
+- Curation ratio: {cfg.curation.curation_ratio} (sampling {cfg.curation.curation_ratio * 100:.0f}% of the dataset)
+- All solutions with any kind of issue resolution is included with reward scores for post-processq filtering
 - Generated with temperature {cfg.agent.temperature}, top-p {cfg.agent.top_p}
         """
     )
@@ -186,20 +200,21 @@ to navigate repositories and solve software engineering problems from the SWE-Gy
     curated_dataset = Dataset.from_list(all_solutions, info=info)
     
     # Save dataset locally first
-    local_path = f"data/{cfg.curation.output_dataset_name.replace('/', '-')}-{cfg.curation.dataset_version}"
+    output_dataset_name = get_output_dataset_name(cfg.curation, cfg.agent)
+    local_path = f"data/{output_dataset_name.replace('/', '-')}-{cfg.curation.dataset_version}"
     curated_dataset.save_to_disk(local_path)
     logger.info(f"Dataset saved locally to {local_path}")
     
     # Push to HuggingFace Hub if requested
     if cfg.curation.push_to_hub:
-        logger.info(f"Pushing dataset to HuggingFace Hub: {cfg.curation.output_dataset_name}")
+        logger.info(f"Pushing dataset to HuggingFace Hub: {output_dataset_name}")
         try:
             curated_dataset.push_to_hub(
-                cfg.curation.output_dataset_name,
+                output_dataset_name,
                 commit_message=f"Curated Nano SFT data v{cfg.curation.dataset_version} with {len(all_solutions)} solutions"
             )
             logger.info("Successfully pushed dataset to HuggingFace Hub")
-            logger.info(f"Dataset URL: https://huggingface.co/datasets/{cfg.curation.output_dataset_name}")
+            logger.info(f"Dataset URL: https://huggingface.co/datasets/{output_dataset_name}")
         except Exception as e:
             logger.error(f"Failed to push dataset to Hub: {e}")
             logger.info(f"Dataset is still available locally at {local_path}")
