@@ -1,6 +1,6 @@
 # vLLM generation settings
 use_vllm: true
-vllm_mode: "async_server"
+vllm_mode: "server"
 
 # Optimizer settings
 learning_rate: 5e-5
@@ -23,10 +23,10 @@ max_prompt_length: 256
 max_completion_length: 256
 
 # whether completions are multi-turn or single-turn
-multi_turn: true
+multi_turn: false
 
 # Tool responses contain "unpredictable" tokens we don't want to include in the loss, also for so that "x_bjabj" won't be trained into the model
-mask_tool_responses: true
+mask_tool_responses: false
 
 # Reward settings
 scale_rewards: false

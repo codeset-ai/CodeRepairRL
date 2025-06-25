@@ -20,11 +20,13 @@
 ## June 9 - June 16
 vERL rabbit hole, wouldn't recommend for my type of use-case
 
-- [ ] Fix container.def
+- [x] Fix container.def
+  - flash-attn pushed a new version with no binary a few hours after my code worked, thus it broke silently
 - [ ] SFT data
+- [ ] Assistant only mask in SFT
 - [ ] SFT run
 - [x] Modify TRL fork to CLIP overlong generations just in case, better than crashing
-- [ ] Mask out tool output
+- [x] Mask out tool output
   - The results of the tool outputs or "unknowable". We should be training on the *tool calling* tokens and "thinking" 
 - [x] Do one SUPER HIGH LR training run to verify NCCL correctness
   - Breaks immediately, good sign
@@ -36,7 +38,8 @@ vERL rabbit hole, wouldn't recommend for my type of use-case
   - Verified everything, all tests pass
 - [x] Does liger-kernel do dr.grpo?
   - Post: Yes, defined by loss_type param
-- [ ] Make "inaction" in Nano be "an action", i.e. make it increment the tool call?
+- [ ] Set up GRPO to do NxK inference rollouts, and training side to do K grad accum steps
+- [x] Make "inaction" in Nano be "an action", i.e. make it increment the tool call?
 - [ ] Interestiong logging
   - Compute / Wall time tables
   - Episodes / hour

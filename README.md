@@ -16,6 +16,17 @@ The methodology and findings of this project are documented in an academic paper
 
 ## Getting Started
 
+### Setting Up Environment Variables
+
+Before building the container, you must set the `PROJECT_DIR` environment variable:
+
+```bash
+# Set your project directory (required, cluster-dependent)
+export PROJECT_DIR=/proj/berzelius-2024-336/users/x_bjabj
+```
+
+This variable is required for the container build process and all subsequent operations. Note that the path is cluster-dependent - update it to match your specific cluster and user directory.
+
 ### Building the Container
 
 To build the Apptainer container:
@@ -97,9 +108,6 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
 It is recommended to move cache locations to your project directory by adding the following to your `.bashrc` or `.zshrc`:
 
 ```bash
-# Define your project directory
-export PROJECT_DIR=/proj/berzelius-2024-336/users/x_bjabj/
-
 # Set Hugging Face cache locations
 export HF_HOME=$PROJECT_DIR/.hf
 export TRANSFORMERS_CACHE=$PROJECT_DIR/.cache/huggingface/transformers
