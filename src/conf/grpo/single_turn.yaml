@@ -27,7 +27,6 @@ num_generations: 4
 max_prompt_length: 256
 max_completion_length: 256
 
-
 # Reward settings
 scale_rewards: false
 # Loss type

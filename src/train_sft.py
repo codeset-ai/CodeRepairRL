@@ -10,8 +10,8 @@ from omegaconf import OmegaConf
 from hydra.core.config_store import ConfigStore
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from trl import SFTTrainer, SFTConfig as HFSFTConfig
-from peft import LoraConfig as PEFTLoraConfig
-from huggingface_hub import login
+from peft import LoraConfig as PEFTLoraConfig, PeftModel
+from huggingface_hub import whoami
 
 from src.train_grpo import ModelConfig
 from src.utils.git import resolve_git_commit_hash
@@ -94,9 +94,12 @@ def main(cfg: Config) -> None:
     
     os.environ["WANDB_PROJECT"] = cfg.run.wandb_project
 
-    # Login to HuggingFace if pushing to hub
+    # Check HuggingFace login if pushing to hub
     if cfg.run.push_to_hub:
-        login()  # Will use token from environment or cache
+        try:
+            whoami()
+        except Exception:
+            raise ValueError("Not logged in to HuggingFace. Please run 'huggingface-cli login' first.")
     
     # Log precision settings
     precision_mode = torch.bfloat16 if cfg.sft.bf16 else torch.float16 if cfg.sft.fp16 else torch.float32
@@ -175,16 +178,36 @@ def main(cfg: Config) -> None:
     logger.info("Starting SFT training...")
     trainer.train()
     
-    # Save the final model
-    logger.info(f"Saving model to {training_args.output_dir}")
+    # Save the final model (LoRA adapters)
+    logger.info(f"Saving LoRA adapters to {training_args.output_dir}")
     trainer.save_model()
     tokenizer.save_pretrained(training_args.output_dir)
     
+    # If using LoRA, also save the merged model for simplified VLLM deployment
+    if cfg.model.lora:
+        merged_model_dir = f"{training_args.output_dir}_merged"
+        logger.info(f"Merging LoRA adapters and saving merged model to {merged_model_dir}")
+        
+        # Load the trained LoRA model
+        peft_model = PeftModel.from_pretrained(model, training_args.output_dir)
+        # Merge and unload the adapters to get a standard model
+        merged_model = peft_model.merge_and_unload()
+        
+        # Save the merged model
+        merged_model.save_pretrained(merged_model_dir)
+        tokenizer.save_pretrained(merged_model_dir)
+        logger.info(f"Successfully saved merged model to {merged_model_dir}")
+    
     # Push to hub if requested
     if cfg.run.push_to_hub:
-        logger.info(f"Pushing model to HuggingFace Hub: {cfg.run.output_model_name}")
-        trainer.push_to_hub(commit_message="SFT training completed")
-        logger.info("Successfully pushed model to HuggingFace Hub")
+        if cfg.model.lora:
+            logger.info(f"Pushing merged model to HuggingFace Hub: {cfg.run.output_model_name}")
+            merged_model.push_to_hub(cfg.run.output_model_name, tokenizer=tokenizer, commit_message="SFT training completed")
+            logger.info("Successfully pushed merged model to HuggingFace Hub")
+        else:
+            logger.info(f"Pushing model to HuggingFace Hub: {cfg.run.output_model_name}")
+            trainer.push_to_hub(commit_message="SFT training completed")
+            logger.info("Successfully pushed model to HuggingFace Hub")
     
     logger.info("SFT training completed successfully!")
 

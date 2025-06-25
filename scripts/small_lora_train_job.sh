@@ -10,7 +10,7 @@ export VLLM_ALLOW_INSECURE_SERIALIZATION=1
 
 # Small train job, 2 fat GPUs, 1 running vLLM, 1 training
 
-# Model configuration - use SFT model if available, otherwise base model
+# Model configuration - use merged SFT model for simplified VLLM pipeline
 MODEL_CONFIG="small_qwen"
 MODEL_NAME=$(grep -Po 'model_name: "\K[^"]*' src/conf/model/${MODEL_CONFIG}.yaml)
 
@@ -21,6 +21,9 @@ MAX_CONTEXT_LENGTH=$((MAX_PROMPT_LENGTH + MAX_COMPLETION_LENGTH))
 VLLM_CONTEXT_LENGTH=$((MAX_CONTEXT_LENGTH + 1024))  # not strictly needed, but so we don't get context window errors
 
 
+# VLLM server - loads initial model (any same-architecture model works)
+# Training server will sync weights from training model before first inference
+# So if we load an SFT model, it will match after setup
 CUDA_VISIBLE_DEVICES=1 apptainer exec --nv crrl.sif \
     trl vllm-serve-async \
     --model "$MODEL_NAME" \

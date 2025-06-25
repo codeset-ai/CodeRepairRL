@@ -12,6 +12,7 @@ from hydra.core.config_store import ConfigStore
 from peft import LoraConfig as PEFTLoraConfig, PeftModel
 from trl import GRPOConfig as HFGRPOConfig, GRPOTrainer as HFGRPOTrainer
 from transformers import AutoModelForCausalLM, AutoTokenizer
+from huggingface_hub import whoami
 
 from src.agents.nano_agent import nano_rollout_func, NanoConfig
 from src.rewards import (
@@ -47,6 +48,8 @@ class RunConfig:
     context_lines: int = 0  # number of context lines to include in diffs
     commit_hash: str = ""  # added at runtime
     resume_training: bool = False
+    output_model_name: str = ""  # HuggingFace Hub model name
+    push_to_hub: bool = False
 
     def __post_init__(self):
         if self.task_type not in ["detection", "repair", "repo_repair"]:
@@ -58,7 +61,6 @@ class RunConfig:
 class ModelConfig:
     # Transformers configuration
     model_name: str = "Qwen/Qwen3-8B"
-    lora_checkpoint_path: Optional[str] = None  # Path to LoRA adapters from SFT training
     attn_implementation: str = "flash_attention_3"  # only on >Hopper GPUs
     # LoRA configuration
     lora: bool = True
@@ -151,6 +153,13 @@ def main(cfg: Config) -> None:
     
     os.environ["WANDB_PROJECT"] = cfg.run.wandb_project
 
+    # Check HuggingFace login if pushing to hub
+    if cfg.run.push_to_hub:
+        try:
+            whoami()
+        except Exception:
+            raise ValueError("Not logged in to HuggingFace. Please run 'huggingface-cli login' first.")
+
     # Log precision settings
     precision_mode = torch.bfloat16 if cfg.grpo.bf16 else torch.float16 if cfg.grpo.fp16 else torch.float32
     logger.info(f"Training with {precision_mode} precision based on GPU architecture")
@@ -158,16 +167,6 @@ def main(cfg: Config) -> None:
     # Load base model
     logger.info(f"Loading model: {cfg.model.model_name}")
     model = AutoModelForCausalLM.from_pretrained(cfg.model.model_name, attn_implementation=cfg.model.attn_implementation, torch_dtype=precision_mode)
-    
-    # If starting from a LoRA checkpoint (e.g., from SFT training), merge the adapters into base model
-    if cfg.model.lora_checkpoint_path:
-        logger.info(f"Loading and merging SFT LoRA adapters from {cfg.model.lora_checkpoint_path}")
-        # Load the SFT LoRA model
-        sft_model = PeftModel.from_pretrained(model, cfg.model.lora_checkpoint_path)
-        # Merge the SFT adapters into the base model permanently
-        model = sft_model.merge_and_unload()
-        logger.info("Successfully merged SFT LoRA adapters into base model")
-        # Now model is a regular AutoModelForCausalLM with SFT knowledge baked in
     
     # Load tokenizer
     if "Qwen3" in cfg.model.model_name:  # Qwen3's jinja template is bugged
@@ -254,7 +253,34 @@ def main(cfg: Config) -> None:
     # Save with task-specific name
     model_save_path = f"grpo_{cfg.run.task_type}_model"
     trainer.save_model(model_save_path)
-    logger.info(f"Model saved to {model_save_path}")
+    tokenizer.save_pretrained(model_save_path)
+    logger.info(f"LoRA adapters saved to {model_save_path}")
+    
+    # If using LoRA, also save the merged model for simplified VLLM deployment
+    if cfg.model.lora:
+        merged_model_dir = f"{model_save_path}_merged"
+        logger.info(f"Merging LoRA adapters and saving merged model to {merged_model_dir}")
+        
+        # Load the trained LoRA model
+        peft_model = PeftModel.from_pretrained(model, model_save_path)
+        # Merge and unload the adapters to get a standard model
+        merged_model = peft_model.merge_and_unload()
+        
+        # Save the merged model
+        merged_model.save_pretrained(merged_model_dir)
+        tokenizer.save_pretrained(merged_model_dir)
+        logger.info(f"Successfully saved merged model to {merged_model_dir}")
+    
+    # Push to hub if requested
+    if cfg.run.push_to_hub:
+        if cfg.model.lora:
+            logger.info(f"Pushing merged model to HuggingFace Hub: {cfg.run.output_model_name}")
+            merged_model.push_to_hub(cfg.run.output_model_name, tokenizer=tokenizer, commit_message="GRPO training completed")
+            logger.info("Successfully pushed merged model to HuggingFace Hub")
+        else:
+            logger.info(f"Pushing model to HuggingFace Hub: {cfg.run.output_model_name}")
+            trainer.push_to_hub(commit_message="GRPO training completed")
+            logger.info("Successfully pushed model to HuggingFace Hub")
 
 if __name__ == "__main__":
     main() 
