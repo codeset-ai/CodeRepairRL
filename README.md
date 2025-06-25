@@ -43,8 +43,11 @@ apptainer build crrl.sif scripts/train_container.def
 Before GRPO training, you can optionally run SFT to create a better starting point:
 
 ```bash
-# Run SFT training job
-sbatch scripts/sft_train_job.sh
+# Run SFT training job (small model)
+sbatch scripts/small_sft_lora_train_job.sh
+
+# Run SFT training job (large model)
+sbatch scripts/large_sft_lora_train_job.sh
 
 # Or run locally for testing
 uv run -m src.train_sft
@@ -58,13 +61,11 @@ We provide specialized SLURM scripts for different model sizes, each pre-configu
 
 ```bash
 # For small models (8B), defaults to Qwen/Qwen3-8B
-sbatch scripts/small_train_job.sh
-
-# For medium models (8B with higher LoRA rank), defaults to Qwen/Qwen3-8B
-sbatch scripts/medium_train_job.sh
+sbatch scripts/small_grpo_train_job.sh       # Full model training (5 GPUs)
+sbatch scripts/small_grpo_lora_train_job.sh  # LoRA training (2 GPUs)
 
 # For large models (32B), defaults to Qwen/Qwen3-32B
-sbatch scripts/large_train_job.sh
+sbatch scripts/large_grpo_train_job.sh       # GRPO training (4 GPUs)
 ```
 
 Each script includes pre-tuned GRPO parameters optimized for the corresponding model size category. The scripts support three task types:
@@ -76,16 +77,13 @@ You can customize training with Hydra overrides:
 
 ```bash
 # Change task type
-sbatch scripts/medium_train_job.sh run.task_type=detection
+sbatch scripts/small_grpo_train_job.sh run=detection
 
 # Use a different model
-sbatch scripts/large_train_job.sh model.model_name=meta-llama/Llama-3.1-70B-Instruct
-
-# Start from an SFT checkpoint
-sbatch scripts/medium_train_job.sh model.lora_checkpoint_path=/path/to/sft/checkpoint
+sbatch scripts/large_grpo_train_job.sh model=large_qwen
 
 # Override the automatic run name with a custom one
-sbatch scripts/medium_train_job.sh grpo.run_name="custom-experiment-name"
+sbatch scripts/small_grpo_lora_train_job.sh grpo.run_name="custom-experiment-name"
 ```
 
 ## Local Development

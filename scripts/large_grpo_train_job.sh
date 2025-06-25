@@ -1,12 +1,12 @@
 #!/bin/bash
-#SBATCH --job-name=crrl-large
-#SBATCH --output=logs/large_%j.out
-#SBATCH --error=logs/large_%j.err
+#SBATCH --job-name=crrl-large-grpo
+#SBATCH --output=logs/large_grpo_%j.out
+#SBATCH --error=logs/large_grpo_%j.err
 #SBATCH --gpus 4
 #SBATCH --time=48:00:00
 #SBATCH -C "fat"
 
-# Large training job, 4 GPUs, 2 running vLLM, 2 training
+# Large GRPO training job, 4 GPUs, 2 running vLLM, 2 training
 
 export VLLM_ALLOW_INSECURE_SERIALIZATION=1
 

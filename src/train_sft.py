@@ -46,7 +46,7 @@ class SFTConfig:
     gradient_accumulation_steps: int = 4
     learning_rate: float = 2e-5
     warmup_ratio: float = 0.1
-    lr_scheduler_type: str = "linear"
+    lr_scheduler_type: str = "cosine"
     max_grad_norm: float = 1.0
     weight_decay: float = 0.01
     bf16: bool = True

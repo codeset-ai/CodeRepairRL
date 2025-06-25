@@ -1,14 +1,14 @@
 #!/bin/bash
-#SBATCH --job-name=crrl-small-lora
-#SBATCH --output=logs/small_lora_%j.out
-#SBATCH --error=logs/small_lora_%j.err
+#SBATCH --job-name=crrl-small-grpo-lora
+#SBATCH --output=logs/small_grpo_lora_%j.out
+#SBATCH --error=logs/small_grpo_lora_%j.err
 #SBATCH --gpus 2
 #SBATCH --time=24:00:00
 #SBATCH -C "fat"
 
 export VLLM_ALLOW_INSECURE_SERIALIZATION=1
 
-# Small train job, 2 fat GPUs, 1 running vLLM, 1 training
+# Small GRPO train job, 2 fat GPUs, 1 running vLLM, 1 training
 
 # Model configuration - use merged SFT model for simplified VLLM pipeline
 MODEL_CONFIG="small_qwen"
