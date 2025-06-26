@@ -5,9 +5,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import hydra
 from hydra.core.config_store import ConfigStore
-from huggingface_hub import login
-from huggingface_hub.utils import get_token
+from huggingface_hub import whoami
 from datasets import Dataset, DatasetInfo
+from omegaconf import OmegaConf
 
 from src.data.swe_gym import get_swe_gym_curation_dataset
 from src.agents.nano_agent import _process_one, NanoConfig
@@ -27,7 +27,6 @@ class CurationConfig:
     curation_ratio: float = 0.2
     dataset_version: str = "v1.0"
     push_to_hub: bool = False
-    hf_token: Optional[str] = None  # HuggingFace token for pushing to hub
     
     # Rollout configuration
     num_rollouts_per_problem: int = 8
@@ -41,15 +40,9 @@ def get_output_dataset_name(curation_config: CurationConfig, agent_config: NanoC
     # Extract dataset short name (e.g., "SWE-Gym-Lite" from "SWE-Gym/SWE-Gym-Lite")
     input_short = curation_config.input_dataset_name.split('/')[-1]
     
-    # Extract model short name (e.g., "gpt4" from "openai/gpt-4.1")
-    model_name = agent_config.model or "local"
-    if '/' in model_name:
-        model_short = model_name.split('/')[-1].replace('.', '').replace('-', '')
-    else:
-        model_short = model_name.replace('.', '').replace('-', '')
+    model_name = agent_config.model.split('/')[-1] or "local"
     
-    # Construct output dataset name
-    return f"ASSERT-KTH/{input_short}-{model_short}-SFT"
+    return f"ASSERT-KTH/Nano-SFT-{input_short}-{model_name}"
 
 
 @dataclass
@@ -95,18 +88,12 @@ def process_one_with_reward(problem_data: dict[str, Any], config: NanoConfig) ->
 
 @hydra.main(version_base="1.1", config_path="conf", config_name="curation_config")
 def main(cfg: Config) -> None:
-    # Login to HuggingFace if pushing to hub
+    # Check HuggingFace login if pushing to hub
     if cfg.curation.push_to_hub:
-        # Check if already logged in
-        existing_token = get_token()
-        if existing_token:
-            logger.info("Already authenticated with HuggingFace Hub")
-        elif cfg.curation.hf_token:
-            login(token=cfg.curation.hf_token)
-            logger.info("Logged in to HuggingFace Hub with provided token")
-        else:
-            login()  # Will prompt for token
-            logger.info("Logged in to HuggingFace Hub")
+        try:
+            whoami()
+        except Exception:
+            raise ValueError("Not logged in to HuggingFace. Please run 'huggingface-cli login' first.")
     
     # Load SWE-Gym dataset
     logger.info("Loading SWE-Gym dataset...")
@@ -129,11 +116,16 @@ def main(cfg: Config) -> None:
     
     # Process all rollouts using single ThreadPoolExecutor
     all_solutions = []
+    completed_count = 0
+    
+    # Convert OmegaConf to NanoConfig dataclass like train_grpo.py does
+    agent_config = NanoConfig(**OmegaConf.to_container(cfg.agent, resolve=True))
     
     with ThreadPoolExecutor(max_workers=cfg.curation.max_workers) as executor:
-        futures = [executor.submit(process_one_with_reward, task, cfg.agent) for task in all_rollout_tasks]
+        futures = [executor.submit(process_one_with_reward, task, agent_config) for task in all_rollout_tasks]
         
         for future in as_completed(futures):
+            completed_count += 1
             try:
                 result = future.result(timeout=cfg.curation.timeout)
                 solution = {
@@ -152,11 +144,12 @@ def main(cfg: Config) -> None:
                     "tools": result["tools"]
                 }
                 if solution["generated_diff"] == "":
-                    logger.warning(f"Generated diff is empty for problem {solution['instance_id']}")
+                    logger.warning(f"[{completed_count}/{len(all_rollout_tasks)}] Generated diff is empty for problem {solution['instance_id']}")
                     continue
                 all_solutions.append(solution)
+                logger.info(f"[{completed_count}/{len(all_rollout_tasks)}] Completed rollout for {solution['instance_id']} (reward: {solution['reward']:.3f})")
             except Exception as e:
-                logger.error(f"Rollout failed: {e}")
+                logger.error(f"[{completed_count}/{len(all_rollout_tasks)}] Rollout failed: {e}")
                 # Skip failed rollouts
                 continue
     

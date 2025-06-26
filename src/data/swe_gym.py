@@ -7,7 +7,7 @@ from datasets import load_dataset, Dataset
 logger = logging.getLogger(__name__)
 
 
-def _get_swe_gym_split(dataset_name: str, curation_partition: bool, curation_ratio: float = 0.5) -> Dataset:
+def _get_swe_gym_split(dataset_name: str, curation_partition: bool, curation_ratio: float = 0.25) -> Dataset:
     """
     Internal function to load and split the SWE-Gym dataset.
     
@@ -47,7 +47,7 @@ def _get_swe_gym_split(dataset_name: str, curation_partition: bool, curation_rat
 # mirroring the other data methods though not strictly doing much
 def get_swe_gym_repo_repair_dataset(
     dataset_name: str = "SWE-Gym/SWE-Gym-Lite",
-    curation_ratio: float = 0.2,
+    curation_ratio: float = 0.25,
     **kwargs  # absorbs additional arguments required by the other get functions
 ) -> Dataset:
     """
@@ -65,7 +65,7 @@ def get_swe_gym_repo_repair_dataset(
 
 def get_swe_gym_curation_dataset(
     dataset_name: str = "SWE-Gym/SWE-Gym-Lite",
-    curation_ratio: float = 0.2,
+    curation_ratio: float = 0.25,
     **kwargs  # absorbs additional arguments required by the other get functions
 ) -> Dataset:
     """
