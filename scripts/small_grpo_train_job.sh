@@ -34,9 +34,9 @@ CUDA_VISIBLE_DEVICES=4 apptainer exec --nv crrl.sif \
         &  # & makes it run in the background
 
 # IMPORTANT: train job should include DEVICE 0
-CUDA_VISIBLE_DEVICES=0,1,2,3 apptainer exec --nv crrl.sif \
-accelerate launch \
+CUDA_VISIBLE_DEVICES=0,1,2,3 apptainer exec --nv crrl.sif accelerate launch \
     --config_file scripts/deepspeed/zero2.yaml \
+    --num_processes 4 \
     --module src.train_grpo -- \
         run=repo_repair \
         model=${MODEL_CONFIG} \

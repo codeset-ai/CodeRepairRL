@@ -35,35 +35,32 @@ class RunConfig:
 
 @dataclass 
 class SFTConfig:
-    """SFT Configuration using TRL's SFTConfig as base"""
-    # TrainingArguments parameters that are part of SFTConfig
     output_dir: str = "outputs/sft_model"
+
     num_train_epochs: int = 3
     per_device_train_batch_size: int = 4
     gradient_accumulation_steps: int = 4
+
     learning_rate: float = 2e-5
     warmup_ratio: float = 0.1
     lr_scheduler_type: str = "cosine"
     max_grad_norm: float = 1.0
     weight_decay: float = 0.01
+
     bf16: bool = True
     fp16: bool = False
     gradient_checkpointing: bool = True
+
     logging_steps: int = 10
     save_steps: int = 500
     eval_steps: int = 500
     report_to: str = "wandb"
     run_name: str = ""  # automatically set at runtime
-    remove_unused_columns: bool = False
-    dataloader_pin_memory: bool = False
-
-    assistant_only_loss: bool = True
-
-    # SFT-specific parameters that belong in SFTConfig
-    dataset_text_field: str = "text"
+    
     max_length: int = 8192
     packing: Optional[bool] = False
-    dataset_num_proc: Optional[int] = None
+
+    assistant_only_loss: bool = True
 
 
 @dataclass
@@ -109,16 +106,8 @@ def main(cfg: Config) -> None:
         trust_remote_code=True
     )
     
-    # Load tokenizer with fixed template for Qwen3
-    if "Qwen3" in cfg.model.model_name:
-        tokenizer = AutoTokenizer.from_pretrained(
-            cfg.model.model_name, 
-            # chat_template=open("qwen3.jinja").read(),
-            trust_remote_code=True
-        )
-    else:
-        tokenizer = AutoTokenizer.from_pretrained(cfg.model.model_name, trust_remote_code=True)
-    
+
+    tokenizer = AutoTokenizer.from_pretrained(cfg.model.model_name, trust_remote_code=True)
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"  # For SFT, we typically pad on the right
     
