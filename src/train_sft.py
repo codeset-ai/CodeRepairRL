@@ -1,6 +1,6 @@
 import os
 import logging
-from typing import Optional, Any
+from typing import Optional
 from dataclasses import dataclass, field
 
 import hydra
@@ -9,11 +9,10 @@ from omegaconf import OmegaConf
 from hydra.core.config_store import ConfigStore
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from trl import SFTTrainer, SFTConfig as HFSFTConfig
-from peft import LoraConfig as PEFTLoraConfig
-from huggingface_hub import login
+from peft import LoraConfig as PEFTLoraConfig, PeftModel
+from huggingface_hub import whoami
 
 from src.train_grpo import ModelConfig
-from src.utils.git import resolve_git_commit_hash
 from src.data.swe_gym import get_swe_gym_formatted_sft_dataset
 
 logging.basicConfig(level=logging.INFO)
@@ -28,7 +27,6 @@ for noisy in ("httpx", "LiteLLM", "transformers.tokenization_utils_base"):
 class RunConfig:
     wandb_project: str = "SWE-Gym-SFT"
     dataset_name: str = "bjarni/swe-gym-lite-sft"
-    max_seq_length: int = 8192
     reward_min: float = 0.2
     output_model_name: str = "bjarni/qwen3-8b-swe-gym-sft"
     push_to_hub: bool = True
@@ -45,7 +43,7 @@ class SFTConfig:
     gradient_accumulation_steps: int = 4
     learning_rate: float = 2e-5
     warmup_ratio: float = 0.1
-    lr_scheduler_type: str = "linear"
+    lr_scheduler_type: str = "cosine"
     max_grad_norm: float = 1.0
     weight_decay: float = 0.01
     bf16: bool = True
@@ -55,16 +53,17 @@ class SFTConfig:
     save_steps: int = 500
     eval_steps: int = 500
     report_to: str = "wandb"
-    run_name: Optional[str] = None
+    run_name: str = ""  # automatically set at runtime
     remove_unused_columns: bool = False
     dataloader_pin_memory: bool = False
-    
+
+    assistant_only_loss: bool = True
+
     # SFT-specific parameters that belong in SFTConfig
     dataset_text_field: str = "text"
     max_length: int = 8192
     packing: Optional[bool] = False
     dataset_num_proc: Optional[int] = None
-    dataset_kwargs: Optional[dict[str, Any]] = field(default_factory=dict)
 
 
 @dataclass
@@ -77,16 +76,25 @@ class Config:
 # Register the config schema
 cs = ConfigStore.instance()
 cs.store(name="base_sft_config", node=Config, group="")
-OmegaConf.register_new_resolver("resolve_git_commit_hash", resolve_git_commit_hash)
-
 
 @hydra.main(version_base="1.1", config_path="conf", config_name="sft_config")
 def main(cfg: Config) -> None:
+    # Validate that run_name is provided and not empty
+    if not cfg.sft.run_name or cfg.sft.run_name.strip() == "":
+        raise ValueError(
+            "run_name is required and cannot be empty. "
+            "Please provide a unique run name to prevent model overwriting. "
+            "Example: sft.run_name='my-sft-experiment-v1'"
+        )
+    
     os.environ["WANDB_PROJECT"] = cfg.run.wandb_project
 
-    # Login to HuggingFace if pushing to hub
+    # Check HuggingFace login if pushing to hub
     if cfg.run.push_to_hub:
-        login()  # Will use token from environment or cache
+        try:
+            whoami()
+        except Exception:
+            raise ValueError("Not logged in to HuggingFace. Please run 'huggingface-cli login' first.")
     
     # Log precision settings
     precision_mode = torch.bfloat16 if cfg.sft.bf16 else torch.float16 if cfg.sft.fp16 else torch.float32
@@ -105,7 +113,7 @@ def main(cfg: Config) -> None:
     if "Qwen3" in cfg.model.model_name:
         tokenizer = AutoTokenizer.from_pretrained(
             cfg.model.model_name, 
-            chat_template=open("fixed_qwen3.jinja").read(),
+            # chat_template=open("qwen3.jinja").read(),
             trust_remote_code=True
         )
     else:
@@ -130,8 +138,6 @@ def main(cfg: Config) -> None:
     # Load and prepare dataset using the swe_gym function
     train_dataset = get_swe_gym_formatted_sft_dataset(
         dataset_name=cfg.run.dataset_name,
-        tokenizer=tokenizer,
-        max_seq_length=cfg.run.max_seq_length,
         reward_min=cfg.run.reward_min
     )
     
@@ -140,9 +146,6 @@ def main(cfg: Config) -> None:
     
     # Convert SFT config to dict for SFTConfig creation
     sft_params = OmegaConf.to_container(cfg.sft, resolve=True)
-    
-    # Update with run-specific parameters
-    sft_params["max_length"] = cfg.run.max_seq_length
     
     # Add hub model ID if pushing to hub
     if cfg.run.push_to_hub:
@@ -165,16 +168,36 @@ def main(cfg: Config) -> None:
     logger.info("Starting SFT training...")
     trainer.train()
     
-    # Save the final model
-    logger.info(f"Saving model to {training_args.output_dir}")
+    # Save the final model (LoRA adapters)
+    logger.info(f"Saving LoRA adapters to {training_args.output_dir}")
     trainer.save_model()
     tokenizer.save_pretrained(training_args.output_dir)
     
+    # If using LoRA, also save the merged model for simplified VLLM deployment
+    if cfg.model.lora:
+        merged_model_dir = f"{training_args.output_dir}_merged"
+        logger.info(f"Merging LoRA adapters and saving merged model to {merged_model_dir}")
+        
+        # Load the trained LoRA model
+        peft_model = PeftModel.from_pretrained(model, training_args.output_dir)
+        # Merge and unload the adapters to get a standard model
+        merged_model = peft_model.merge_and_unload()
+        
+        # Save the merged model
+        merged_model.save_pretrained(merged_model_dir)
+        tokenizer.save_pretrained(merged_model_dir)
+        logger.info(f"Successfully saved merged model to {merged_model_dir}")
+    
     # Push to hub if requested
     if cfg.run.push_to_hub:
-        logger.info(f"Pushing model to HuggingFace Hub: {cfg.run.output_model_name}")
-        trainer.push_to_hub(commit_message="SFT training completed")
-        logger.info("Successfully pushed model to HuggingFace Hub")
+        if cfg.model.lora:
+            logger.info(f"Pushing merged model to HuggingFace Hub: {cfg.run.output_model_name}")
+            merged_model.push_to_hub(cfg.run.output_model_name, tokenizer=tokenizer, commit_message="SFT training completed")
+            logger.info("Successfully pushed merged model to HuggingFace Hub")
+        else:
+            logger.info(f"Pushing model to HuggingFace Hub: {cfg.run.output_model_name}")
+            trainer.push_to_hub(commit_message="SFT training completed")
+            logger.info("Successfully pushed model to HuggingFace Hub")
     
     logger.info("SFT training completed successfully!")
 

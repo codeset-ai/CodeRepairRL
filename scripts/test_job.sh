@@ -15,7 +15,7 @@ apptainer exec --nv crrl.sif python3 -c "import flash_attn_cuda; print(f'Flash-a
 # Assuming device 0 is used if CUDA_VISIBLE_DEVICES is not set or only 1 GPU is available
 apptainer exec --nv crrl.sif python3 -c "import torch; print(f'CUDA device name: {torch.cuda.get_device_name(0)}')"
 
-apptainer exec --nv crrl.sif python3 -c "from transformers import AutoModelForCausalLM; model = AutoModelForCausalLM.from_pretrained('Qwen/Qwen3-8B', torch_dtype=torch.bfloat16, attn_implementation='flash_attention_2'); print(model)"
+apptainer exec --nv crrl.sif python3 -c "from transformers import AutoModelForCausalLM; import torch; model = AutoModelForCausalLM.from_pretrained('Qwen/Qwen3-8B', torch_dtype=torch.bfloat16, attn_implementation='flash_attention_2'); print(model)"
 
 echo "\nRunning test job: small repair task on stack dataset..."
 apptainer exec --nv crrl.sif \

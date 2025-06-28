@@ -1,9 +1,14 @@
 # vLLM generation settings
 use_vllm: true
-vllm_mode: "async_server"
+vllm_mode: "server"
+
+# whether completions are multi-turn or single-turn
+multi_turn: false
+# Tool responses contain "unpredictable" tokens we don't want to include in the loss
+mask_tool_responses: false
 
 # Optimizer settings
-learning_rate: 1e-5  # default value is for non-lora 
+learning_rate: 1e-4  # default value is for lora 
 adam_beta1: 0.9
 adam_beta2: 0.99
 weight_decay: 0.1
@@ -22,15 +27,8 @@ num_generations: 4
 max_prompt_length: 256
 max_completion_length: 256
 
-# whether completions are multi-turn or single-turn
-multi_turn: true
-
-
 # Reward settings
 scale_rewards: false
-
-# Tool responses contain "unpredictable" tokens we don't want to include in the loss
-mask_tool_responses: true
 # Loss type
 loss_type: "grpo"
 # Attention kernel
@@ -43,11 +41,11 @@ gradient_checkpointing: false
 logging_steps: 1
 max_steps: -1
 save_steps: 50
-max_grad_norm: 0.1
+max_grad_norm: 0.1  # replacing with advantage estimation empirically has atleast 10x variation, so we lower the max grad norm by 10x
 
 # Logging settings
 report_to: "wandb"
-run_name: "${model.model_name}-GRPO-${run.dataset_type}-${run.task_type}"
+run_name: "${model.model_name}-GRPO-${run.dataset_type}-${run.task_type}-${now:}"
 output_dir: "outputs"
 log_completions: true
 

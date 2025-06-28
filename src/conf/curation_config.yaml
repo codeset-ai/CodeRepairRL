@@ -9,22 +9,20 @@ hydra:
 # Curation configuration
 curation:
   # Dataset configuration
-  input_dataset_name: "SWE-Gym/SWE-Gym-Lite"
-  curation_ratio: 0.2
-  output_dataset_name: "ASSERT-KTH/SWE-Gym-Nano-SFT"
+  input_dataset_name: "SWE-Gym/SWE-Gym"
+  curation_ratio: 0.25
   dataset_version: "v1.0"
   push_to_hub: false
-  hf_token: null  # HuggingFace token for pushing to hub
   
   # Rollout configuration
-  num_rollouts_per_problem: 2
+  num_rollouts_per_problem: 4
   timeout: 120
   max_workers: 8  # ThreadPoolExecutor max workers
   max_problems: null  # Maximum number of problems to process (for testing)
   
 
 agent:
-  model: "openai/gpt-4.1"
+  model: "gemini/gemini-2.5-flash"
   api_base: null
-  token_limit: 8192
-  tool_limit: 100  # 20
+  token_limit: 16384
+  tool_limit: 100

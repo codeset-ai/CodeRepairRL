@@ -1,8 +1,10 @@
 Bootstrap: docker
-From: vllm/vllm-openai:v0.8.5.post1
+From: vllm/vllm-openai:v0.9.1
 
 %environment
     export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+
+    export PROJECT_DIR=/mimer/NOBACKUP/groups/naiss2025-5-243
     export HF_HOME=$PROJECT_DIR/.hf
     export TRANSFORMERS_CACHE=$PROJECT_DIR/.cache/huggingface/transformers
     export HF_DATASETS_CACHE=$PROJECT_DIR/.cache/huggingface/datasets
@@ -18,5 +20,6 @@ From: vllm/vllm-openai:v0.8.5.post1
     pip install --upgrade pip
     pip install .
     
-    pip install --no-build-isolation flash-attn==2.7.3
+    # we pin the version since we need prebuilt binaries to be able to install
+    pip install --no-build-isolation --prefer-binary flash-attn==2.8.0.post2
     pip install --no-build-isolation flashinfer-python

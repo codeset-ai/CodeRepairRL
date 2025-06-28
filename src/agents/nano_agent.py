@@ -56,8 +56,8 @@ def _process_one(data: dict[str, Any], config: NanoConfig) -> dict[str, Any]:
         completion=agent.messages[2:],
         tools=agent.tools,
         generated_diff=diff,
+        **agent.tool_stats
     )
-    print(f"Returning result with {len(result['prompt'])} prompt messages and {len(result['completion'])} completion messages")
     return result
 
 
