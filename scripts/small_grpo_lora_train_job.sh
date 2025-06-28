@@ -41,7 +41,6 @@ CUDA_VISIBLE_DEVICES=0 apptainer exec --nv crrl.sif \
     run=repo_repair \
     model=$MODEL_CONFIG \
     grpo=multi_turn \
-    grpo.learning_rate=1e-4 \
     grpo.max_prompt_length=$MAX_PROMPT_LENGTH \
     grpo.max_completion_length=$MAX_COMPLETION_LENGTH \
     "$@"  # pass any additional arguments

@@ -143,9 +143,6 @@ def main(cfg: Config) -> None:
                     "messages": result["prompt"] + result["completion"],
                     "tools": result["tools"]
                 }
-                if solution["generated_diff"] == "":
-                    logger.warning(f"[{completed_count}/{len(all_rollout_tasks)}] Generated diff is empty for problem {solution['instance_id']}")
-                    continue
                 all_solutions.append(solution)
                 logger.info(f"[{completed_count}/{len(all_rollout_tasks)}] Completed rollout for {solution['instance_id']} (reward: {solution['reward']:.3f})")
             except Exception as e:

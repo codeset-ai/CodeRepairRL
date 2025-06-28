@@ -1,7 +1,6 @@
 import os
 import logging
-from datetime import datetime
-from typing import Optional, Any
+from typing import Optional
 from dataclasses import dataclass, field
 
 import hydra
@@ -14,7 +13,6 @@ from peft import LoraConfig as PEFTLoraConfig, PeftModel
 from huggingface_hub import whoami
 
 from src.train_grpo import ModelConfig
-from src.utils.git import resolve_git_commit_hash
 from src.data.swe_gym import get_swe_gym_formatted_sft_dataset
 
 logging.basicConfig(level=logging.INFO)
@@ -29,7 +27,6 @@ for noisy in ("httpx", "LiteLLM", "transformers.tokenization_utils_base"):
 class RunConfig:
     wandb_project: str = "SWE-Gym-SFT"
     dataset_name: str = "bjarni/swe-gym-lite-sft"
-    max_seq_length: int = 8192
     reward_min: float = 0.2
     output_model_name: str = "bjarni/qwen3-8b-swe-gym-sft"
     push_to_hub: bool = True
@@ -59,13 +56,14 @@ class SFTConfig:
     run_name: str = ""  # automatically set at runtime
     remove_unused_columns: bool = False
     dataloader_pin_memory: bool = False
-    
+
+    assistant_only_loss: bool = True
+
     # SFT-specific parameters that belong in SFTConfig
     dataset_text_field: str = "text"
     max_length: int = 8192
     packing: Optional[bool] = False
     dataset_num_proc: Optional[int] = None
-    dataset_kwargs: Optional[dict[str, Any]] = field(default_factory=dict)
 
 
 @dataclass
@@ -78,9 +76,6 @@ class Config:
 # Register the config schema
 cs = ConfigStore.instance()
 cs.store(name="base_sft_config", node=Config, group="")
-OmegaConf.register_new_resolver("resolve_git_commit_hash", resolve_git_commit_hash)
-OmegaConf.register_new_resolver("now", lambda: datetime.now().strftime("%Y%m%d-%H%M%S"))
-
 
 @hydra.main(version_base="1.1", config_path="conf", config_name="sft_config")
 def main(cfg: Config) -> None:
@@ -118,7 +113,7 @@ def main(cfg: Config) -> None:
     if "Qwen3" in cfg.model.model_name:
         tokenizer = AutoTokenizer.from_pretrained(
             cfg.model.model_name, 
-            chat_template=open("fixed_qwen3.jinja").read(),
+            # chat_template=open("qwen3.jinja").read(),
             trust_remote_code=True
         )
     else:
@@ -143,8 +138,6 @@ def main(cfg: Config) -> None:
     # Load and prepare dataset using the swe_gym function
     train_dataset = get_swe_gym_formatted_sft_dataset(
         dataset_name=cfg.run.dataset_name,
-        tokenizer=tokenizer,
-        max_seq_length=cfg.run.max_seq_length,
         reward_min=cfg.run.reward_min
     )
     
@@ -153,9 +146,6 @@ def main(cfg: Config) -> None:
     
     # Convert SFT config to dict for SFTConfig creation
     sft_params = OmegaConf.to_container(cfg.sft, resolve=True)
-    
-    # Update with run-specific parameters
-    sft_params["max_length"] = cfg.run.max_seq_length
     
     # Add hub model ID if pushing to hub
     if cfg.run.push_to_hub:

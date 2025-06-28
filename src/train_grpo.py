@@ -1,6 +1,5 @@
 import os
 import logging
-from typing import Optional
 from functools import partial
 from datetime import datetime
 from dataclasses import dataclass, field
@@ -148,7 +147,7 @@ def main(cfg: Config) -> None:
         raise ValueError(
             "run_name is required and cannot be empty. "
             "Please provide a unique run name to prevent model overwriting. "
-            "Example: grpo.run_name='my-experiment-v1'"
+            "Example: grpo.run_name='my-grpo-experiment-v1'"
         )
     
     os.environ["WANDB_PROJECT"] = cfg.run.wandb_project

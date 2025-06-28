@@ -17,7 +17,7 @@ curation:
   # Rollout configuration
   num_rollouts_per_problem: 4
   timeout: 120
-  max_workers: 4  # ThreadPoolExecutor max workers
+  max_workers: 8  # ThreadPoolExecutor max workers
   max_problems: null  # Maximum number of problems to process (for testing)
   
 

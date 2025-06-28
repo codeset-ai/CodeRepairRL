@@ -42,6 +42,7 @@ accelerate launch \
         model=${MODEL_CONFIG} \
         model.lora=false \
         grpo=multi_turn \
+        grpo.learning_rate=1e-5 \
         grpo.num_generations=8 \
         grpo.generation_batch_size=8 \
         grpo.per_device_train_batch_size=2 \

@@ -83,25 +83,9 @@ def get_swe_gym_curation_dataset(
     """
     return _get_swe_gym_split(dataset_name, curation_partition=True, curation_ratio=curation_ratio)
 
-def format_conversation_for_sft(example: dict[str, Any], tokenizer) -> dict[str, str]:
-    """
-    Format a curated example into a conversation for SFT training.
-    Expects 'messages' and 'tools' fields to exist.
-    """
-    # Apply chat template with messages and tools - FAIL if these don't exist
-    formatted_text = tokenizer.apply_chat_template(
-        example["messages"], 
-        tools=example["tools"],
-        tokenize=False,
-        add_generation_prompt=False
-    )
-    
-    return {"text": formatted_text}
 
 def get_swe_gym_formatted_sft_dataset(
     dataset_name: str,
-    tokenizer,
-    max_seq_length: int = 8192,
     reward_min: float = 0.2,
     **kwargs
 ) -> Dataset:
@@ -112,8 +96,7 @@ def get_swe_gym_formatted_sft_dataset(
     
     Args:
         dataset_name: HuggingFace dataset name for curated SFT data
-        tokenizer: Tokenizer for formatting conversations
-        max_seq_length: Maximum sequence length for filtering
+        reward_min: Minimum reward for rejection sampling
         
     Returns:
         The formatted dataset ready for SFT training
@@ -124,23 +107,10 @@ def get_swe_gym_formatted_sft_dataset(
     dataset = load_dataset(dataset_name, split="train")
     
     logger.info(f"Preparing dataset with {len(dataset)} examples...")
-    
-    # Format conversations
-    dataset = dataset.map(
-        lambda x: format_conversation_for_sft(x, tokenizer),
-        desc="Formatting conversations"
-    )
-    
-    # Filter out examples that are too long
-    def filter_length(example):
-        tokens = tokenizer.encode(example["text"])
-        return len(tokens) <= max_seq_length
-    
     original_size = len(dataset)
-    dataset = dataset.filter(filter_length, desc="Filtering by length")
+    
     dataset = dataset.filter(lambda x: x["reward"] > reward_min)
-    logger.info(f"Filtered dataset from {original_size} to {len(dataset)} examples "
-                f"(max_seq_length={max_seq_length})")
+    logger.info(f"Filtered dataset from {original_size} to {len(dataset)} examples")
     
     return dataset
 
