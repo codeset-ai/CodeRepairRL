@@ -12,7 +12,8 @@ export VLLM_ALLOW_INSECURE_SERIALIZATION=1
 
 # Model configuration - use merged SFT model for simplified VLLM pipeline
 MODEL_CONFIG="small_qwen"
-MODEL_NAME=$(grep -Po 'model_name: "\K[^"]*' src/conf/model/${MODEL_CONFIG}.yaml)
+# MODEL_NAME=$(grep -Po 'model_name: "\K[^"]*' src/conf/model/${MODEL_CONFIG}.yaml)
+MODEL_NAME="ASSERT-KTH/Qwen3-8B-Nano-SWE-Gym-SFT"
 
 # Context window configuration
 MAX_PROMPT_LENGTH=1024
@@ -40,6 +41,7 @@ CUDA_VISIBLE_DEVICES=0 apptainer exec --nv crrl.sif \
     python3 -m src.train_grpo \
     run=repo_repair \
     model=$MODEL_CONFIG \
+    model.model_name=$MODEL_NAME \
     grpo=multi_turn \
     grpo.max_prompt_length=$MAX_PROMPT_LENGTH \
     grpo.max_completion_length=$MAX_COMPLETION_LENGTH \

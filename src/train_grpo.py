@@ -1,8 +1,8 @@
 import os
 import logging
 from functools import partial
-from datetime import datetime
 from dataclasses import dataclass, field
+from typing import Optional
 
 import hydra
 import torch
@@ -41,14 +41,15 @@ for noisy in ("httpx", "LiteLLM"):
 
 @dataclass
 class RunConfig:
+    name: str = ""
     wandb_project: str = "TTC"
     task_type: str = "repo_repair"
     dataset_type: str = "stack"
+    dataset_name: Optional[str] = None
     context_lines: int = 0  # number of context lines to include in diffs
     commit_hash: str = ""  # added at runtime
     resume_training: bool = False
-    output_model_name: str = ""  # HuggingFace Hub model name
-    push_to_hub: bool = False
+    push_to_hub: bool = True
 
     def __post_init__(self):
         if self.task_type not in ["detection", "repair", "repo_repair"]:
@@ -115,7 +116,9 @@ class GRPOConfig:
     logging_steps: int = 1
     max_steps: int = 250
     save_steps: int = 250
+    save_total_limit: int = 5
     max_grad_norm: float = 0.1
+    output_dir: str = "outputs/${run.name}"
 
     # Logging settings
     run_name: str = ""  # automatically set at runtime
@@ -137,7 +140,6 @@ class Config:
 cs = ConfigStore.instance()
 cs.store(name="base_grpo_config", node=Config, group="")
 OmegaConf.register_new_resolver("resolve_git_commit_hash", resolve_git_commit_hash)
-OmegaConf.register_new_resolver("now", lambda: datetime.now().strftime("%Y%m%d-%H%M%S"))
 
 
 @hydra.main(version_base="1.1", config_path="conf", config_name="grpo_config")
@@ -166,12 +168,7 @@ def main(cfg: Config) -> None:
     # Load base model
     logger.info(f"Loading model: {cfg.model.model_name}")
     model = AutoModelForCausalLM.from_pretrained(cfg.model.model_name, attn_implementation=cfg.model.attn_implementation, torch_dtype=precision_mode)
-    
-    # Load tokenizer
-    if "Qwen3" in cfg.model.model_name:  # Qwen3's jinja template is bugged
-        tokenizer = AutoTokenizer.from_pretrained(cfg.model.model_name, chat_template=open("fixed_qwen3.jinja").read())
-    else:
-        tokenizer = AutoTokenizer.from_pretrained(cfg.model.model_name)
+    tokenizer = AutoTokenizer.from_pretrained(cfg.model.model_name)
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "left"  # by padding a batch of prompts on the left side we can generate many completions in parallel (padding tokens are masked away)
 
@@ -215,7 +212,7 @@ def main(cfg: Config) -> None:
         ]
         reward_weights = [0.1, 0.2, 0.7]
     elif cfg.run.task_type == "repo_repair":
-        dataset = get_swe_gym_repo_repair_dataset()
+        dataset = get_swe_gym_repo_repair_dataset(dataset_name=cfg.run.dataset_name)
         # Update agent config with model and token_limit
         cfg.agent.model = f"hosted_vllm/{cfg.model.model_name}"
         cfg.agent.token_limit = cfg.grpo.max_prompt_length + cfg.grpo.max_completion_length - 512

@@ -41,12 +41,13 @@ gradient_checkpointing: false
 logging_steps: 1
 max_steps: -1
 save_steps: 50
+save_total_limit: 5
 max_grad_norm: 0.1  # replacing with advantage estimation empirically has atleast 10x variation, so we lower the max grad norm by 10x
+output_dir: "outputs/${run.name}"
 
 # Logging settings
 report_to: "wandb"
-run_name: "${model.model_name}-GRPO-${run.dataset_type}-${run.task_type}-${now:}"
-output_dir: "outputs"
+run_name: "${model.model_name}-GRPO-${run.dataset_type}-${run.task_type}"
 log_completions: true
 
 # silence peft warnings

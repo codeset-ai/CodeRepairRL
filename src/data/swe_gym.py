@@ -46,7 +46,7 @@ def _get_swe_gym_split(dataset_name: str, curation_partition: bool, curation_rat
 
 # mirroring the other data methods though not strictly doing much
 def get_swe_gym_repo_repair_dataset(
-    dataset_name: str = "SWE-Gym/SWE-Gym-Lite",
+    dataset_name: str,
     curation_ratio: float = 0.25,
     **kwargs  # absorbs additional arguments required by the other get functions
 ) -> Dataset:
@@ -64,7 +64,7 @@ def get_swe_gym_repo_repair_dataset(
     return _get_swe_gym_split(dataset_name, curation_partition=False, curation_ratio=curation_ratio)
 
 def get_swe_gym_curation_dataset(
-    dataset_name: str = "SWE-Gym/SWE-Gym-Lite",
+    dataset_name: str,
     curation_ratio: float = 0.25,
     **kwargs  # absorbs additional arguments required by the other get functions
 ) -> Dataset:

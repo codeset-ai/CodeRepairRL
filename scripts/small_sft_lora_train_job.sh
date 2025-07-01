@@ -6,9 +6,19 @@
 #SBATCH --time=24:00:00
 #SBATCH -C "fat"
 
+
 apptainer exec --nv crrl.sif accelerate launch \
-    --num_processes 2 \
-    --mixed_precision bf16 \
+    --num_processes=2 \
+    --num_machines=1 \
+    --mixed_precision=bf16 \
+    --dynamo_backend=no \
     --module src.train_sft -- \
         model=small_qwen \
+        model.lora=true \
+        model.r=8 \
+        model.lora_alpha=16 \
+        sft.max_length=8192 \
+        sft.packing=false \
+        sft.per_device_train_batch_size=4 \
+        sft.gradient_accumulation_steps=8 \
         "$@"

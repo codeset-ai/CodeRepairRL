@@ -5,11 +5,11 @@ defaults:
 
 # Run configuration (parameters not in SFTConfig)
 run:
-  name: null
+  name: ""
 
   reward_min: -1  # default to no rejection sampling
   dataset_name: "ASSERT-KTH/Nano-SFT-SWE-Gym-gemini-2.5-flash"
-  push_to_hub: true
+  push_to_hub: false
   
   wandb_project: "SWE-Gym-SFT"
   output_model_name: "ASSERT-KTH/${run.name}"

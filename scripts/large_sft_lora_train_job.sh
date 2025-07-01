@@ -6,10 +6,17 @@
 #SBATCH --time=72:00:00
 #SBATCH -C "fat"
 
-# Large SFT train job, 4 fat GPUs
-CUDA_VISIBLE_DEVICES=0,1,2,3 apptainer exec --nv crrl.sif \
-    accelerate launch \
-    --config_file scripts/deepspeed/zero2.yaml \
-    src/train_sft.py \
-    model=large_qwen \
-    "$@"
+apptainer exec --nv crrl.sif accelerate launch \
+    --config_file scripts/deepspeed/zero3.yaml \
+    --num_processes 4 \
+    --module src.train_sft -- \
+        model=large_qwen \
+        model.lora=true \
+        sft.learning_rate=1e-4 \
+        sft.max_length=12288 \
+        sft.per_device_train_batch_size=1 \
+        sft.gradient_accumulation_steps=8 \
+        sft.packing=false \
+        sft.ddp_bucket_cap_mb=16 \
+        sft.ddp_find_unused_parameters=false \
+        "$@"

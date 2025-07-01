@@ -5,14 +5,16 @@ from dataclasses import dataclass, field
 
 import hydra
 import torch
+import torch.nn.functional as F
 from omegaconf import OmegaConf
 from hydra.core.config_store import ConfigStore
 from transformers import AutoModelForCausalLM, AutoTokenizer
-from trl import SFTTrainer, SFTConfig as HFSFTConfig
+from trl import SFTTrainer as HFSFTTrainer, SFTConfig as HFSFTConfig
 from peft import LoraConfig as PEFTLoraConfig, PeftModel
 from huggingface_hub import whoami
 
 from src.train_grpo import ModelConfig
+from src.trainers.kl_sft import KLSFTConfig, KLSFTTrainer
 from src.data.swe_gym import get_swe_gym_formatted_sft_dataset
 
 logging.basicConfig(level=logging.INFO)
@@ -25,17 +27,17 @@ for noisy in ("httpx", "LiteLLM", "transformers.tokenization_utils_base"):
 
 @dataclass
 class RunConfig:
+    name: str = ""
     wandb_project: str = "SWE-Gym-SFT"
     dataset_name: str = "bjarni/swe-gym-lite-sft"
     reward_min: float = 0.2
-    output_model_name: str = "bjarni/qwen3-8b-swe-gym-sft"
-    push_to_hub: bool = True
     commit_hash: str = ""  # added at runtime
-
+    push_to_hub: bool = True
 
 @dataclass 
 class SFTConfig:
     output_dir: str = "outputs/sft_model"
+    output_model_name: str = "ASSERT-KTH/qwen3-8b-swe-gym-sft"
 
     num_train_epochs: int = 3
     per_device_train_batch_size: int = 4
@@ -49,7 +51,12 @@ class SFTConfig:
 
     bf16: bool = True
     fp16: bool = False
+    
     gradient_checkpointing: bool = True
+    gradient_checkpointing_kwargs: dict = field(default_factory=lambda: {"use_reentrant": True})
+
+    ddp_find_unused_parameters: bool = False  # Safe when working on dense LLMs, MoE would be problematic
+    ddp_bucket_cap_mb: int = 16
 
     logging_steps: int = 10
     save_steps: int = 500
@@ -61,6 +68,8 @@ class SFTConfig:
     packing: Optional[bool] = False
 
     assistant_only_loss: bool = True
+
+    kl_lambda: float = 0.05  # used in compute_loss_func, popped to match SFTConfig
 
 
 @dataclass
@@ -106,7 +115,6 @@ def main(cfg: Config) -> None:
         trust_remote_code=True
     )
     
-
     tokenizer = AutoTokenizer.from_pretrained(cfg.model.model_name, trust_remote_code=True)
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"  # For SFT, we typically pad on the right
@@ -133,25 +141,28 @@ def main(cfg: Config) -> None:
     if len(train_dataset) == 0:
         raise ValueError("No training examples after preprocessing!")
     
-    # Convert SFT config to dict for SFTConfig creation
-    sft_params = OmegaConf.to_container(cfg.sft, resolve=True)
+    params = OmegaConf.to_container(cfg.sft, resolve=True)
     
-    # Add hub model ID if pushing to hub
-    if cfg.run.push_to_hub:
-        sft_params["hub_model_id"] = cfg.run.output_model_name
-        sft_params["push_to_hub"] = True
+    if cfg.sft.kl_lambda == 0.0:
+        params.pop("kl_lambda")
+        training_args = HFSFTConfig(**params)
+        trainer = HFSFTTrainer(
+            model=model,
+            args=training_args,
+            train_dataset=train_dataset,
+            processing_class=tokenizer,
+            peft_config=peft_config,
+        )
+    else:
+        training_args = KLSFTConfig(**params)
+        trainer = KLSFTTrainer(
+            model=model,
+            args=training_args,
+            train_dataset=train_dataset,
+            processing_class=tokenizer,
+            peft_config=peft_config,
+        )
     
-    # Create SFTConfig instance
-    training_args = HFSFTConfig(**sft_params)
-    
-    # Initialize trainer
-    trainer = SFTTrainer(
-        model=model,
-        args=training_args,
-        train_dataset=train_dataset,
-        processing_class=tokenizer,
-        peft_config=peft_config,
-    )
     
     # Train the model
     logger.info("Starting SFT training...")
