@@ -36,7 +36,7 @@ class RunConfig:
 
 @dataclass 
 class SFTConfig:
-    output_dir: str = "outputs/sft_model"
+    output_dir: str = ""  # automatically set at runtime
     output_model_name: str = "ASSERT-KTH/qwen3-8b-swe-gym-sft"
 
     num_train_epochs: int = 3
@@ -178,9 +178,8 @@ def main(cfg: Config) -> None:
         merged_model_dir = f"{training_args.output_dir}_merged"
         logger.info(f"Merging LoRA adapters and saving merged model to {merged_model_dir}")
         
-        # Load the trained LoRA model
-        peft_model = PeftModel.from_pretrained(model, training_args.output_dir)
-        # Merge and unload the adapters to get a standard model
+        # Get the wrapped trainer model and merge adapters
+        peft_model = trainer.model
         merged_model = peft_model.merge_and_unload()
         
         # Save the merged model
@@ -192,7 +191,7 @@ def main(cfg: Config) -> None:
     if cfg.run.push_to_hub:
         if cfg.model.lora:
             logger.info(f"Pushing merged model to HuggingFace Hub: {cfg.run.output_model_name}")
-            merged_model.push_to_hub(cfg.run.output_model_name, tokenizer=tokenizer, commit_message="SFT training completed")
+            merged_model.push_to_hub(cfg.sft.output_model_name, tokenizer=tokenizer, commit_message="SFT training completed")
             logger.info("Successfully pushed merged model to HuggingFace Hub")
         else:
             logger.info(f"Pushing model to HuggingFace Hub: {cfg.run.output_model_name}")

@@ -10,6 +10,8 @@ lora: true
 r: 8
 lora_alpha: 16  # lora paper describes 2x the r
 target_modules:
+  - "q_proj"
+  - "k_proj"
   - "v_proj"
   - "o_proj"
   - "gate_proj"

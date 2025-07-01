@@ -67,6 +67,9 @@ class ModelConfig:
     r: int = 32
     lora_alpha: int = 64
     target_modules: tuple[str] = ("q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj")
+    layers_pattern: str = "blocks.{}"
+    layers_to_transform: tuple[int] = (22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32)
+    
 
 @dataclass
 class GRPOConfig:
@@ -118,12 +121,11 @@ class GRPOConfig:
     save_steps: int = 250
     save_total_limit: int = 5
     max_grad_norm: float = 0.1
-    output_dir: str = "outputs/${run.name}"
 
     # Logging settings
     run_name: str = ""  # automatically set at runtime
     report_to: str = "wandb"
-    output_dir: str = "outputs"
+    output_dir: str = ""  # automatically set at runtime
     log_completions: bool = True
 
     # silence peft warnings
@@ -257,11 +259,10 @@ def main(cfg: Config) -> None:
         merged_model_dir = f"{model_save_path}_merged"
         logger.info(f"Merging LoRA adapters and saving merged model to {merged_model_dir}")
         
-        # Load the trained LoRA model
-        peft_model = PeftModel.from_pretrained(model, model_save_path)
-        # Merge and unload the adapters to get a standard model
+        # Get the wrapped trainer model and merge adapters
+        peft_model = trainer.model
         merged_model = peft_model.merge_and_unload()
-        
+
         # Save the merged model
         merged_model.save_pretrained(merged_model_dir)
         tokenizer.save_pretrained(merged_model_dir)

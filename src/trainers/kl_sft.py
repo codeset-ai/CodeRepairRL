@@ -53,17 +53,11 @@ class KLSFTTrainer(SFTTrainer):
         shift_ref = ref_logits[..., :-1, :].contiguous()
         shift_labels = inputs["labels"][..., 1:].contiguous()
 
-        ignore_index = self.label_smoother.ignore_index or -100
-
-        mask = (shift_labels != ignore_index).float()  # (B, T-1)
-        if mask.sum() == 0:
-            print(inputs)
-            raise ValueError("No valid tokens to compute KL divergence")
-
         log_p = F.log_softmax(shift_logits, dim=-1)
-        p_ref = F.softmax(shift_ref, dim=-1)
+        log_ref = F.log_softmax(shift_ref, dim=-1)
+        kl_per_token = F.kl_div(log_p, log_ref.exp(), reduction="none").sum(-1)  # (B, T-1)
 
-        kl_per_token = (p_ref * (p_ref.log() - log_p)).sum(-1)  # (B, T-1)
+        mask = (shift_labels != -100).float()  # (B, T-1)
         kl = (kl_per_token * mask).sum() / mask.sum()  # mean over valid tokens
 
         self._metrics[mode]["kl"].append(kl.item())

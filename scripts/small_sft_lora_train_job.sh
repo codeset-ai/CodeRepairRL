@@ -17,8 +17,9 @@ apptainer exec --nv crrl.sif accelerate launch \
         model.lora=true \
         model.r=8 \
         model.lora_alpha=16 \
+        sft.kl_lambda=0.05 \
         sft.max_length=8192 \
         sft.packing=false \
-        sft.per_device_train_batch_size=4 \
+        sft.per_device_train_batch_size=2 \
         sft.gradient_accumulation_steps=8 \
         "$@"
