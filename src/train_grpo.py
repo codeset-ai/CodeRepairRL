@@ -102,6 +102,9 @@ class GRPOConfig:
     max_prompt_length: int = 256
     max_completion_length: int = 256
 
+    # GRPO settings
+    beta: float = 0.0  # i.e. no reference_model
+
     # Reward settings
     scale_rewards: bool = False  # from Dr. GRPO, reward scaling introduces question-level difficulty bias
     
@@ -130,6 +133,9 @@ class GRPOConfig:
 
     # silence peft warnings
     label_names: list[str] = field(default_factory=lambda: ["labels"])
+
+    ddp_find_unused_parameters: bool = False  # Safe when working on dense LLMs, MoE would be problematic
+    ddp_bucket_cap_mb: int = 16
 
 @dataclass
 class Config:

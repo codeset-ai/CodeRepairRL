@@ -6,18 +6,17 @@
 #SBATCH --time=24:00:00
 #SBATCH -C "fat"
 
-export VLLM_ALLOW_INSECURE_SERIALIZATION=1
 
 # Small GRPO train job, 2 fat GPUs, 1 running vLLM, 1 training
 
 # Model configuration - use merged SFT model for simplified VLLM pipeline
 MODEL_CONFIG="small_qwen"
-# MODEL_NAME=$(grep -Po 'model_name: "\K[^"]*' src/conf/model/${MODEL_CONFIG}.yaml)
-MODEL_NAME="ASSERT-KTH/Qwen3-8B-Nano-SWE-Gym-SFT"
+MODEL_NAME=$(grep -Po '^model_name: "\K[^"]*' src/conf/model/${MODEL_CONFIG}.yaml)
+# MODEL_NAME="ASSERT-KTH/Qwen3-8B-Nano-SWE-Gym-SFT"
 
 # Context window configuration
 MAX_PROMPT_LENGTH=1024
-MAX_COMPLETION_LENGTH=7168
+MAX_COMPLETION_LENGTH=12288
 MAX_CONTEXT_LENGTH=$((MAX_PROMPT_LENGTH + MAX_COMPLETION_LENGTH))
 VLLM_CONTEXT_LENGTH=$((MAX_CONTEXT_LENGTH + 1024))  # not strictly needed, but so we don't get context window errors
 
@@ -45,4 +44,9 @@ CUDA_VISIBLE_DEVICES=0 apptainer exec --nv crrl.sif \
     grpo=multi_turn \
     grpo.max_prompt_length=$MAX_PROMPT_LENGTH \
     grpo.max_completion_length=$MAX_COMPLETION_LENGTH \
+    grpo.num_generations=4 \
+    grpo.generation_batch_size=4\
+    grpo.per_device_train_batch_size=4 \
+    grpo.gradient_accumulation_steps=8 \
+    grpo.beta=0.01 \
     "$@"  # pass any additional arguments

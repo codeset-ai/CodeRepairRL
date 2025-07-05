@@ -9,17 +9,24 @@ From: vllm/vllm-openai:v0.9.1
     export TRANSFORMERS_CACHE=$PROJECT_DIR/.cache/huggingface/transformers
     export HF_DATASETS_CACHE=$PROJECT_DIR/.cache/huggingface/datasets
 
+    export PYTHONNOUSERSITE=1
+    export VLLM_ALLOW_INSECURE_SERIALIZATION=1
+
+
 %files
-    pyproject.toml
     src/
+    pyproject.toml
 
 %post
     apt-get update && \
     apt-get install -y --no-install-recommends git curl ca-certificates ripgrep
     
     pip install --upgrade pip
-    pip install .
+    pip install -e .
+
+    pip install torch==2.7.1+cu128 --index-url https://download.pytorch.org/whl/cu128
     
     # we pin the version since we need prebuilt binaries to be able to install
     pip install --no-build-isolation --prefer-binary flash-attn==2.8.0.post2
     pip install --no-build-isolation flashinfer-python
+    

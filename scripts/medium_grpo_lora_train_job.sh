@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --job-name=crrl-large-grpo
-#SBATCH --output=logs/large_grpo_%j.out
-#SBATCH --error=logs/large_grpo_%j.err
+#SBATCH --job-name=crrl-medium-grpo
+#SBATCH --output=logs/medium_grpo_%j.out
+#SBATCH --error=logs/medium_grpo_%j.err
 #SBATCH --gpus 6
 #SBATCH --time=48:00:00
 #SBATCH -C "fat"
@@ -9,7 +9,7 @@
 # Large GRPO training job, 4 GPUs, 2 running vLLM, 2 training
 
 # Model configuration - use merged SFT model for simplified VLLM pipeline
-MODEL_CONFIG="large_qwen"
+MODEL_CONFIG="medium_qwen"
 MODEL_NAME=$(grep -Po '^model_name: "\K[^"]*' src/conf/model/${MODEL_CONFIG}.yaml)
 
 # Context window configuration, this defines our compute requirements more than anything else
