@@ -3,6 +3,3 @@ defaults:
 
 task_type: "detection"
 dataset_type: "primevul"
-
-# HuggingFace Hub settings (override repair config)
-output_model_name: "ASSERT-KTH/qwen3-8b-swe-gym-grpo-detection"

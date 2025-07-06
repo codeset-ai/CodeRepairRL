@@ -16,7 +16,7 @@ MODEL_NAME=$(grep -Po '^model_name: "\K[^"]*' src/conf/model/${MODEL_CONFIG}.yam
 
 # Context window configuration
 MAX_PROMPT_LENGTH=1024
-MAX_COMPLETION_LENGTH=12288
+MAX_COMPLETION_LENGTH=7168
 MAX_CONTEXT_LENGTH=$((MAX_PROMPT_LENGTH + MAX_COMPLETION_LENGTH))
 VLLM_CONTEXT_LENGTH=$((MAX_CONTEXT_LENGTH + 1024))  # not strictly needed, but so we don't get context window errors
 
@@ -44,9 +44,12 @@ CUDA_VISIBLE_DEVICES=0 apptainer exec --nv crrl.sif \
     grpo=multi_turn \
     grpo.max_prompt_length=$MAX_PROMPT_LENGTH \
     grpo.max_completion_length=$MAX_COMPLETION_LENGTH \
-    grpo.num_generations=4 \
-    grpo.generation_batch_size=4\
-    grpo.per_device_train_batch_size=4 \
+    grpo.num_train_epochs=10 \
+    grpo.num_generations=8 \
+    grpo.generation_batch_size=8 \
+    grpo.per_device_train_batch_size=8 \
     grpo.gradient_accumulation_steps=8 \
-    grpo.beta=0.01 \
+    grpo.beta=0.04 \
+    grpo.scale_rewards=true \
+    grpo.loss_type=grpo \
     "$@"  # pass any additional arguments

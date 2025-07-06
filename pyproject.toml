@@ -10,6 +10,7 @@ dependencies = [
     # The agent we use for rollout generation,
     "nano-agent @ git+https://github.com/ASSERT-KTH/nano-agent.git",
     # Other HF stuff
+    "accelerate>=1.8.0",
     "transformers",
     "huggingface-hub",
     "datasets>=3.3.0",

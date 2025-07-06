@@ -8,7 +8,7 @@ import hydra
 import torch
 from omegaconf import OmegaConf
 from hydra.core.config_store import ConfigStore
-from peft import LoraConfig as PEFTLoraConfig, PeftModel
+from peft import LoraConfig as PEFTLoraConfig
 from trl import GRPOConfig as HFGRPOConfig, GRPOTrainer as HFGRPOTrainer
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from huggingface_hub import whoami
@@ -31,7 +31,7 @@ from src.rewards import (
 from src.data import get_stack_repair_dataset, get_primevul_repair_dataset, get_primevul_detection_dataset, get_swe_gym_repo_repair_dataset
 from src.utils.git import resolve_git_commit_hash
 
-logging.basicConfig(level=logging.CRITICAL)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 logger.propagate = False
@@ -41,14 +41,12 @@ for noisy in ("httpx", "LiteLLM"):
 
 @dataclass
 class RunConfig:
-    name: str = ""
     wandb_project: str = "TTC"
     task_type: str = "repo_repair"
     dataset_type: str = "stack"
     dataset_name: Optional[str] = None
     context_lines: int = 0  # number of context lines to include in diffs
     commit_hash: str = ""  # added at runtime
-    resume_training: bool = False
     push_to_hub: bool = True
 
     def __post_init__(self):
@@ -99,6 +97,7 @@ class GRPOConfig:
     per_device_train_batch_size: int = 4
     gradient_accumulation_steps: int = 1
     num_generations: int = 4
+    generation_batch_size: int = 4
     max_prompt_length: int = 256
     max_completion_length: int = 256
 
@@ -119,16 +118,18 @@ class GRPOConfig:
     gradient_checkpointing_kwargs: dict = field(default_factory=lambda: {"use_reentrant": True})
 
     # Training loop settings
+    num_train_epochs: int = 3
+    max_steps: int = -1
+    save_steps: int = 50
     logging_steps: int = 1
-    max_steps: int = 250
-    save_steps: int = 250
     save_total_limit: int = 5
     max_grad_norm: float = 0.1
+    resume_from_checkpoint: Optional[str] = None
 
     # Logging settings
-    run_name: str = ""  # automatically set at runtime
     report_to: str = "wandb"
-    output_dir: str = ""  # automatically set at runtime
+    run_name: str = ""  # required at runtime
+    output_dir: Optional[str] = None  # automatically set at runtime if missing
     log_completions: bool = True
 
     # silence peft warnings
@@ -151,7 +152,7 @@ OmegaConf.register_new_resolver("resolve_git_commit_hash", resolve_git_commit_ha
 
 
 @hydra.main(version_base="1.1", config_path="conf", config_name="grpo_config")
-def main(cfg: Config) -> None:
+def main(cfg: Config) -> None:    
     # Validate that run_name is provided and not empty
     if not cfg.grpo.run_name or cfg.grpo.run_name.strip() == "":
         raise ValueError(
@@ -226,7 +227,7 @@ def main(cfg: Config) -> None:
         cfg.agent.token_limit = cfg.grpo.max_prompt_length + cfg.grpo.max_completion_length - 512
         # Convert OmegaConf to NanoConfig dataclass
         agent_config = NanoConfig(**OmegaConf.to_container(cfg.agent, resolve=True))
-        rollout_func = partial(nano_rollout_func, config=agent_config)
+        rollout_func = partial(nano_rollout_func, config=agent_config, timeout=80)
         reward_functions = [
             unified_diff_file_match_reward_func,
             unified_diff_similarity_reward_func,
@@ -239,7 +240,10 @@ def main(cfg: Config) -> None:
     # Convert grpo config from OmegaConf to regular Python dict to ensure JSON serialization works
     grpo_params = OmegaConf.to_container(cfg.grpo, resolve=True)
     grpo_params["reward_weights"] = reward_weights
+    grpo_params["output_dir"] = cfg.grpo.output_dir or f"outputs/{cfg.grpo.run_name}"
     training_args = HFGRPOConfig(**grpo_params)
+
+    logger.info(f"Resuming from checkpoint: {cfg.grpo.resume_from_checkpoint}")
 
     # Initialize trainer with task-specific reward functions
     trainer = HFGRPOTrainer(
@@ -252,7 +256,7 @@ def main(cfg: Config) -> None:
         peft_config=lora_config
     )
 
-    trainer.train(resume_from_checkpoint=cfg.run.resume_training)
+    trainer.train(resume_from_checkpoint=cfg.grpo.resume_from_checkpoint is not None)
 
     # Save with task-specific name
     model_save_path = f"grpo_{cfg.run.task_type}_model"
@@ -276,12 +280,13 @@ def main(cfg: Config) -> None:
     
     # Push to hub if requested
     if cfg.run.push_to_hub:
+        model_name = f"ASSERT-KTH/{cfg.grpo.run_name}"
         if cfg.model.lora:
-            logger.info(f"Pushing merged model to HuggingFace Hub: {cfg.run.output_model_name}")
-            merged_model.push_to_hub(cfg.run.output_model_name, tokenizer=tokenizer, commit_message="GRPO training completed")
+            logger.info(f"Pushing merged model to HuggingFace Hub: {model_name}")
+            merged_model.push_to_hub(model_name, tokenizer=tokenizer, commit_message="GRPO training completed")
             logger.info("Successfully pushed merged model to HuggingFace Hub")
         else:
-            logger.info(f"Pushing model to HuggingFace Hub: {cfg.run.output_model_name}")
+            logger.info(f"Pushing model to HuggingFace Hub: {model_name}")
             trainer.push_to_hub(commit_message="GRPO training completed")
             logger.info("Successfully pushed model to HuggingFace Hub")
 

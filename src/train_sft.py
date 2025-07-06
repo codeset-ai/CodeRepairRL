@@ -27,7 +27,6 @@ for noisy in ("httpx", "LiteLLM", "transformers.tokenization_utils_base"):
 
 @dataclass
 class RunConfig:
-    name: str = ""
     wandb_project: str = "SWE-Gym-SFT"
     dataset_name: str = "bjarni/swe-gym-lite-sft"
     reward_min: float = 0.2
@@ -36,9 +35,6 @@ class RunConfig:
 
 @dataclass 
 class SFTConfig:
-    output_dir: str = ""  # automatically set at runtime
-    output_model_name: str = "ASSERT-KTH/qwen3-8b-swe-gym-sft"
-
     num_train_epochs: int = 3
     per_device_train_batch_size: int = 4
     gradient_accumulation_steps: int = 4
@@ -61,8 +57,11 @@ class SFTConfig:
     logging_steps: int = 10
     save_steps: int = 500
     eval_steps: int = 500
+
     report_to: str = "wandb"
-    run_name: str = ""  # automatically set at runtime
+    run_name: str = ""  # required at runtime
+    output_dir: Optional[str] = None  # automatically set at runtime if missing
+
     
     max_length: int = 8192
     packing: Optional[bool] = False
@@ -142,7 +141,8 @@ def main(cfg: Config) -> None:
         raise ValueError("No training examples after preprocessing!")
     
     params = OmegaConf.to_container(cfg.sft, resolve=True)
-    
+    params["output_dir"] = cfg.sft.output_dir or f"outputs/{cfg.sft.run_name}"
+
     if cfg.sft.kl_lambda == 0.0:
         params.pop("kl_lambda")
         training_args = HFSFTConfig(**params)
@@ -168,11 +168,6 @@ def main(cfg: Config) -> None:
     logger.info("Starting SFT training...")
     trainer.train()
     
-    # Save the final model (LoRA adapters)
-    logger.info(f"Saving LoRA adapters to {training_args.output_dir}")
-    trainer.save_model()
-    tokenizer.save_pretrained(training_args.output_dir)
-    
     # If using LoRA, also save the merged model for simplified VLLM deployment
     if cfg.model.lora:
         merged_model_dir = f"{training_args.output_dir}_merged"
@@ -189,12 +184,13 @@ def main(cfg: Config) -> None:
     
     # Push to hub if requested
     if cfg.run.push_to_hub:
+        model_name = f"ASSERT-KTH/{cfg.sft.run_name}"
         if cfg.model.lora:
-            logger.info(f"Pushing merged model to HuggingFace Hub: {cfg.run.output_model_name}")
-            merged_model.push_to_hub(cfg.sft.output_model_name, tokenizer=tokenizer, commit_message="SFT training completed")
+            logger.info(f"Pushing merged model to HuggingFace Hub: {model_name}")
+            merged_model.push_to_hub(model_name, tokenizer=tokenizer, commit_message="SFT training completed")
             logger.info("Successfully pushed merged model to HuggingFace Hub")
         else:
-            logger.info(f"Pushing model to HuggingFace Hub: {cfg.run.output_model_name}")
+            logger.info(f"Pushing model to HuggingFace Hub: {model_name}")
             trainer.push_to_hub(commit_message="SFT training completed")
             logger.info("Successfully pushed model to HuggingFace Hub")
     

@@ -20,14 +20,16 @@ gradient_checkpointing_kwargs:
 ddp_find_unused_parameters: false  # Safe when working on dense LLMs, MoE would be problematic
 ddp_bucket_cap_mb: 16
 
-# Logging
+# Training loop settings
 logging_steps: 1
 save_steps: 100
 save_total_limit: 5
 eval_steps: 100000000
+
+# Logging
 report_to: "wandb"
-run_name: "${run.name}"
-output_dir: "outputs/${run.name}"
+run_name: ???
+output_dir: ???
 
 max_length: 16384
 packing: false  # pack two shorter rollouts into one to match a longer, max_length rollout
