@@ -29,7 +29,6 @@ eval_steps: 100000000
 # Logging
 report_to: "wandb"
 run_name: ???
-output_dir: ???
 
 max_length: 16384
 packing: false  # pack two shorter rollouts into one to match a longer, max_length rollout

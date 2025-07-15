@@ -53,7 +53,6 @@ resume_from_checkpoint: null
 # Logging settings
 report_to: "wandb"
 run_name: ???  # required at runtime
-output_dir: ???  # automatically set at runtime if missing
 log_completions: true
 
 # silence peft warnings

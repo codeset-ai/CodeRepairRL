@@ -60,8 +60,6 @@ class SFTConfig:
 
     report_to: str = "wandb"
     run_name: str = ""  # required at runtime
-    output_dir: Optional[str] = None  # automatically set at runtime if missing
-
     
     max_length: int = 8192
     packing: Optional[bool] = False
@@ -141,7 +139,7 @@ def main(cfg: Config) -> None:
         raise ValueError("No training examples after preprocessing!")
     
     params = OmegaConf.to_container(cfg.sft, resolve=True)
-    params["output_dir"] = cfg.sft.output_dir or f"outputs/{cfg.sft.run_name}"
+    params["output_dir"] = f"outputs/{cfg.sft.run_name}"
 
     if cfg.sft.kl_lambda == 0.0:
         params.pop("kl_lambda")

@@ -1,12 +1,18 @@
 #!/bin/bash
-#SBATCH --job-name=crrl-large-grpo
-#SBATCH --output=logs/large_grpo_%j.out
-#SBATCH --error=logs/large_grpo_%j.err
+#SBATCH --job-name=crrl-large-grpo-lora
+#SBATCH --output=logs/large_grpo_lora_%j.out
+#SBATCH --error=logs/large_grpo_lora_%j.err
+#SBATCH --nodes=1
 #SBATCH --gpus 6
 #SBATCH --time=48:00:00
 #SBATCH -C "fat"
 
 # Large GRPO training job, 4 GPUs, 2 running vLLM, 2 training
+
+# This was crucial to find errors when running distributed training
+export NCCL_ASYNC_ERROR_HANDLING=1
+MASTER_ADDR=$(hostname -s)
+MASTER_PORT=43001
 
 # Model configuration - use merged SFT model for simplified VLLM pipeline
 MODEL_CONFIG="large_qwen"
@@ -24,10 +30,11 @@ CUDA_VISIBLE_DEVICES=4,5 apptainer exec --nv crrl.sif \
     trl vllm-serve-async \
     --model "$MODEL_NAME" \
     --max_model_len $VLLM_CONTEXT_LENGTH \
-    --disable-log-stats \
-    --enable-auto-tool-choice \
+    --disable_log_stats \
+    --gpu_memory_utilization 0.94 \
+    --enable_auto_tool_choice \
     --reasoning_parser qwen3 \
-    --tool-call-parser hermes \
+    --tool_call_parser hermes \
     --tensor_parallel_size 2 \
     &  # & makes it run in the background
 
@@ -39,17 +46,20 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 apptainer exec --nv crrl.sif accelerate launch \
     --num_processes 4 \
     --module src.train_grpo -- \
         run=repo_repair \
-        model=$MODEL_CONFIG \
         run.dataset_name="SWE-Gym/SWE-Gym" \
+        model=$MODEL_CONFIG \
+        model.model_name=$MODEL_NAME \
         grpo=multi_turn \
-        grpo.gradient_accumulation_steps=8 \
-        grpo.per_device_train_batch_size=1 \
-        grpo.num_generations=4 \
-        grpo.generation_batch_size=8 \
         grpo.max_prompt_length=$MAX_PROMPT_LENGTH \
         grpo.max_completion_length=$MAX_COMPLETION_LENGTH \
+        grpo.num_train_epochs=2 \
+        grpo.num_generations=8 \
+        grpo.generation_batch_size=8 \
+        grpo.per_device_train_batch_size=2 \
+        grpo.gradient_accumulation_steps=8 \
+        grpo.beta=0.04 \
+        grpo.scale_rewards=true \
+        grpo.loss_type=grpo \
         grpo.optim="adamw_torch" \
-        grpo.ddp_bucket_cap_mb=16 \
-        grpo.ddp_find_unused_parameters=false \
         "$@"  # pass any additional arguments
     

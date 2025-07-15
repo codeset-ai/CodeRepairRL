@@ -1,5 +1,4 @@
 compute_environment: LOCAL_MACHINE
-main_process_port: 0  # automatically use the next open port (on a single node)
 debug: false
 deepspeed_config:
   deepspeed_multinode_launcher: standard

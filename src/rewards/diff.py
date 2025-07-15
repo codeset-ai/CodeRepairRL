@@ -65,7 +65,8 @@ def unified_diff_similarity_reward_func(patch, generated_diff, **kwargs) -> list
                 file_scores.append(0.0)
         
         # Normalize by number of oracle files to prevent reward hacking
-        scores.append(sum(file_scores) / len(oracle_files))
+        denom = max(len(oracle_files), len(gen_files)) or 1  # so the agent cannot touch many files to get rewards / if it touches few but should touch many it should also get lower rewards
+        scores.append(sum(file_scores) / denom)
     
     return scores
 
@@ -88,6 +89,7 @@ def unified_diff_file_match_reward_func(patch, generated_diff, **kwargs) -> list
         if not oracle_filenames:
             scores.append(1.0 if not gen_filenames else 0.0)
         else:
-            scores.append(len(oracle_filenames & gen_filenames) / len(oracle_filenames))
+            denom = max(len(oracle_filenames), len(gen_filenames)) or 1  # so the agent cannot touch many files to get rewards / if it touches few but should touch many it should also get lower rewards
+            scores.append(len(oracle_filenames & gen_filenames) / denom)
     
     return scores

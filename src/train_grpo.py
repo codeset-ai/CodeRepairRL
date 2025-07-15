@@ -129,7 +129,6 @@ class GRPOConfig:
     # Logging settings
     report_to: str = "wandb"
     run_name: str = ""  # required at runtime
-    output_dir: Optional[str] = None  # automatically set at runtime if missing
     log_completions: bool = True
 
     # silence peft warnings
@@ -240,7 +239,7 @@ def main(cfg: Config) -> None:
     # Convert grpo config from OmegaConf to regular Python dict to ensure JSON serialization works
     grpo_params = OmegaConf.to_container(cfg.grpo, resolve=True)
     grpo_params["reward_weights"] = reward_weights
-    grpo_params["output_dir"] = cfg.grpo.output_dir or f"outputs/{cfg.grpo.run_name}"
+    grpo_params["output_dir"] = f"outputs/{cfg.grpo.run_name}"
     training_args = HFGRPOConfig(**grpo_params)
 
     logger.info(f"Resuming from checkpoint: {cfg.grpo.resume_from_checkpoint}")
