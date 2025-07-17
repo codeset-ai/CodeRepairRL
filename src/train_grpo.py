@@ -228,11 +228,11 @@ def main(cfg: Config) -> None:
         agent_config = NanoConfig(**OmegaConf.to_container(cfg.agent, resolve=True))
         rollout_func = partial(nano_rollout_func, config=agent_config, timeout=80)
         reward_functions = [
-            unified_diff_file_match_reward_func,
-            unified_diff_similarity_reward_func,
-            unified_diff_similarity_reward_func_test,
+            unified_diff_file_match_reward_func,  # 0 or 1 most of the time
+            unified_diff_similarity_reward_func,  # 0-1, on average around ~0.2 for Qwen3-8B, 1 is hardly attainable
+            unified_diff_similarity_reward_func_test,  # 0-1, almost always 0, 1 is basically impossible
         ]
-        reward_weights = [0.2, 0.4, 0.4]
+        reward_weights = [1 * 0.1, 5 * 0.6, 5 * 0.3]  # roughly scaling to one * importance
     else:
         raise ValueError(f"Unknown task: {cfg.run.task_type}")  # can't happen but looks nice
 
