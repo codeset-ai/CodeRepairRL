@@ -10,9 +10,8 @@
 
 # Small GRPO train job, 3 fat GPUs, 1 running vLLM, 2 training
 
-# This was crucial to find errors when running distributed training
+# This was crucial to find errors when running distributed training, i.e. quit on deadlock instead of hanging
 export NCCL_ASYNC_ERROR_HANDLING=1
-
 MASTER_ADDR=$(hostname -s)
 MASTER_PORT=43001
 
@@ -60,7 +59,7 @@ CUDA_VISIBLE_DEVICES=1,2 apptainer exec --nv crrl.sif accelerate launch \
         grpo.per_device_train_batch_size=4 \
         grpo.gradient_accumulation_steps=8 \
         grpo.beta=0.04 \
-        grpo.scale_rewards=true \
+        grpo.scale_rewards=false \
         grpo.loss_type=grpo \
         grpo.optim="adamw_torch" \
         "$@"  # pass any additional arguments
