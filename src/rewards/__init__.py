@@ -12,5 +12,5 @@ from .reasoning import (
     strict_reasoning_format_reward_func,
 )
 from .codeset import (
-    codeset_correctness_reward_func,
+    codeset_reward_func,
 )

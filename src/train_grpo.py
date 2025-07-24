@@ -24,7 +24,7 @@ from src.rewards import (
     sr_diff_format_reward_func,
     sr_diff_similarity_reward_func,
     # repo repair rewards
-    codeset_correctness_reward_func,
+    codeset_reward_func,
 )
 from src.data import get_stack_repair_dataset, get_primevul_repair_dataset, get_primevul_detection_dataset, get_codeset_dataset
 from src.utils.git import resolve_git_commit_hash
@@ -226,7 +226,7 @@ def main(cfg: Config) -> None:
         # Convert OmegaConf to NanoConfig dataclass
         agent_config = NanoConfig(**OmegaConf.to_container(cfg.agent, resolve=True))
         rollout_func = partial(nano_rollout_func, config=agent_config, timeout=80)
-        reward_functions = [codeset_correctness_reward_func]
+        reward_functions = [codeset_reward_func]
         reward_weights = [1]
     else:
         raise ValueError(f"Unknown task: {cfg.run.task_type}")  # can't happen but looks nice
