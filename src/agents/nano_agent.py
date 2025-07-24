@@ -5,7 +5,7 @@ from typing import Any, Optional
 from dataclasses import dataclass, asdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from nano import Agent
+from nano.agent import Agent
 
 from src.utils.git import handle_to_url, clone_repo_at_commit, clean_repo_dir
 
@@ -24,40 +24,33 @@ class NanoConfig:
     min_p: float = 0.05
     top_k: int = 20
     verbose: bool = False
+    remote: bool = True
 
 
 def _process_one(data: dict[str, Any], config: NanoConfig) -> dict[str, Any]:
-    assert "repo" in data and "base_commit" in data and "problem_statement" in data
+    assert "dataset" in data and "sample-id" in data and "task" in data
 
-    logger.info(f"[START] {data['repo']} @ {data['base_commit'][:7]}")
+    logger.info(f"[START] {data['dataset']} @ {data['sample-id']}")
 
     agent = Agent(**asdict(config))
 
-    diff = ""
-    temp_folder = None
     try:
-        repo_url = handle_to_url(data["repo"])
-        temp_folder = clone_repo_at_commit(repo_url, data["base_commit"])
-        
-        diff = agent.run(task=data["problem_statement"], repo_root=temp_folder)
+       agent.run(task=data["task"], sample_id=data["sample-id"])
     except Exception as e:
         logger.error(f"Error in _process_one: {type(e).__name__}: {e}")
-        diff = ""
     finally:
-        if temp_folder: clean_repo_dir(temp_folder)
-
         token_usage = agent.token_usage
         tool_usage = agent.tool_usage
-        diff_success = diff != ""
-        logger.info(f"[FINISH] {data['repo']} @ {data['base_commit'][:7]} - Tokens: {token_usage}, Tools: {tool_usage}, Diff Success: {diff_success}")
+        logger.info(f"[FINISH] {data['dataset']} @ {data['sample-id']} - Tokens: {token_usage}, Tools: {tool_usage}")
 
     result = dict(
         prompt=agent.messages[:2],
         completion=agent.messages[2:],
         tools=agent.tools,
-        generated_diff=diff,
         **agent.tool_stats
     )
+    if agent.remote:
+        result["success"] = agent.is_successful()
     return result
 
 

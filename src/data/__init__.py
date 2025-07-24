@@ -5,3 +5,4 @@ from .swe_gym import get_swe_gym_repo_repair_dataset, get_swe_gym_curation_datas
 # File level datasets
 from .stack import get_stack_repair_dataset
 from .primevul import get_primevul_repair_dataset, get_primevul_detection_dataset
+from .codeset import get_codeset_dataset

@@ -4,7 +4,7 @@ From: vllm/vllm-openai:v0.9.2
 %environment
     export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 
-    export PROJECT_DIR=/proj/berzelius-2024-336/users/x_bjabj/
+    export PROJECT_DIR=/proj/berzelius-2024-336/users/x_andaf/
     export HF_HOME=$PROJECT_DIR/.hf
     export TRANSFORMERS_CACHE=$PROJECT_DIR/.cache/huggingface/transformers
     export HF_DATASETS_CACHE=$PROJECT_DIR/.cache/huggingface/datasets

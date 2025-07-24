@@ -24,11 +24,9 @@ from src.rewards import (
     sr_diff_format_reward_func,
     sr_diff_similarity_reward_func,
     # repo repair rewards
-    unified_diff_file_match_reward_func,
-    unified_diff_similarity_reward_func,
-    unified_diff_similarity_reward_func_test,
+    codeset_correctness_reward_func,
 )
-from src.data import get_stack_repair_dataset, get_primevul_repair_dataset, get_primevul_detection_dataset, get_swe_gym_repo_repair_dataset
+from src.data import get_stack_repair_dataset, get_primevul_repair_dataset, get_primevul_detection_dataset, get_codeset_dataset
 from src.utils.git import resolve_git_commit_hash
 
 logging.basicConfig(level=logging.INFO)
@@ -220,19 +218,16 @@ def main(cfg: Config) -> None:
         ]
         reward_weights = [0.1, 0.2, 0.7]
     elif cfg.run.task_type == "repo_repair":
-        dataset = get_swe_gym_repo_repair_dataset(dataset_name=cfg.run.dataset_name)
+        dataset = get_codeset_dataset()
         # Update agent config with model and token_limit
         cfg.agent.model = f"hosted_vllm/{cfg.model.model_name}"
         cfg.agent.token_limit = cfg.grpo.max_prompt_length + cfg.grpo.max_completion_length - 512
+        cfg.agent.remote = True
         # Convert OmegaConf to NanoConfig dataclass
         agent_config = NanoConfig(**OmegaConf.to_container(cfg.agent, resolve=True))
         rollout_func = partial(nano_rollout_func, config=agent_config, timeout=80)
-        reward_functions = [
-            unified_diff_file_match_reward_func,  # 0 or 1 most of the time
-            unified_diff_similarity_reward_func,  # 0-1, on average around ~0.2 for Qwen3-8B, 1 is hardly attainable
-            unified_diff_similarity_reward_func_test,  # 0-1, almost always 0, 1 is basically impossible
-        ]
-        reward_weights = [1 * 0.1, 5 * 0.6, 5 * 0.3]  # roughly scaling to one * importance
+        reward_functions = [codeset_correctness_reward_func]
+        reward_weights = [1]
     else:
         raise ValueError(f"Unknown task: {cfg.run.task_type}")  # can't happen but looks nice
 
