@@ -10,7 +10,7 @@ run:
   push_to_hub: false
   commit_hash: ""  # will be set automatically
   
-  wandb_project: "SWE-Gym-SFT"
+  wandb_project: "CodesetModels"
 
 hydra:
   job:

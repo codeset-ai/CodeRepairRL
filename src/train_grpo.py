@@ -39,7 +39,7 @@ for noisy in ("httpx", "LiteLLM"):
 
 @dataclass
 class RunConfig:
-    wandb_project: str = "TTC"
+    wandb_project: str = "CodesetModels"
     task_type: str = "repo_repair"
     dataset_type: str = "stack"
     dataset_name: Optional[str] = None

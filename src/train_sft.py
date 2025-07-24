@@ -27,7 +27,7 @@ for noisy in ("httpx", "LiteLLM", "transformers.tokenization_utils_base"):
 
 @dataclass
 class RunConfig:
-    wandb_project: str = "SWE-Gym-SFT"
+    wandb_project: str = "CodesetModels"
     dataset_name: str = "bjarni/swe-gym-lite-sft"
     reward_min: float = 0.2
     commit_hash: str = ""  # added at runtime
