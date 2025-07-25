@@ -47,6 +47,7 @@ def _process_one(data: dict[str, Any], config: NanoConfig) -> dict[str, Any]:
         prompt=agent.messages[:2],
         completion=agent.messages[2:],
         tools=agent.tools,
+        generated_diff="", # TODO
         **agent.tool_stats
     )
     if agent.remote:
