@@ -8,7 +8,7 @@ dependencies = [
     # Our fork of trl
     "trl @ git+https://github.com/ASSERT-KTH/trl.git@dev",
     # The agent we use for rollout generation,
-    "nano-agent",
+    "nano-agent @ git+https://github.com/codeset-ai/nano-agent.git@1bb4396",
     # Other HF stuff
     "accelerate>=1.8.0",
     "transformers",
